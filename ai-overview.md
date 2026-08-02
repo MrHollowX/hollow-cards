@@ -1,32 +1,57 @@
 ## Project Overview
 
 - **Project Name:** Home Dark Cards
-- **Description:** This repository contains seven standalone JavaScript custom cards for the `home-dark` Home Assistant dashboard. The cards are browser-side Web Components that read Home Assistant entity state, render dark-themed dashboard UI, open Home Assistant more-info dialogs, and call Home Assistant services for supported controls. The repository does not contain a conventional application server, database, frontend build, or generated bundle.
+- **Description:** This repository contains standalone JavaScript custom cards for
+  the Home Assistant `home-dark` Lovelace dashboard. The cards run in the
+  browser, read Home Assistant state from the supplied `hass` object, render
+  dashboard UI, dispatch native more-info events, and call Home Assistant
+  services. The repository is not a standalone web application and contains no
+  server, database, build output, or generated bundle.
 - **Main Features:**
-  - `home-header-card`: Displays the current time, date, weather condition, temperature, humidity, feels-like temperature, and an optional daily forecast.
-  - `home-chip-card`: Displays a compact status chip for a person, lock, light group, or generic entity.
-  - `home-room-tile-card`: Displays a room summary with configured room, climate, light, cover, media, and motion indicators.
-  - `home-row-card`: Provides single-entity controls for lights, covers, climate entities, media players, vacuums, and a Tesla quick-device summary.
-  - `home-person-card`: Displays person presence, avatar, location, optional battery, and optional distance from `zone.home`.
-  - `home-door-security-card`: Displays a doorbell camera preview, door and ring status, silent-mode control, lock control, battery text, and an optional lock confirmation dialog.
-  - `home-status-card`: Displays house-mode selection and PM2.5, PM10, and optional air-quality metrics.
-
-The repository README identifies these files as local card sources rather than generated build output. It documents deployment to `/config/www/home-dark-cards/` and registration as `/local/home-dark-cards/*.js` module resources in Home Assistant.
+  - `home-header-card`: Clock, localized date, current weather, humidity,
+    apparent temperature, and optional cached daily forecast.
+  - `home-status-card`: House-mode selection plus PM2.5, PM10, and optional
+    air-quality metrics.
+  - `home-person-card`: Person presence, avatar, location, optional battery,
+    and optional distance from `zone.home`.
+  - `home-room-tile-card`: Room summary with configured domain icons,
+    climate readings, and popup-hash navigation.
+  - `home-light-card`: Theme-aware light toggle and optional brightness
+    control.
+  - `home-climate-card`: Dynamic climate summary, native mode menus,
+    target-temperature and humidity steppers, configured switch power control,
+    and capability-confirmed native climate power fallback.
+  - `home-row-card`: Compatibility control row for lights, covers, media
+    players, vacuums, and the Tesla quick-device summary.
+  - `home-door-security-card`: Doorbell camera, ring and door status,
+    silent-mode switch, lock control, battery text, and lock confirmation.
+  - `home-chip-card`: Compact person, lock, light-group, or generic entity
+    status chip. It is registered but has no current `home-dark` card instance.
 
 ---
 
 ## Architecture Overview
 
-The project uses a client-side custom-card architecture. Home Assistant loads each JavaScript file as a dashboard resource, registers the corresponding custom element in the browser, and supplies the element with the Home Assistant `hass` object. The element reads `hass.states`, renders its UI, dispatches `hass-more-info` events, and calls Home Assistant services through the supplied API.
+The project uses a client-side Home Assistant custom-card architecture. Home
+Assistant loads each JavaScript file as an external module resource and creates
+the corresponding browser custom element when a `custom:` card is present in
+the dashboard. Home Assistant supplies entity state, configuration, and service
+ APIs through the `hass` object.
 
 - **Design Patterns/Principles:**
   - Native browser Custom Elements implemented with `HTMLElement`.
-  - Configuration-driven rendering through each card's `setConfig()` method.
-  - Home Assistant Lovelace card lifecycle through `setConfig()`, `hass`, and `getCardSize()`.
-  - Event-driven interaction through DOM events, `hass-more-info`, and Home Assistant service calls.
-  - Shadow DOM encapsulation is used by `home-person-card`, `home-status-card`, and `home-door-security-card`; the other cards render into their element's light DOM.
-  - Responsive layouts use inline CSS media queries.
-  - No server-side MVC, REST API server, ORM, message queue, or repository-owned persistence layer is present.
+  - Home Assistant Lovelace card lifecycle: `setConfig`, `hass`,
+    `getCardSize`, and optional `getGridOptions`.
+  - Configuration-driven rendering; card instances receive entity IDs and
+    display options from dashboard configuration.
+  - Event-driven interaction through DOM events, `hass-more-info`, and
+    Home Assistant service calls.
+  - Shadow DOM encapsulation in `home-person-card`, `home-status-card`, and
+    `home-door-security-card`; the remaining cards render into light DOM.
+  - Inline CSS with responsive media queries and CSS custom-property theme
+    fallbacks.
+  - State and persistence remain in Home Assistant. The repository owns no
+    application-wide store or persistence layer.
 
 ### System Diagram
 
@@ -34,79 +59,65 @@ The project uses a client-side custom-card architecture. Home Assistant loads ea
 
 ```mermaid
 flowchart LR
-    subgraph Repository["Repository: home-dark-cards"]
-        Source["Seven JavaScript custom-card sources"]
-        Readme["README.md deployment and resource metadata"]
+    subgraph Repo["Repository"]
+        Sources["home-dark-cards/*.js"]
+        Docs["README.md and ai-overview.md"]
     end
 
-    subgraph Deployment["Home Assistant static resource deployment"]
+    subgraph Deploy["Home Assistant static resources"]
         Www["/config/www/home-dark-cards/*.js"]
-        Resources["Dashboard resource registry<br/>/local/home-dark-cards/*.js"]
+        Registry["Dashboard resource registry<br/>/local/home-dark-cards/*.js"]
     end
 
-    subgraph Browser["Browser and Home Assistant Lovelace runtime"]
-        Dashboard["home-dark dashboard"]
-        Header["home-header-card"]
-        Chip["home-chip-card"]
-        Room["home-room-tile-card"]
-        Row["home-row-card"]
-        Person["home-person-card"]
-        Security["home-door-security-card"]
-        Status["home-status-card"]
+    subgraph Lovelace["Browser Home Assistant frontend"]
+        Dashboard["home-dark dashboard<br/>Home / Lights / Climate / Blinds / Media / Vacuum"]
+        Cards["Custom elements<br/>header, status, person, room, light,<br/>climate, row, security, chip"]
+        Popups["Bubble Card room popups"]
     end
 
-    subgraph HA["Home Assistant runtime"]
-        Hass["hass object<br/>states, attributes, callService"]
-        MoreInfo["More-info dialog"]
-        Services["Home Assistant services"]
-        Entities["Configured entity registry and entity state"]
+    subgraph Runtime["Home Assistant runtime"]
+        Hass["hass object<br/>states, attributes, config, callService"]
+        MoreInfo["hass-more-info<br/>native more-info dialog"]
+        Services["Home Assistant domain services"]
+        Entities["Entity registry and live entity state"]
     end
 
-    subgraph External["External systems represented through Home Assistant"]
-        Weather["Weather integration<br/>identity not specified in repository"]
-        Devices["Configured lights, covers, climate,<br/>media, vacuum, lock, switch, camera,<br/>person, sensor, and input_select entities"]
+    subgraph Devices["Configured entities represented by Home Assistant"]
+        Domains["weather, person, light, climate, cover,<br/>media_player, vacuum, lock, switch, camera,<br/>sensor, binary_sensor, input_select"]
     end
 
-    Source --> Www
-    Readme --> Www
-    Www --> Resources
-    Resources --> Dashboard
-    Dashboard --> Header
-    Dashboard --> Chip
-    Dashboard --> Room
-    Dashboard --> Row
-    Dashboard --> Person
-    Dashboard --> Security
-    Dashboard --> Status
-
-    Hass --> Header
-    Hass --> Chip
-    Hass --> Room
-    Hass --> Row
-    Hass --> Person
-    Hass --> Security
-    Hass --> Status
-    Entities --> Hass
-    Header -->|weather.get_forecasts| Services
-    Chip -->|hass-more-info| MoreInfo
-    Room -->|hass-more-info| MoreInfo
-    Row -->|control service calls| Services
-    Person -->|hass-more-info| MoreInfo
-    Security -->|lock and switch service calls| Services
-    Security -->|camera and status more-info| MoreInfo
-    Status -->|input_select.select_option| Services
+    Sources --> Www
+    Docs -. deployment instructions .-> Www
+    Www --> Registry
+    Registry --> Dashboard
+    Dashboard --> Cards
+    Dashboard --> Popups
+    Hass --> Cards
+    Hass --> Popups
+    Cards -->|read states and attributes| Hass
+    Cards -->|dispatch| MoreInfo
+    Cards -->|call services| Services
     Services --> Entities
-    Weather --> Entities
-    Devices --> Entities
+    Entities --> Hass
+    Domains --> Entities
 ```
 
 - **Explanation:**
-  - The repository supplies source JavaScript files. The README documents copying them to Home Assistant's `/config/www/home-dark-cards/` directory and registering matching `/local/home-dark-cards/*.js` module URLs.
-  - The `home-dark` dashboard loads the registered resources and creates the seven custom elements when their card types are used.
-  - Home Assistant supplies the `hass` object. The cards read entity states and attributes from `hass.states`.
-  - User interactions either dispatch `hass-more-info` for Home Assistant's more-info dialog or call a Home Assistant service.
-  - The header requests daily forecasts with `weather.get_forecasts`. The source supports `hass.callService`; it also contains fallbacks for `hass.callWS` and `hass.connection.sendMessagePromise`.
-  - The repository does not identify the concrete vendor integrations behind the configured Home Assistant entities. It documents entity IDs and Home Assistant domains where those values are present.
+  - A local source file is copied to
+    `/config/www/home-dark-cards/` on the Home Assistant host.
+  - A matching `/local/home-dark-cards/*.js` module URL is registered in
+    Home Assistant's dashboard resource registry.
+  - The `home-dark` dashboard references the registered resources through
+    `custom:` card types. The live dashboard has six sections views and ten
+    Bubble Card room popups.
+  - Each card reads the current entity record from `hass.states` and selected
+    attributes. Interactive controls call Home Assistant services with
+    `entity_id`.
+  - More-info rows dispatch `hass-more-info`; Home Assistant handles the
+    resulting dialog.
+  - The repository does not identify the vendor implementation behind every
+    configured Home Assistant entity. It documents only entities verified in
+    the dashboard or live Home Assistant responses.
 
 ---
 
@@ -114,36 +125,61 @@ flowchart LR
 
 - **UI**
 
-  This is a Home Assistant Lovelace custom-card set rather than a standalone web application. The cards provide the following UI:
+  This is a Home Assistant Lovelace card set rather than a standalone frontend.
+  The live `home-dark` dashboard contains these views:
 
-  - **Header:** `home-header-card` renders a clock, localized date, weather icon, temperature, condition, humidity, feels-like temperature, and an optional forecast list. Forecast results are cached in memory and refreshed no more often than every 30 minutes.
-  - **Status chip:** `home-chip-card` renders person home/away state, lock state, light-group member count, or generic entity state. A click opens more-info.
-  - **Room tile:** `home-room-tile-card` renders the configured room name and icon, climate temperature/humidity, configured domain icons, and an `on` tag when the configured light group is on. A click opens more-info for the light group or climate entity.
-  - **Entity row:** `home-row-card` renders:
-    - Light toggles and brightness sliders when `supported_color_modes` includes a mode other than `onoff`.
-    - Cover position sliders using `current_position`.
-    - Climate target-temperature step controls using 0.5-degree increments.
-    - Media-player play/pause controls.
-    - Vacuum start/return-to-base controls.
-    - A Tesla battery/charging summary using the configured battery sensor and charge switch.
-  - **Person card:** `home-person-card` renders an avatar, person name, Home/Away location, optional battery percentage, and optional calculated distance from `zone.home`.
-  - **Door security card:** `home-door-security-card` renders camera fallback/image UI, ring and door status overlays, silent-mode control, lock status, lock battery text, and a lock/unlock confirmation dialog when configured.
-  - **Home status card:** `home-status-card` renders a house-mode `<select>` backed by an `input_select` entity and PM2.5, PM10, and optional air-quality metric buttons. PM2.5 and PM10 quality labels use configurable display thresholds.
+  - **Home:** Header, home status, person cards, ten room tiles, door security,
+    Tesla-style energy flow, vacuum/Tesla quick rows, and ten room popups.
+  - **Lights:** Per-room light rows.
+  - **Climate:** Eight climate-card instances for
+    `climate.living_room`, `climate.cinema`, `climate.office_ac`,
+    `climate.erics_room`, `climate.master_bedroom`,
+    `climate.master_bathroom`, `climate.erics_bathroom`, and
+    `climate.studio_bathroom`.
+  - **Blinds:** Cover rows for the configured room blinds.
+  - **Media:** Media-player rows for Living Room, Cinema, and Office.
+  - **Vacuum:** Roborock control row.
 
-  The README records these verified dashboard/entity examples: `weather.openweathermap`, `person.andrei`, `vacuum.roborock`, `sensor.storm_trooper_battery_level`, `switch.storm_trooper_charge`, `light.living_room_all`, `climate.living_room`, `cover.living_room_window_shutter`, `media_player.living_room_soundbar_ma`, `camera.doorbell`, `lock.front_door`, `sensor.front_door_lock_battery`, `switch.doorbell_system_sounds`, `sensor.doorbell_last_doorbell_ring`, `binary_sensor.front_door`, `input_select.house_mode`, `sensor.home_pm2_5`, `sensor.home_pm10`, and `sensor.air_quality_index`.
+  The eight climate-enabled room popups contain a second climate-card instance
+  for the same climate entities. Kitchen and Garage are the two room popups
+  without climate cards. Therefore the live dashboard contains 16 climate-card
+  references and 10 room popups.
 
 - **Structure**
 
-  - Each card is a single JavaScript file with its custom element class, configuration validation, state reads, rendering logic, event handlers, and inline CSS.
-  - `window.customCards` is initialized when needed and receives card-picker metadata for each card.
-  - `home-header-card.js` manages clock refresh and forecast request/cache behavior.
-  - `home-chip-card.js` handles compact status variants and more-info events.
-  - `home-room-tile-card.js` handles room summary rendering and more-info navigation.
-  - `home-row-card.js` handles per-domain controls, pointer-based slider interaction, service calls, and entity more-info.
-  - `home-person-card.js` handles Shadow DOM rendering, person validation, optional battery validation, proximity calculation, and accessible button interaction.
-  - `home-door-security-card.js` handles Shadow DOM rendering, camera state, lock/silent controls, confirmation dialog state, and keyboard dismissal.
-  - `home-status-card.js` handles Shadow DOM rendering, mode options, metric formatting, quality bands, metric more-info, and mode service calls.
-  - There is no client-side router, login screen, API gateway, application-wide state store, or separate client service layer in the repository.
+  Each source file contains one custom-element class, its configuration
+  contract, state/attribute helpers, rendering logic, event handling, inline
+  CSS, and `window.customCards` picker metadata.
+
+  - `home-header-card.js`: Clock refresh, weather rendering, forecast service
+    request, in-memory forecast cache, and 30-minute refresh limit.
+  - `home-status-card.js`: Shadow DOM status layout, validated
+    `input_select` options, metric formatting, display-only quality bands, and
+    metric more-info actions.
+  - `home-person-card.js`: Shadow DOM presence card, entity validation,
+    optional battery validation, proximity calculation, and accessible
+    more-info button.
+  - `home-room-tile-card.js`: Room summary rendering and popup-hash or
+    more-info navigation. Climate units come from the climate entity's
+    `temperature_unit` or `unit_of_measurement`, then
+    `hass.config.unit_system.temperature`, with an explicit Celsius fallback.
+  - `home-light-card.js`: Independent light row with
+    `supported_color_modes`-based dimmability, pointer/keyboard brightness
+    preview, one brightness service call on completed interaction, and
+    pending-state reconciliation.
+  - `home-climate-card.js`: Independent climate row and controls. It renders
+    no controls for missing, `unknown`, or `unavailable` climate state;
+    renders each mode menu independently; reconciles pending values by their
+    requested field; supports configured switch power; and detects native
+    climate power only from live capability bits.
+  - `home-row-card.js`: Compatibility light, cover, media, vacuum, and Tesla
+    branches. New standalone light controls use `home-light-card`.
+  - `home-door-security-card.js`: Shadow DOM camera and security UI, camera
+    image fallback, lock/silent service calls, and optional confirmation dialog.
+  - `home-chip-card.js`: Compact status variants and entity more-info action.
+
+  There is no client router, login screen, API gateway, application-wide state
+  store, separate API client, or shared utility module in this repository.
 
 ---
 
@@ -151,111 +187,142 @@ flowchart LR
 
 - **Bootstrap**
 
-  There is no repository-owned backend server. Bootstrap occurs when Home Assistant loads a JavaScript module resource in the browser. Each file calls `customElements.define(...)` and adds card metadata to `window.customCards`.
+  No repository-owned backend exists. Home Assistant loads each module in the
+  browser. The module calls `customElements.define(...)` and registers its
+  card-picker metadata in `window.customCards`.
 
 - **Contract**
 
-  The cards use the Home Assistant Lovelace custom-card contract:
+  The cards implement the Home Assistant Lovelace custom-card contract:
 
-  - `setConfig(config)`: Receives card configuration and validates required values.
-  - `set hass(hass)`: Receives the current Home Assistant runtime object and triggers rendering.
-  - `getCardSize()`: Reports card height to Lovelace.
-  - `getGridOptions()`: Present in `home-person-card`, `home-status-card`, and `home-door-security-card` to provide sections-grid sizing.
-  - `hass-more-info`: A bubbling, composed custom event used to request Home Assistant's more-info dialog.
+  - `setConfig(config)`: Receives and validates dashboard card configuration.
+  - `set hass(hass)`: Receives the current Home Assistant frontend object.
+  - `getCardSize()`: Reports a preferred card height.
+  - `getGridOptions()`: Present on cards that provide sections-grid sizing.
+  - `hass-more-info`: Bubbling, composed event requesting native more-info.
 
-  The service calls directly evidenced in the source are:
+  Service calls directly evidenced by the current source are:
 
-  - `weather.get_forecasts` with daily forecast type.
-  - `input_select.select_option`.
-  - `light.toggle` and `light.turn_on` with `brightness_pct`.
-  - `cover.set_cover_position`.
-  - `climate.set_temperature`.
-  - `media_player.media_play_pause`.
-  - `vacuum.start` and `vacuum.return_to_base`.
-  - `lock.lock` and `lock.unlock`.
-  - `switch.turn_on` and `switch.turn_off`.
+  - `weather.get_forecasts`
+  - `input_select.select_option`
+  - `light.toggle` and `light.turn_on` with `brightness_pct`
+  - `climate.set_hvac_mode`, `set_temperature`, `set_humidity`,
+    `set_fan_mode`, `set_preset_mode`, `set_swing_mode`,
+    `set_swing_horizontal_mode`, `turn_on`, and `turn_off`
+  - `cover.set_cover_position`
+  - `media_player.media_play_pause`
+  - `vacuum.start` and `vacuum.return_to_base`
+  - `lock.lock` and `lock.unlock`
+  - `switch.turn_on` and `switch.turn_off`
 
-  The header supports Home Assistant service invocation through `hass.callService`, with WebSocket fallbacks for the forecast request. No repository-owned HTTP, REST, GraphQL, gRPC, or WebSocket server endpoint exists.
+  The source contains no repository-owned HTTP, REST, GraphQL, gRPC, or
+  WebSocket server endpoint.
 
 - **App Layers**
 
-  - **Presentation layer:** Custom-element DOM, `ha-card`, `ha-icon`, Shadow DOM where used, and inline CSS.
-  - **State access layer:** Small per-card helpers read `hass.states[entity_id]` and selected state attributes.
-  - **Interaction layer:** DOM listeners translate clicks, pointer gestures, keyboard input, and dialog actions into more-info events or Home Assistant service calls.
-  - **Persistence/data-access layer:** Not implemented in the repository. Entity state and service execution remain in Home Assistant.
+  - **Presentation:** Custom-element DOM, `ha-card`, `ha-icon`, Shadow DOM
+    where used, and inline CSS.
+  - **State access:** Per-card helpers read `hass.states[entity_id]` and
+    selected attributes.
+  - **Interaction:** Click, pointer, keyboard, focus, scroll, and resize
+    handlers translate UI actions into more-info events or Home Assistant
+    service calls.
+  - **Data/persistence:** Entity state, service execution, dashboard
+    configuration, and resource registration remain in Home Assistant.
 
 - **Infra**
 
-  Shared runtime capabilities are supplied by Home Assistant's frontend: `ha-card`, `ha-icon`, `hass.states`, `hass.callService`, and more-info event handling. The repository contains no package manifest, compiler, bundler, server configuration, database client, environment loader, logging framework, or third-party utility module.
+  The runtime dependencies are Home Assistant frontend primitives and APIs:
+  `ha-card`, `ha-icon`, `hass.states`, `hass.config`, and `hass.callService`.
+  No package manifest, lockfile, compiler, bundler, server configuration,
+  database client, environment loader, or logging framework is present.
 
 - **3rd Parties**
 
-  - **Home Assistant Frontend:** Loads the resources, supplies Lovelace lifecycle APIs and the `hass` object, renders `ha-card`/`ha-icon`, and executes service calls.
-  - **Home Assistant weather service:** The header requests `weather.get_forecasts`; the repository does not identify the underlying weather vendor.
-  - **Material Design Icons through Home Assistant:** The cards use `mdi:*` icon names through Home Assistant's `<ha-icon>` element. No separate icon package is included in this repository.
-  - **HACS:** The README explicitly states that HACS resources are not included in this folder.
+  - **Home Assistant:** Dashboard host, state provider, service executor,
+    resource registry, and more-info handler.
+  - **Home Assistant weather service:** Daily forecast requests use
+    `weather.get_forecasts`; the repository does not identify the underlying
+    weather vendor.
+  - **Material Design Icons:** `mdi:*` names are rendered through Home
+    Assistant's `ha-icon`; no icon package is bundled.
+  - **Bubble Card and other HACS cards:** Referenced by the live dashboard as
+    external HACS resources. Their source is not in this repository.
 
 ---
 
 ## Technology Stack
 
-The versions below are limited to values explicitly recorded in repository files.
+The repository does not pin a JavaScript runtime or package dependency
+version. The local README export metadata records Home Assistant Core
+`2026.7.4`; the live climate/resource verification performed for this
+document used the connected Home Assistant instance.
 
 - **Frontend:**
-  - Frameworks/Libraries: Native browser Custom Elements and Home Assistant Lovelace custom-card APIs. No JavaScript framework or library package is declared.
-  - Language: JavaScript. No language/runtime version is specified in repository files.
-  - Styling: Inline CSS in each card, including responsive media queries and CSS custom properties where used.
-  - State Management: Home Assistant's supplied `hass` object and `hass.states`; no separate state-management library is present.
+  - Frameworks/Libraries: Native browser Custom Elements and Home Assistant
+    Lovelace custom-card APIs.
+  - Language: JavaScript; no language/runtime version is declared.
+  - Styling: Inline CSS, responsive media queries, and CSS custom properties.
+  - State Management: Home Assistant's `hass` object; no state library.
 
 - **Backend:**
-  - Language/Framework: No backend language or server framework is present.
-  - API: Home Assistant Lovelace card lifecycle and Home Assistant service APIs supplied to the browser.
+  - Language/Framework: No backend language or framework is present.
+  - API: Home Assistant Lovelace lifecycle and domain service APIs.
 
 - **Database:**
   - Primary Database: [Information not found in codebase]
-  - Cache: No external cache is present. `home-header-card` uses an in-memory forecast cache with a 30-minute refresh interval.
+  - Cache: No external cache. The header's forecast cache is in-memory on the
+    card instance.
 
 - **Other Tools & Services:**
   - Containerization: [Information not found in codebase]
   - Message Queue: [Information not found in codebase]
   - Search: [Information not found in codebase]
   - CI/CD: [Information not found in codebase]
-  - Home Assistant Core: `2026.7.4`, recorded in the README export metadata.
-  - Deployment path: `/config/www/home-dark-cards/`, recorded in the README.
-  - Registered resource URL prefix: `/local/home-dark-cards/`, recorded in the README.
+  - Static deployment path: `/config/www/home-dark-cards/`
+  - Registered resource prefix: `/local/home-dark-cards/`
 
 ---
 
 ## Project Structure
 
-The committed repository snapshot contains the following application files:
-
 ```plaintext
 home-dark-cards/
-├── README.md                    # Export metadata, card configuration examples, deployment instructions
-├── home-header-card.js          # Clock, weather, metrics, and optional forecast card
-├── home-chip-card.js            # Person, lock, light-group, and generic status chip
-├── home-room-tile-card.js       # Room summary tile
-├── home-row-card.js             # Light, cover, climate, media, vacuum, and Tesla rows
-├── home-person-card.js          # Person presence, battery, and proximity card
-├── home-door-security-card.js   # Doorbell, door status, silent mode, and lock card
-├── home-status-card.js           # House mode and air-quality status card
-└── ai-overview.md               # Repository architecture and onboarding overview
+├── home-dark-cards/
+│   ├── home-header-card.js         # Clock and weather card
+│   ├── home-chip-card.js           # Compact status chip
+│   ├── home-room-tile-card.js      # Room summary and popup navigation
+│   ├── home-row-card.js            # Compatibility entity rows
+│   ├── home-light-card.js          # Standalone light control row
+│   ├── home-climate-card.js        # Standalone climate control card
+│   ├── home-person-card.js         # Person presence card
+│   ├── home-door-security-card.js  # Doorbell and lock card
+│   └── home-status-card.js          # House mode and air-quality card
+├── .cursor/
+│   └── rules/                      # Local Home Assistant guidance copies
+├── AGENTS.md                       # Project execution and live-instance context
+├── CLAUDE.md                       # Mirrored project execution context
+├── README.md                       # Home Assistant skill/repository README
+└── ai-overview.md                  # This onboarding document
 ```
 
-No `src/`, `components/`, `pages/`, `services/`, `utils/`, `tests/`, `scripts/`, `docs/`, package manifest, lockfile, Dockerfile, or GitHub workflow is present in the committed file tree.
+There is no `src/`, `components/`, `pages/`, `services/`, `utils/`, `models/`,
+`tests/`, `scripts/`, package manifest, lockfile, Dockerfile, or CI workflow in
+the repository.
 
-The README records these Home Assistant dashboard resource IDs:
+The current local resource IDs are:
 
-| File | Card type | Resource ID |
+| Source | Card type | Resource ID |
 |---|---|---|
 | `home-header-card.js` | `home-header-card` | `f5ede969d4124ec89d4e76d2d2f4ecca` |
 | `home-chip-card.js` | `home-chip-card` | `e9296b183aed49a7ba6c3a7af8cfdd81` |
 | `home-room-tile-card.js` | `home-room-tile-card` | `02af4e539e264967a4c8b7079075876e` |
 | `home-row-card.js` | `home-row-card` | `840736a3a49340b59f4d314a3cf80ef2` |
+| `home-light-card.js` | `home-light-card` | `376b336445804f819b97c6b461f530cb` |
 | `home-person-card.js` | `home-person-card` | `d655ab1709e94df7be303b4504d5397c` |
 | `home-door-security-card.js` | `home-door-security-card` | `fdf4fcf92eee4a61805911ed6fc8a781` |
 | `home-status-card.js` | `home-status-card` | `aa8e713224b14feab81eb6aa0586560d` |
+| `home-climate-card.js` | `home-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
 
 ---
 
@@ -267,46 +334,68 @@ The README records these Home Assistant dashboard resource IDs:
   - Production: [Information not found in codebase]
 
 - **Configuration Management:**
-  - Card configuration is supplied by Home Assistant dashboard YAML when each custom card is instantiated.
-  - The repository contains no `.env` files, `.env.example`, configuration schema file, or environment-variable loader.
-  - The README documents Home Assistant resource registration and dashboard card configuration as the installation configuration.
+  - Card instance configuration is stored in Home Assistant dashboard
+    configuration.
+  - Resource URLs are stored in Home Assistant's dashboard resource registry.
+  - The repository contains no `.env`, `.env.example`, environment loader, or
+    application configuration schema.
+  - The target dashboard is the storage-mode `home-dark` dashboard verified
+    through the Home Assistant MCP interface.
 
 - **Setup Instructions for local development:**
-  1. No local package installation or build command is documented.
-  2. Copy a card JavaScript file to `/config/www/home-dark-cards/<card-file>.js` in the Home Assistant installation.
-  3. Register `/local/home-dark-cards/<card-file>.js` as a module dashboard resource.
-  4. In the `home-dark` dashboard editor, add a manual card and paste the card's YAML configuration.
-  5. Save the dashboard and hard-refresh the browser after a new or updated resource.
-
-  The README states that the repository does not copy files to Home Assistant or change the remote dashboard automatically.
+  1. No package installation or build step is defined.
+  2. Copy the required JavaScript file to
+     `/config/www/home-dark-cards/<card-file>.js` on Home Assistant.
+  3. Register or update the matching `/local/home-dark-cards/<card-file>.js`
+     module resource, retaining its existing resource ID.
+  4. Add or edit a manual `custom:<card-type>` card in the Home Assistant
+     dashboard editor.
+  5. Hard-refresh the browser after copying or updating a resource.
 
 ---
 
 ## Security
 
-- **Authentication:** [Information not found in codebase]. The card source contains no login, token storage, credential handling, or authentication implementation. It relies on the Home Assistant dashboard runtime for access to `hass` and service APIs.
-- **Authorization:** [Information not found in codebase]. The source validates required configuration values and, for house mode, verifies that a selected option is present in the entity's exposed options. It does not define user roles or permission rules.
-- **Data Encryption:** [Information not found in codebase]. The repository does not configure transport encryption or encryption at rest.
-- **Security Tools:** [Information not found in codebase]. There is no security middleware, dependency configuration, rate limiter, or security scanning workflow in the repository.
-- **UI safety controls present in source:** The door security card can require confirmation for both lock and unlock actions through `confirm_lock_actions`; the dialog supports Cancel, Escape, and backdrop dismissal. The person card validates person and sensor entity prefixes, and the status card restricts mode selection to options exposed by the `input_select` entity.
+- **Authentication:** [Information not found in codebase]. The source contains
+  no login, token storage, or credential implementation; it relies on access
+  already granted to the Home Assistant frontend.
+- **Authorization:** [Information not found in codebase]. The cards do not
+  define roles or permission rules. Home Assistant controls access to the
+  dashboard and services.
+- **Data Encryption:** [Information not found in codebase]. The repository does
+  not configure transport or at-rest encryption.
+- **Security Tools:** [Information not found in codebase]. No security
+  middleware, dependency manifest, rate limiter, or scanning workflow exists.
+- **UI safety behavior:** `home-door-security-card` can require confirmation
+  for lock and unlock actions. `home-status-card` permits only options exposed
+  by the configured `input_select`. Card configuration validates required
+  entity prefixes where the card contract requires them.
 
 ---
 
 ## Deployment
 
 - **Deployment Process:**
-  1. Copy the selected JavaScript source file to `/config/www/home-dark-cards/`.
-  2. Register or update the matching `/local/home-dark-cards/<card-file>.js` module resource in Home Assistant.
-  3. Add or update the corresponding manual card configuration in the `home-dark` dashboard editor.
-  4. Save the dashboard and hard-refresh the browser when the resource is new or changed.
+  1. Copy changed source files to
+     `/config/www/home-dark-cards/`.
+  2. Update the existing Home Assistant module resource by resource ID and
+     cache-busting URL.
+  3. Verify the resource registry and dashboard card references.
+  4. Hard-refresh the browser or Companion app.
 
-  The README identifies the Home Assistant dashboard resource API and the `user-hass` MCP tool as ways to register or update a live resource. The repository itself does not automate deployment.
+  The resource API updates registration only; it does not upload files from
+  this repository to `/config/www`. The current climate and room-tile resource
+  URLs are:
 
-- **CI/CD Pipeline:** [Information not found in codebase]. No GitHub Actions workflow or other pipeline configuration is present.
+  - `/local/home-dark-cards/home-climate-card.js?v=20260802-1838-climate-audit-fixes`
+  - `/local/home-dark-cards/home-room-tile-card.js?v=20260802-1838-room-unit-fixes`
+
+- **CI/CD Pipeline:** [Information not found in codebase]. No workflow or
+  deployment automation is present.
 - **Tools Used:**
-  - Home Assistant static file directory: `/config/www/home-dark-cards/`.
-  - Home Assistant module resource URLs: `/local/home-dark-cards/*.js`.
-  - Home Assistant dashboard resource API or the documented `user-hass` MCP tool.
+  - Home Assistant `/config/www/home-dark-cards/` static directory.
+  - Home Assistant `/local/home-dark-cards/*.js` module resources.
+  - Home Assistant dashboard resource and dashboard configuration APIs.
   - Deployment scripts: [Information not found in codebase]
 
 ---
@@ -319,43 +408,47 @@ The README records these Home Assistant dashboard resource IDs:
   - End-to-End Testing: [Information not found in codebase]
 
 - **Running Tests:**
-  - Unit/Integration: [Information not found in codebase]
-  - E2E: [Information not found in codebase]
+  - Formal test command: [Information not found in codebase]
+  - Syntax verification: `node --check home-dark-cards/<card-file>.js`
+  - Live verification: inspect Home Assistant resource registry, dashboard
+    configuration, entity state, and service metadata.
 
-- **Test Coverage:** [Information not found in codebase]. The repository contains no test files, test configuration, coverage configuration, or coverage report.
+- **Test Coverage:** [Information not found in codebase]. No test files,
+  coverage configuration, or coverage report is present.
 
 ---
 
 ## UI Framework
 
-- **Framework/Library:** Native browser Web Components implemented with `HTMLElement`; the cards follow the Home Assistant Lovelace custom-card lifecycle.
-- **Component Library:** Home Assistant frontend elements `ha-card` and `ha-icon`.
-- **Styling:** Inline CSS embedded in each JavaScript source file. The cards use dark color palettes, rounded cards/pills, responsive media queries, focus-visible outlines, and CSS custom properties in the person card.
-- **External UI package:** [Information not found in codebase]. No React, Vue, Angular, Lit, Material UI, Tailwind, or other package dependency is declared.
+- **Framework/Library:** Native browser Web Components implemented with
+  `HTMLElement`, following the Home Assistant Lovelace custom-card lifecycle.
+- **Component Library:** Home Assistant frontend `ha-card` and `ha-icon`.
+- **Styling:** Inline CSS with dark palette fallbacks, Home Assistant theme
+  variables, responsive layout, scrolling controls, and focus-visible states.
+- **External UI package:** [Information not found in codebase]. No React, Vue,
+  Angular, Lit, Material UI, Tailwind, or package dependency is declared.
 
 ---
 
 ## Shared Utilities and Helpers
 
-- **Utilities:**
-  - There is no shared utility module. Similar helper methods are implemented independently inside cards:
-    - `_st`, `_state`, or equivalent methods read an entity state.
-    - `_attr` or `_attribute` reads an entity attribute.
-    - `_more` or `_moreInfo` dispatches `hass-more-info`.
-    - `_call` wraps `hass.callService` in `home-row-card`.
-    - Formatting helpers convert temperatures, timestamps, quality values, and relative times for display.
-  - `home-header-card.js` contains the only explicit reusable in-card cache: its forecast cache is held in the element instance and refreshed at most every 30 minutes.
+- **Utilities:** No shared JavaScript utility module exists. Similar helpers
+  are implemented per card for state lookup, attribute lookup, formatting,
+  service calls, escaping, and more-info events.
+- **Climate helpers:** `home-climate-card.js` contains field configuration,
+  numeric step rounding, field-specific pending reconciliation, capability
+  detection for native climate power, viewport-aware menu placement, and
+  event propagation guards.
+- **Light helpers:** `home-light-card.js` contains dimmability detection,
+  pointer-to-value conversion, slider preview, service commit, and pending
+  slider reconciliation.
+- **Other helpers:** `home-header-card.js` caches forecasts; `home-person-card.js`
+  calculates distance; `home-status-card.js` applies display-only air-quality
+  bands; `home-door-security-card.js` manages lock confirmation state.
 
-- **Helpers:**
-  - `home-row-card.js`: `_lightDimmable`, `_updateSliderFromPointer`, and `_commitSlider` implement brightness/position slider behavior.
-  - `home-person-card.js`: `_distanceKm` computes distance from person coordinates to `zone.home`; `_text` escapes displayed text for HTML.
-  - `home-status-card.js`: `_quality` applies configured PM2.5/PM10 display bands; `_selectMode` validates and calls `input_select.select_option`.
-  - `home-door-security-card.js`: `_controlLock`, `_openLockDialog`, and `_finishLock` implement guarded lock actions.
-
-- **Examples:**
+Example more-info contract:
 
 ```javascript
-// Repeated Home Assistant more-info event pattern used by the cards.
 this.dispatchEvent(new CustomEvent('hass-more-info', {
   detail: { entityId: entity },
   bubbles: true,
@@ -363,24 +456,41 @@ this.dispatchEvent(new CustomEvent('hass-more-info', {
 }));
 ```
 
-The cards do not export a shared JavaScript API. Each file defines its own custom element and registers its own card-picker metadata through `window.customCards`.
-
 ---
 
 ## Important Notes
 
-- The repository README records seven JavaScript resources. It states that six of the seven are currently referenced by the `home-dark` dashboard and that `home-chip-card` is registered but has no current card instance.
-- The README export metadata records Home Assistant Core `2026.7.4` and an export time of `2026-08-01 21:20 (UTC+03:00)`.
-- `home-status-card.js` is described as a local source file registered as a `/local/` resource rather than one of the six original inline-content exports.
-- `home-door-security-card` accepts `lock_label`, but the source uses literal `Front door` text for lock titles and confirmation text. Changing `lock_label` therefore has no visible effect in the current source.
-- `home-door-security-card` accepts `confirm_unlock`, but `confirm_lock_actions` is the current option that controls confirmation for both lock and unlock operations.
-- `home-chip-card` uses an entity's `entity_id` attribute to count light-group members when that attribute is available.
-- `home-row-card` determines whether a light is dimmable from `supported_color_modes`; it does not display a brightness slider for an `onoff`-only light.
-- At the time this overview was generated, the Git worktree marked `README.md` and all seven JavaScript source files as deleted relative to `HEAD`. Those deletions were preserved as requested; this document was created without restoring or modifying those files. The documented source details come from the committed repository snapshot.
-- The repository does not confirm the Home Assistant instance's complete dashboard configuration, concrete vendor integrations, deployment credentials, network topology, environment separation, or runtime permissions. Those details require manual verification.
+- The repository contains local source files only. Dashboard configuration,
+  resource registration, entity state, and popup content live in Home Assistant.
+- `home-light-card.js` is the independent light implementation. The
+  `home-row-card.js` light branch remains for compatibility with existing
+  dashboard cards.
+- `home-climate-card.js` is intentionally split from room summaries:
+  `home-room-tile-card.js` displays readings and navigates to a popup, while
+  climate control behavior lives in the dedicated climate card.
+- Office's live climate entity exposes both native power capability bits:
+  `supported_features` includes 256 (`turn_on`) and 128 (`turn_off`).
+  Office therefore uses generic native fallback detection and needs no
+  `power_switch` dashboard key. Living Room, Cinema, Eric's Room, and Master
+  Bedroom use their confirmed configured KNX switch entities. The three
+  bathroom climate entities expose no native power bits and have no configured
+  power switch.
+- Climate cards with `unknown` or `unavailable` state show a message and
+  suppress controls and service actions.
+- The live dashboard resource update does not upload `/config/www` files.
+  Manual file copying and a browser hard refresh remain required after source
+  edits.
+- The dashboard screenshot beta feature is disabled on the verified instance,
+  so visual validation is performed through source, resource, configuration,
+  entity-state, and service metadata checks.
+- Known repository limitations: no formal automated test suite, no package
+  dependency manifest, no CI/CD workflow, and no repository-owned backend.
 
 ---
 
 ### Maintenance Note
 
-Update this document whenever a card file, card configuration contract, Home Assistant resource ID or URL, deployment path, supported service call, or documented dashboard usage changes. Keep versions and operational details limited to facts recorded in the repository or verified from the target Home Assistant instance.
+Update this document whenever a card source, card configuration contract,
+resource ID or URL, dashboard usage, supported service call, deployment path,
+or live climate capability changes. Keep versions and operational details
+limited to facts recorded in the repository or verified from Home Assistant.

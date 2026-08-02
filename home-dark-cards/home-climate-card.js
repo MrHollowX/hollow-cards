@@ -51,6 +51,7 @@ class HomeClimateCard extends HTMLElement {
     this._onFocusIn = this._onFocusIn.bind(this);
     this._onFocusOut = this._onFocusOut.bind(this);
     this._onWindowBlur = this._onWindowBlur.bind(this);
+    this._onViewportChange = this._onViewportChange.bind(this);
     this._onDocumentPointerDown = this._onDocumentPointerDown.bind(this);
     this.addEventListener('pointerdown', this._onPointerDown, true);
     this.addEventListener('click', this._onClick, true);
@@ -58,6 +59,8 @@ class HomeClimateCard extends HTMLElement {
     this.addEventListener('focusin', this._onFocusIn);
     this.addEventListener('focusout', this._onFocusOut);
     window.addEventListener('blur', this._onWindowBlur);
+    window.addEventListener('resize', this._onViewportChange);
+    document.addEventListener('scroll', this._onViewportChange, true);
     document.addEventListener('pointerdown', this._onDocumentPointerDown, true);
   }
 
@@ -71,12 +74,18 @@ class HomeClimateCard extends HTMLElement {
     this.removeEventListener('focusin', this._onFocusIn);
     this.removeEventListener('focusout', this._onFocusOut);
     window.removeEventListener('blur', this._onWindowBlur);
+    window.removeEventListener('resize', this._onViewportChange);
+    document.removeEventListener('scroll', this._onViewportChange, true);
     document.removeEventListener('pointerdown', this._onDocumentPointerDown, true);
     this._wired = false;
   }
 
   _state() {
     return this._hass && this._config ? this._hass.states[this._config.entity] : null;
+  }
+
+  _isUnavailableState(state) {
+    return !state || ['unknown', 'unavailable'].includes(String(state.state).toLowerCase());
   }
 
   _attrs() {
@@ -94,7 +103,7 @@ class HomeClimateCard extends HTMLElement {
   }
 
   _call(service, data) {
-    if (!this._hass || !this._config) return null;
+    if (!this._hass || !this._config || this._isUnavailableState(this._state())) return null;
     return this._hass.callService(
       'climate',
       service,
@@ -113,6 +122,23 @@ class HomeClimateCard extends HTMLElement {
     return entity && this._hass ? this._hass.states[entity] : null;
   }
 
+  _nativePowerCapabilities() {
+    const supported = Number(this._attrs().supported_features) || 0;
+    return {
+      turnOn: (supported & 256) !== 0,
+      turnOff: (supported & 128) !== 0,
+    };
+  }
+
+  _powerControl() {
+    const switchEntity = this._powerSwitchEntity();
+    if (switchEntity) return { type: 'switch', entity: switchEntity };
+    const native = this._nativePowerCapabilities();
+    return native.turnOn && native.turnOff
+      ? { type: 'climate', entity: this._config.entity }
+      : null;
+  }
+
   _clearPowerPreview(render) {
     if (this._powerPreviewTimer) clearTimeout(this._powerPreviewTimer);
     this._powerPreviewTimer = null;
@@ -121,33 +147,44 @@ class HomeClimateCard extends HTMLElement {
   }
 
   _powerOn() {
-    const entity = this._powerSwitchEntity();
-    const state = this._powerSwitchState();
-    const preview = this._powerPreview && this._powerPreview.entity === entity
+    const control = this._powerControl();
+    if (!control) return false;
+    const state = control.type === 'switch' ? this._powerSwitchState() : this._state();
+    const preview = this._powerPreview &&
+      this._powerPreview.entity === control.entity &&
+      this._powerPreview.type === control.type
       ? this._powerPreview
       : null;
     if (preview) {
-      if (state && (state.state === 'on') === preview.on) {
+      const stateOn = control.type === 'switch'
+        ? Boolean(state && state.state === 'on')
+        : Boolean(state && !this._isUnavailableState(state) && state.state !== 'off');
+      const stateAvailable = state && !this._isUnavailableState(state);
+      if (stateAvailable && stateOn === preview.on) {
         this._clearPowerPreview();
       } else {
         return preview.on;
       }
     }
-    return Boolean(state && state.state === 'on');
+    return control.type === 'switch'
+      ? Boolean(state && state.state === 'on')
+      : Boolean(state && !this._isUnavailableState(state) && state.state !== 'off');
   }
 
-  _togglePowerSwitch() {
-    const entity = this._powerSwitchEntity();
-    if (!entity || !this._hass) return null;
+  _togglePower() {
+    const control = this._powerControl();
+    if (!control || !this._hass || this._isUnavailableState(this._state())) return null;
     const nextOn = !this._powerOn();
-    this._powerPreview = { entity, on: nextOn };
+    this._powerPreview = { entity: control.entity, type: control.type, on: nextOn };
     if (this._powerPreviewTimer) clearTimeout(this._powerPreviewTimer);
     this._powerPreviewTimer = setTimeout(() => this._clearPowerPreview(true), 5000);
     let result;
     try {
-      result = this._hass.callService('switch', nextOn ? 'turn_on' : 'turn_off', {
-        entity_id: entity,
-      });
+      result = control.type === 'switch'
+        ? this._hass.callService('switch', nextOn ? 'turn_on' : 'turn_off', {
+          entity_id: control.entity,
+        })
+        : this._call(nextOn ? 'turn_on' : 'turn_off');
       if (result && typeof result.catch === 'function') {
         result.catch(() => this._clearPowerPreview(true));
       }
@@ -261,8 +298,6 @@ class HomeClimateCard extends HTMLElement {
       entity: this._config.entity,
       field,
       value,
-      baselineState: state,
-      baselineUpdated: state && state.last_updated ? state.last_updated : null,
       baselineValue: this._authoritativeValue(field, state),
     };
     this._pendingTimer = setTimeout(() => this._clearPending(true), 5000);
@@ -310,6 +345,29 @@ class HomeClimateCard extends HTMLElement {
     if (trigger) trigger.focus();
   }
 
+  _positionOpenMenu(key) {
+    if (!this._card || !this._openMenu || key !== this._openMenu) return;
+    const trigger = Array.from(this._card.querySelectorAll('button[data-menu-trigger]'))
+      .find(button => button.dataset.menuTrigger === key);
+    const menu = Array.from(this._card.querySelectorAll('.menu-options'))
+      .find(options => options.id === `${this._instanceId}-${key}-menu`);
+    if (!trigger || !menu) return;
+    const rect = trigger.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const gap = 8;
+    const below = Math.max(0, viewportHeight - rect.bottom - gap);
+    const above = Math.max(0, rect.top - gap);
+    const openAbove = above > below && above >= 48;
+    const available = openAbove ? above : below;
+    const maxHeight = Math.max(48, Math.min(220, available || 48));
+    menu.classList.toggle('above', openAbove);
+    menu.style.maxHeight = `${maxHeight}px`;
+  }
+
+  _onViewportChange() {
+    if (this._openMenu) this._positionOpenMenu(this._openMenu);
+  }
+
   _openMenuFor(key, index) {
     this._openMenu = key;
     this._menuIndex = index;
@@ -318,6 +376,7 @@ class HomeClimateCard extends HTMLElement {
       this._menuRenderAllowed = true;
       this._render(true);
       this._focusMenuOption(key, index);
+      this._positionOpenMenu(key);
     } finally {
       this._menuRenderAllowed = false;
       Promise.resolve().then(() => {
@@ -379,21 +438,15 @@ class HomeClimateCard extends HTMLElement {
       return null;
     }
     const state = this._state();
+    if (this._isUnavailableState(state)) return 'waiting';
     const actual = this._authoritativeValue(this._pending.field, state);
     if (this._pendingMatches(actual, this._pending.value, this._pending.field)) {
       return 'reached';
     }
-    if (!state) return 'waiting';
-    const stateUpdated = state.last_updated || null;
-    const timestampChanged = Boolean(
-      this._pending.baselineUpdated &&
-      stateUpdated &&
-      stateUpdated !== this._pending.baselineUpdated,
-    );
-    const stateObjectChanged = state !== this._pending.baselineState &&
-      !this._pendingMatches(actual, this._pending.baselineValue, this._pending.field);
-    const authoritativeStateChanged = timestampChanged || stateObjectChanged;
-    return authoritativeStateChanged ? 'rejected' : 'waiting';
+    const baselineMatches = actual == null && this._pending.baselineValue == null
+      ? true
+      : this._pendingMatches(actual, this._pending.baselineValue, this._pending.field);
+    return baselineMatches ? 'waiting' : 'rejected';
   }
 
   _eventControl(event, selector) {
@@ -443,7 +496,7 @@ class HomeClimateCard extends HTMLElement {
   }
 
   _interactiveControl(event) {
-    return this._eventControl(event, 'button,[data-menu-option],[data-menu-trigger]');
+    return this._eventControl(event, 'button,[data-menu-option],[data-menu-trigger],[data-more]');
   }
 
   _activeElement() {
@@ -508,6 +561,7 @@ class HomeClimateCard extends HTMLElement {
 
   _chooseMenuOption(option) {
     if (!option) return;
+    if (this._isUnavailableState(this._state())) return;
     const service = option.dataset.menuService;
     const key = option.dataset.menuKey;
     const value = option.dataset.menuValue;
@@ -555,7 +609,7 @@ class HomeClimateCard extends HTMLElement {
     if (powerButton) {
       event.preventDefault();
       event.stopPropagation();
-      const result = this._togglePowerSwitch();
+      const result = this._togglePower();
       if (result && typeof result.catch === 'function') result.catch(() => {});
       return;
     }
@@ -564,6 +618,7 @@ class HomeClimateCard extends HTMLElement {
       event.preventDefault();
       event.stopPropagation();
       const field = button.dataset.stepField;
+      if (this._isUnavailableState(this._state())) return;
       const config = this._fieldConfig(field);
       if (!config) return;
       const attributes = this._attrs();
@@ -592,7 +647,11 @@ class HomeClimateCard extends HTMLElement {
       return;
     }
     const more = this._eventControl(event, '[data-more]');
-    if (more) this._moreInfo();
+    if (more) {
+      event.preventDefault();
+      event.stopPropagation();
+      this._moreInfo();
+    }
   }
 
   _onKeydown(event) {
@@ -693,13 +752,13 @@ class HomeClimateCard extends HTMLElement {
       config.precision == null ? 0 : this._precision(config.precision),
       this._precision(value),
     );
-    const powerEntity = this._powerSwitchEntity();
+    const powerControl = this._powerControl();
     const powerOn = this._powerOn();
     return `<div class="value-control">
       <div class="temperature-control-header">
         <span class="control-label">Target temperature</span>
         <div class="temperature-controls">
-          ${powerEntity ? `<button class="power-toggle temperature-power ${powerOn ? 'on' : 'off'}" data-power-switch type="button"
+          ${powerControl ? `<button class="power-toggle temperature-power ${powerOn ? 'on' : 'off'}" data-power-switch type="button"
             aria-label="${powerOn ? 'Turn off' : 'Turn on'} A/C in ${this._esc(name)}"
             aria-pressed="${powerOn}">
             <ha-icon icon="mdi:power" aria-hidden="true" style="--mdc-icon-size:16px"></ha-icon>
@@ -748,6 +807,7 @@ class HomeClimateCard extends HTMLElement {
     const pendingStatus = this._pendingStatus();
     if (pendingStatus === 'reached' || pendingStatus === 'rejected') this._clearPending();
     const state = this._state();
+    const available = !this._isUnavailableState(state);
     const attributes = this._attrs();
     const name = this._config.name || attributes.friendly_name || this._config.entity;
     const hvacModes = this._array(attributes.hvac_modes);
@@ -771,8 +831,15 @@ class HomeClimateCard extends HTMLElement {
       ? Math.max(this._precision(targetConfig.step), temperature == null ? 0 : this._precision(temperature))
       : 0;
     const currentAction = attributes.hvac_action;
+    const menus = [
+      this._menu('HVAC mode', hvacModes, currentMode, 'set_hvac_mode', 'hvac_mode'),
+      this._menu('Fan mode', fanModes, fanMode, 'set_fan_mode', 'fan_mode'),
+      this._menu('Preset', presetModes, presetMode, 'set_preset_mode', 'preset_mode'),
+      this._menu('Swing', swingModes, swingMode, 'set_swing_mode', 'swing_mode'),
+      this._menu('Horizontal swing', horizontalSwingModes, horizontalSwingMode, 'set_swing_horizontal_mode', 'swing_horizontal_mode'),
+    ].filter(Boolean).join('');
 
-    const html = state ? `<div class="card-row">
+    const html = available ? `<div class="card-row">
       <div class="row-left" data-more role="button" tabindex="0" aria-label="Show details for ${this._esc(name)}">
         <ha-icon icon="mdi:thermostat" class="climate-icon" style="--mdc-icon-size:26px"></ha-icon>
         <div><div class="row-name">${this._esc(name)}</div>
@@ -789,13 +856,7 @@ class HomeClimateCard extends HTMLElement {
     <div class="status-line">
       ${currentHumidity != null ? `<span>Humidity ${this._formatNumber(currentHumidity, 0)}%</span>` : ''}
     </div>
-    ${hvacModes.length ? `<div class="control-grid">
-      ${this._menu('HVAC mode', hvacModes, currentMode, 'set_hvac_mode', 'hvac_mode')}
-      ${this._menu('Fan mode', fanModes, fanMode, 'set_fan_mode', 'fan_mode')}
-      ${this._menu('Preset', presetModes, presetMode, 'set_preset_mode', 'preset_mode')}
-      ${this._menu('Swing', swingModes, swingMode, 'set_swing_mode', 'swing_mode')}
-      ${this._menu('Horizontal swing', horizontalSwingModes, horizontalSwingMode, 'set_swing_horizontal_mode', 'swing_horizontal_mode')}
-    </div>` : ''}
+    ${menus ? `<div class="control-grid">${menus}</div>` : ''}
     ${targetConfig ? this._temperatureControl(targetConfig, name) : ''}
     ${humidityConfig ? this._humidityControl(humidityConfig, name, currentHumidity) : ''}`
       : `<div class="unavailable">Climate entity ${this._esc(this._config.entity)} is unavailable.</div>`;
@@ -877,10 +938,12 @@ class HomeClimateCard extends HTMLElement {
       .climate-card .menu-trigger-value { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .climate-card .menu-options {
         position:absolute; z-index:20; top:calc(100% + 5px); left:0; right:0;
-        max-height:220px; overflow-y:auto; padding:4px;
+        max-height:min(220px,calc(100vh - 16px)); max-height:min(220px,calc(100dvh - 16px));
+        overflow-y:auto; overscroll-behavior:contain; padding:4px;
         border:1px solid rgba(255,255,255,.18); border-radius:10px;
         background:var(--climate-control-bg); box-shadow:0 12px 28px rgba(0,0,0,.35);
       }
+      .climate-card .menu-options.above { top:auto; bottom:calc(100% + 5px); }
       .climate-card .menu-option {
         all:unset; box-sizing:border-box; display:block; width:100%; padding:8px 9px;
         border-radius:7px; color:var(--climate-primary); cursor:pointer;

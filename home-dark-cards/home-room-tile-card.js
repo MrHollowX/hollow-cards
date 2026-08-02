@@ -4,6 +4,15 @@ class HomeRoomTileCard extends HTMLElement {
   set hass(h){ this._hass=h; this._render(); }
   _st(e){ if(!e) return 'unavailable'; const s=this._hass.states[e]; return s? s.state:'unavailable'; }
   _attr(e,a,d){ if(!e) return d; const s=this._hass.states[e]; return s && s.attributes[a]!=null? s.attributes[a]:d; }
+  _temperatureUnit(e){
+    const entityUnit=this._attr(e,'temperature_unit',null)||this._attr(e,'unit_of_measurement',null);
+    if(typeof entityUnit==='string'&&entityUnit.trim()) return entityUnit.trim();
+    const configuredUnit=this._hass&&this._hass.config&&this._hass.config.unit_system
+      ? this._hass.config.unit_system.temperature : '';
+    if(typeof configuredUnit==='string'&&configuredUnit.trim()) return configuredUnit.trim();
+    return '\u00b0C';
+  }
+  _esc(value){ return String(value==null?'':value).replace(/[&<>"']/g, character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character])); }
   _more(e){ if(!e) return; this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:e},bubbles:true,composed:true})); }
   _popupHash(){
     if(typeof this._c.popup_hash!=='string') return '';
@@ -21,6 +30,9 @@ class HomeRoomTileCard extends HTMLElement {
     const on = c.light_group_entity && this._st(c.light_group_entity)==='on';
     const temp = c.climate_entity? this._attr(c.climate_entity,'current_temperature','--') : null;
     const hum = c.climate_entity? this._attr(c.climate_entity,'current_humidity','') : '';
+    const temperatureText = temp==null || temp==='--'
+      ? '--'
+      : `${this._esc(temp)} ${this._esc(this._temperatureUnit(c.climate_entity))}`;
     const domainIcons=[];
     if(c.light_group_entity) domainIcons.push('mdi:lightbulb-outline');
     if(c.motion_entity) domainIcons.push('mdi:motion-sensor');
@@ -39,7 +51,7 @@ class HomeRoomTileCard extends HTMLElement {
     }
     this._mainicon.setAttribute('icon', c.icon||'mdi:home');
     this._name.innerHTML=c.name;
-    this._sub.innerHTML= temp!=null? `${temp}&deg;C${hum?' &middot; '+hum+'%':''}` : '';
+    this._sub.innerHTML= temp!=null? `${temperatureText}${hum?' &middot; '+this._esc(hum)+'%':''}` : '';
     this._icons.innerHTML= domainIcons.map(i=>`<ha-icon icon="${i}" style="--mdc-icon-size:13px"></ha-icon>`).join('') + (on? `<span class="tag">on</span>`:'');
   }
   _css(){

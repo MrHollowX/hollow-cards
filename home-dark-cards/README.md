@@ -1,13 +1,13 @@
 # Home Dark Cards
 
-This folder contains nine JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build.
+This folder contains nine JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js` and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility.
 
 ## Export metadata
 
 - **Source:** Home Assistant dashboard resource registry
 - **Home Assistant Core:** `2026.7.4`
 - **Exported:** `2026-08-01 21:20 (UTC+03:00)`
-- **Dashboard usage:** eight of the nine local resources below are referenced by the `home-dark` dashboard; `home-chip-card` is registered but has no current card instance
+- **Dashboard usage:** eight of the nine local resources below are referenced by the `home-dark` dashboard; `home-chip-card` is registered but has no current card instance. The live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards) and 10 room popups.
 - **Deployment directory:** `/config/www/home-dark-cards/`
 - **Registered URL prefix:** `/local/home-dark-cards/`
 - **Resource type:** external JavaScript module registered in URL mode
@@ -41,7 +41,7 @@ value.
 - **Purpose:** Displays the current time, date, current weather, humidity, feels-like
   temperature, and an optional daily forecast.
 - **Resource:** `home-header-card.js`
-- **URL:** `/local/home-dark-cards/home-header-card.js`
+- **URL:** `/local/home-dark-cards/home-header-card.js?v=20260802-1325-header-oneline`
 
 ```yaml
 type: custom:home-header-card
@@ -59,6 +59,12 @@ show_forecast: false
 - Current humidity comes from the weather entity's `humidity` attribute.
 - The feels-like value comes from `apparent_temperature` and is displayed with the
   entity's `temperature_unit`. The metrics row is hidden when both values are missing.
+- The clock/date remain at the top while the current weather summary and forecast
+  share a compact horizontal row. Current weather details and each forecast day are
+  readable icon-led one-line items without nested forecast boxes or item borders.
+  The forecast list uses a horizontally scrollable flex layout when its items cannot
+  fit, including on the narrowest mobile widths, so the card avoids unnecessary
+  vertical growth and page-level horizontal overflow.
 - Enabled daily forecasts use Home Assistant's `weather.get_forecasts` service with
   `type: daily`. Results are cached and refreshed at most every 30 minutes.
 
@@ -97,7 +103,7 @@ label: Andrei
   opens a configured URL hash when `popup_hash` is set; otherwise it opens more-info
   for the light group, or the climate entity when no light group is set.
 - **Resource:** `home-room-tile-card.js`
-- **URL:** `/local/home-dark-cards/home-room-tile-card.js`
+- **URL:** `/local/home-dark-cards/home-room-tile-card.js?v=20260802-1838-room-unit-fixes`
 
 This is the current verified Living Room configuration:
 
@@ -118,7 +124,9 @@ popup_hash: '#living-room'
   `motion_entity` are optional. Each configured field adds its domain icon; the
   `motion_entity` value is used for the motion icon and does not add a motion status.
 - The climate entity supplies `current_temperature` and `current_humidity` when
-  available. Installation-specific alternatives are `[Needs configuration]`.
+  available. Temperature units use the climate entity's `temperature_unit` or
+  `unit_of_measurement`, then Home Assistant's configured unit system, with an
+  explicit Celsius fallback only when neither source is available.
 - `popup_hash` is optional. The card normalizes a missing leading `#` and navigates
   to that hash so a Bubble Card `card_type: pop-up` with the same hash can open.
   Popup contents are configured in the Home Assistant dashboard, not in this resource.
@@ -174,7 +182,7 @@ name: Balcony
   that entity.
 - **Resource:** `home-climate-card.js`
 - **Resource ID:** `d3ddace99f314afbbbe9ad689d437161`
-- **URL:** `/local/home-dark-cards/home-climate-card.js?v=20260802-1257-climate-reconcile`
+- **URL:** `/local/home-dark-cards/home-climate-card.js?v=20260802-1847-climate-original-colors`
 
 The current `home-dark` dashboard uses this card for all eight climate entities:
 `climate.living_room`, `climate.cinema`, `climate.office_ac`, `climate.erics_room`,
@@ -197,6 +205,15 @@ power_switch: switch.cinema_air_conditioning_knx_switch
   displayed state uses a local optimistic preview until Home Assistant confirms
   the switch state; failed calls and a five-second timeout fall back to the latest
   Home Assistant state.
+- When `power_switch` is omitted, the card uses a native climate fallback only
+  when the live entity exposes both `climate.turn_on` and `climate.turn_off`
+  capability bits (`supported_features` 256 and 128). It derives native power
+  from the climate state (`off` means off) and calls the matching native
+  climate service. It does not guess a switch entity or show a power control
+  for entities without that capability. The current Office entity is the
+  verified native-capability case.
+- Entities whose state is `unknown` or `unavailable` show an unavailable message
+  and render no climate controls or service actions.
 - HVAC mode options come from `hvac_modes` and call `climate.set_hvac_mode`.
 - Target temperature uses `temperature`, `min_temp`, `max_temp`, and
   `target_temp_step`. The target readout is centered between minus/plus controls
@@ -209,8 +226,10 @@ power_switch: switch.cinema_air_conditioning_knx_switch
   current humidity remains visible beside its target value. It is rendered only
   when `target_humidity` is present and the entity exposes humidity support through
   its range or supported feature flag. The climate card has no range-slider controls.
-- Fan, preset, swing, and horizontal swing controls are rendered only when their
-  corresponding mode arrays are present and call the matching climate service.
+- HVAC, fan, preset, swing, and horizontal swing controls are each rendered
+  independently when their own mode array is present and call the matching
+  climate service. Fan/preset/swing menus are not hidden just because
+  `hvac_modes` is absent.
 - Mode controls use themed in-card listbox menus rather than native HTML
   `<select>` elements, so mobile browsers do not replace them with an Android/iOS
   picker. Menus support touch and keyboard operation, outside-click/Escape close,
@@ -218,9 +237,21 @@ power_switch: switch.cinema_air_conditioning_knx_switch
 - Current humidity is shown whenever `current_humidity` is available.
 - Current HVAC action is shown when `hvac_action` is exposed. No heating/AC options are
   hardcoded in the card source.
+- Pending optimistic values reconcile only against their requested field's
+  authoritative value and baseline. Updates to current temperature, HVAC action,
+  or unrelated attributes do not clear another pending control. A matching
+  requested value clears the preview; a different value for that same field is
+  treated as rejection, and a five-second timeout falls back to HA state.
+- Open menus choose above or below placement from the available viewport space,
+  cap their height, scroll internally, and reposition on viewport resize/scroll.
 - The card uses `getCardSize()` and `getGridOptions()` for sections-view layout,
-  `hass.callService` calls with `entity_id`, keyboard-selectable buttons, and theme
-  variables with dark fallbacks.
+  `hass.callService` calls with `entity_id`, keyboard-selectable buttons, and the
+  original `home-dark-*` theme variables with fixed dark fallbacks: card
+  `#212c42`, page `#1a2433`, primary `#f5f7fb`, secondary `#91a2bb`, accent
+  `#ffb340`, controls `#2b3850`, and muted text `#66758f`.
+- The live `home-dark` dashboard uses 16 climate-card instances: eight in the
+  Climate view and eight in room popups. The dashboard configuration, not this
+  JavaScript resource, owns popup membership and room layout.
 - While a menu is open, HA state updates defer the full DOM refresh so its dynamic
   options and focused option are not replaced while it is being used. Stepper and
   power-button focus is also preserved during normal state updates. Menu, stepper,
@@ -258,6 +289,13 @@ name: Couch
 - Pointer cancellation, lost capture, and window blur cancel the interaction without
   sending a service call. Pointer capture and listeners are cleaned up when the card
   disconnects.
+
+### Current climate split and room popups
+
+The live dashboard has 10 room popups. Eight contain a climate card; Kitchen and
+Garage contain no climate entity. The eight climate-enabled popups duplicate the
+eight entities shown in the Climate view so both locations remain independently
+editable in the dashboard editor.
 
 ### Living Room popup
 
@@ -311,7 +349,7 @@ required after copying or updating either file.
 - **Purpose:** Responsive presence card with a person avatar, location, optional phone
   battery, and optional distance from `zone.home`.
 - **Resource:** `home-person-card.js`
-- **URL:** `/local/home-dark-cards/home-person-card.js`
+- **URL:** `/local/home-dark-cards/home-person-card.js?v=20260802-1939-person-no-border`
 
 This is the current verified Andrei configuration:
 
@@ -338,6 +376,15 @@ battery_entity: sensor.andrei_battery_level
 - `comfortable_spacing` defaults to compact spacing. Set it to `true` for the
   two-row/taller grid sizing and additional vertical padding; omit it or set it to
   `false` for compact spacing.
+- A `home` person receives the explicit navy `#212c42` surface and normal readable
+  theme text without a presence-specific border highlight.
+- Only the literal `home` person state receives the explicit navy `#212c42` surface
+  and normal theme text. Every other state, including `away`, `not_home`, named
+  zones, `unknown`, and `unavailable`, receives the gray away surface, white
+  readable text for the name, displayed location/state, battery, proximity, and
+  labels/icons, plus a grayscale avatar. Away colors can be themed with the card's
+  `--person-away-*` custom properties; explicit fallbacks keep the card readable
+  when those properties are absent or invalid.
 - `kind` and `label` are present in the current dashboard configuration for consistency
   with other cards, but this source reads `entity`, `name`, and the options listed above.
 - The proximity calculation requires valid coordinates on the person and `zone.home`;
@@ -407,7 +454,7 @@ confirm_lock_actions: true
 - **Purpose:** House-mode selector plus PM2.5, PM10, and optional AQI metrics with
   display-only air-quality bands. Metric buttons open entity more-info.
 - **Resource:** `home-status-card.js`
-- **URL:** `/local/home-dark-cards/home-status-card.js`
+- **URL:** `/local/home-dark-cards/home-status-card.js?v=20260802-1325-status-oneline`
 
 This is the current verified Home view configuration:
 
@@ -437,6 +484,12 @@ grid_options:
 - PM2.5 display thresholds default to Good `<= 15`, Moderate `<= 35`, High `> 35`.
   PM10 defaults to Good `<= 45`, Moderate `<= 100`, High `> 100`. These are display
   bands only and do not replace the sensor's native classification.
+- The house-mode selector and configured metrics share a compact responsive status row.
+  House mode, PM2.5, PM10, and optional AQI are readable icon-led one-line
+  controls/items without individual borders. The card surface is explicitly dark navy
+  (`#212c42` fallback), distinct from the `#1a2433` page/popup background; compact
+  typography, zero-width-safe flex children, and narrow-screen wrapping keep controls
+  readable without page-level horizontal overflow in the Companion app.
 - `house_mode_entity` options are read from the entity. The selector calls
   `input_select.select_option` only when the chosen option is currently exposed by the
   entity. The verified current entity is `input_select.house_mode`; its current
@@ -458,7 +511,9 @@ grid_options:
 
 The `/local/...` URL only works after the JavaScript file has been copied to
 `/config/www/home-dark-cards/`. This repository contains local source files; it does not
-copy files to Home Assistant or change the remote dashboard automatically.
+copy files to Home Assistant or change the remote dashboard automatically. Resource
+registration and cache-busting URL changes do not upload files; copy the exact local
+JavaScript files first and hard-refresh the browser after updating them.
 
 ## Export inventory
 
