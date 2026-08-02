@@ -5,6 +5,16 @@ class HomeRoomTileCard extends HTMLElement {
   _st(e){ if(!e) return 'unavailable'; const s=this._hass.states[e]; return s? s.state:'unavailable'; }
   _attr(e,a,d){ if(!e) return d; const s=this._hass.states[e]; return s && s.attributes[a]!=null? s.attributes[a]:d; }
   _more(e){ if(!e) return; this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:e},bubbles:true,composed:true})); }
+  _popupHash(){
+    if(typeof this._c.popup_hash!=='string') return '';
+    const hash=this._c.popup_hash.trim();
+    return hash ? (hash.startsWith('#')?hash:'#'+hash) : '';
+  }
+  _open(){
+    const hash=this._popupHash();
+    if(hash){ window.location.hash=hash; return; }
+    this._more(this._c.light_group_entity||this._c.climate_entity);
+  }
   _render(){
     if(!this._hass) return;
     const c=this._c;
@@ -25,7 +35,7 @@ class HomeRoomTileCard extends HTMLElement {
       this._name=this.querySelector('.name');
       this._sub=this.querySelector('.sub');
       this._icons=this.querySelector('.icons');
-      this._tile.addEventListener('click', ()=>this._more(this._c.light_group_entity||this._c.climate_entity));
+      this._tile.addEventListener('click', ()=>this._open());
     }
     this._mainicon.setAttribute('icon', c.icon||'mdi:home');
     this._name.innerHTML=c.name;
@@ -45,4 +55,4 @@ class HomeRoomTileCard extends HTMLElement {
 }
 customElements.define('home-room-tile-card', HomeRoomTileCard);
 window.customCards = window.customCards || [];
-window.customCards.push({type:'home-room-tile-card', name:'Home Room Tile', description:'Room summary tile (tap for more-info)'});
+window.customCards.push({type:'home-room-tile-card', name:'Home Room Tile', description:'Room summary tile (tap for more-info or configured popup hash)'});

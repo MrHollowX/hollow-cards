@@ -35,7 +35,6 @@ class HomeRowCard extends HTMLElement {
       const c=this._c, e=c.entity;
       if(ev.target.closest('.sl')) return;
       if(ev.target.closest('[data-toggle]')){ this._call(e.split('.')[0],'toggle',e); return; }
-      if(ev.target.closest('[data-bump]')){ const dir=+ev.target.closest('[data-bump]').dataset.bump; const cur=this._attr(e,'temperature',21); const t=Math.round((cur+dir*0.5)*2)/2; this._call('climate','set_temperature',e,{temperature:t}); return; }
       if(ev.target.closest('[data-mediatoggle]')){ this._call('media_player','media_play_pause',e); return; }
       if(ev.target.closest('[data-vac]')){ const cleaning=this._st(e)==='cleaning'; this._call('vacuum', cleaning?'return_to_base':'start', e); return; }
       if(ev.target.closest('[data-more]')){ this._more(c.kind==='tesla'? c.charge_switch : e); return; }
@@ -78,12 +77,6 @@ class HomeRowCard extends HTMLElement {
       const pos=this._attr(e,'current_position', this._st(e)==='open'?100:0);
       html=`<div class="row-top"><div class="row-name">${c.name||'Blinds'}</div><div class="row-sub">${pos>0?'Open':'Closed'} &middot; ${pos}%</div></div>
       <div class="slider-wrap"><div class="bar"><div class="bar-fill blue" style="width:${pos}%"></div></div><input type="range" class="sl" min="0" max="100" value="${pos}" data-d="cover" data-sv="set_cover_position" data-e="${e}" data-field="position"></div>`;
-    } else if(kind==='climate'){
-      const cur=this._attr(e,'current_temperature','--'), target=this._attr(e,'temperature','--'), mode=this._st(e);
-      html=`<div class="card-row">
-        <div><div class="row-sub upper">${c.name?c.name+' &middot; ':''}${mode} &middot; now ${cur}&deg;C</div><div class="big-temp">${target}&deg;</div></div>
-        <div class="stepper"><button data-bump="-1">&minus;</button><button data-bump="1">+</button></div>
-      </div>`;
     } else if(kind==='media'){
       const playing=this._st(e)==='playing';
       const title=this._attr(e,'media_title', playing?'Playing':'Idle');
@@ -122,7 +115,6 @@ class HomeRowCard extends HTMLElement {
     .row-sub{ font-size:11.5px; color:#8fa0b8; }
     .row-sub.upper{ text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
     .card-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
-    .big-temp{ font-size:28px; font-weight:800; color:#ff9d5c; margin-top:2px; }
     .slider-wrap{ position:relative; height:28px; margin-top:10px; }
     .bar{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); height:6px; border-radius:3px; background:#2c3852; overflow:hidden; pointer-events:none; }
     .bar-fill{ height:100%; }
@@ -139,8 +131,6 @@ class HomeRowCard extends HTMLElement {
     .toggle.on{ background:#ffb340; }
     .toggle .knob{ position:absolute; left:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#66758f; transition:left .15s; }
     .toggle.on .knob{ left:21px; background:#1a2433; }
-    .stepper{ display:flex; gap:8px; }
-    .stepper button{ all:unset; cursor:pointer; width:40px; height:40px; border-radius:50%; background:#2c3852; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; color:#fff; }
     .round-btn{ all:unset; cursor:pointer; width:36px; height:36px; border-radius:50%; background:#2c3852; display:flex; align-items:center; justify-content:center; }
     .pill{ all:unset; cursor:pointer; font-weight:700; font-size:12px; padding:8px 16px; border-radius:999px; background:#2c3852; color:#fff; }
     .pill.on{ background:#ec3013; }
@@ -152,4 +142,4 @@ class HomeRowCard extends HTMLElement {
 }
 customElements.define('home-row-card', HomeRowCard);
 window.customCards = window.customCards || [];
-window.customCards.push({type:'home-row-card', name:'Home Row', description:'Single-entity control row: light, cover, climate, media, vacuum or tesla'});
+window.customCards.push({type:'home-row-card', name:'Home Row', description:'Single-entity control row: light, cover, media, vacuum or tesla'});
