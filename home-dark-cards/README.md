@@ -1,17 +1,22 @@
 # Home Dark Cards
 
-This folder contains ten JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js` and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js` is the local source for the deployed inline `custom:home-cover-card` resource.
+This folder contains ten JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js` and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js` is the local source for the deployed URL-based `custom:home-cover-card` resource.
 
 ## Export metadata
 
 - **Source:** Home Assistant dashboard resource registry
 - **Home Assistant Core:** `2026.7.4`
 - **Exported:** `2026-08-01 21:20 (UTC+03:00)`
-- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards) and 10 room popups. `home-chip-card` is registered but has no current card instance. `home-cover-card.js` is preserved locally as the exact source of its inline registered resource.
-- **Deployment directory:** `/config/www/home-dark-cards/`
+- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards) and 10 room popups. `home-chip-card` is registered but has no current card instance. `home-cover-card.js` is preserved locally as the exact source of its registered URL resource.
+- **Deployment directory:** `/config/www/home-dark-cards/` for URL-mode resources
 - **Registered URL prefix:** `/local/home-dark-cards/`
-- **Resource type:** external JavaScript modules in URL mode plus the inline
-  `home-cover-card` module resource
+- **Resource type:** JavaScript modules; `home-light-card` is managed as inline
+  content because MCP cannot upload or byte-verify URL-mode `/config/www` files
+- **Current resource sync:** `home-light-card` is the existing resource ID in
+  inline mode and contains the exact validated local source; the other Home Dark
+  resources retain URL-mode cache-busting query parameters
+- **Removed legacy resource:** the unused `home-navbar-card` registration was
+  removed after a cross-dashboard search found no usages
 - **HACS resources:** not included; this folder contains only the local custom-card resources
 
 ## Exported resources
@@ -43,7 +48,7 @@ value.
 - **Purpose:** Displays the current time, date, current weather, humidity, feels-like
   temperature, and an optional daily forecast.
 - **Resource:** `home-header-card.js`
-- **URL:** `/local/home-dark-cards/home-header-card.js?v=20260802-1325-header-oneline`
+- **URL:** `/local/home-dark-cards/home-header-card.js?v=20260812-1531-source-sync`
 
 ```yaml
 type: custom:home-header-card
@@ -76,7 +81,7 @@ show_forecast: false
 - **Purpose:** Compact, tappable status chip for a person, lock, light group, or generic
   entity. Tapping opens the entity's Home Assistant more-info dialog.
 - **Resource:** `home-chip-card.js`
-- **URL:** `/local/home-dark-cards/home-chip-card.js`
+- **URL:** `/local/home-dark-cards/home-chip-card.js?v=20260812-1531-source-sync`
 
 The current `home-dark` configuration does not contain a `home-chip-card` instance. The
 following example uses the verified `person.andrei` entity:
@@ -105,7 +110,7 @@ label: Andrei
   opens a configured URL hash when `popup_hash` is set; otherwise it opens more-info
   for the light group, or the climate entity when no light group is set.
 - **Resource:** `home-room-tile-card.js`
-- **URL:** `/local/home-dark-cards/home-room-tile-card.js?v=20260802-1838-room-unit-fixes`
+- **URL:** `/local/home-dark-cards/home-room-tile-card.js?v=20260812-1531-source-sync`
 
 This is the current verified Living Room configuration:
 
@@ -140,7 +145,7 @@ popup_hash: '#living-room'
   and the Tesla quick-device summary. Its existing `kind: light` branch remains
   supported for compatibility; new light rows use `home-light-card`.
 - **Resource:** `home-row-card.js`
-- **URL:** `/local/home-dark-cards/home-row-card.js`
+- **URL:** `/local/home-dark-cards/home-row-card.js?v=20260812-1531-source-sync`
 
 This is the current verified Tesla row used on the Home view:
 
@@ -184,9 +189,11 @@ name: Balcony
   light-position controls.
 - **Resource:** `home-cover-card.js`
 - **Resource ID:** `264907031d174aae8eaf44caa4dab133`
-- **Deployment:** The registered resource is an inline Home Assistant module. This
-  repository file is the exact local source copy; the deployed inline resource is
-  preserved and is not replaced automatically by this repository.
+- **URL:** `/local/home-dark-cards/home-cover-card.js?v=20260812-1531-source-sync`
+- **Deployment:** The registered resource is a URL-based Home Assistant module. This
+  repository file is the exact local source copy and must be deployed at
+  `/config/www/home-dark-cards/home-cover-card.js`; registering the URL does not
+  copy the file automatically.
 
 ```yaml
 type: custom:home-cover-card
@@ -221,7 +228,7 @@ half_open_position: 50
   that entity.
 - **Resource:** `home-climate-card.js`
 - **Resource ID:** `d3ddace99f314afbbbe9ad689d437161`
-- **URL:** `/local/home-dark-cards/home-climate-card.js?v=20260802-1847-climate-original-colors`
+- **URL:** `/local/home-dark-cards/home-climate-card.js?v=20260812-1531-source-sync`
 
 The current `home-dark` dashboard uses this card for all eight climate entities:
 `climate.living_room`, `climate.cinema`, `climate.office_ac`, `climate.erics_room`,
@@ -307,7 +314,10 @@ power_switch: switch.cinema_air_conditioning_knx_switch
   `supported_color_modes` contains a mode other than `onoff`.
 - **Resource:** `home-light-card.js`
 - **Resource ID:** `376b336445804f819b97c6b461f530cb`
-- **URL:** `/local/home-dark-cards/home-light-card.js?v=20260802-1002-light-events`
+- **Deployment:** The existing resource ID is managed as an inline Home Assistant
+  module containing the exact validated local source. This avoids relying on an
+  unverified `/config/www` URL file and makes the deployed content inspectable
+  through the resource registry.
 
 ```yaml
 type: custom:home-light-card
@@ -317,9 +327,9 @@ name: Couch
 
 - `entity` is required and `name` is optional. When `name` is omitted, the entity's
   `friendly_name` is used.
-- The card uses Home Assistant theme variables with dark fallbacks, including
-  `--ha-card-background`, `--card-background-color`, `--primary-text-color`,
-  `--secondary-text-color`, and `--primary-color`.
+- The card uses the existing `--home-dark-*` theme tokens used by the climate
+  card, with the Home Dark palette as fallbacks. It does not inherit the generic
+  `--ha-card-background` surface from a surrounding popup.
 - While dragging or using the keyboard, the slider keeps a local preview instead of
   being overwritten by the previous Home Assistant state. The completed interaction
   sends one `light.turn_on` call with `brightness_pct`; the preview remains visible
@@ -376,11 +386,11 @@ cards:
 
 The popup child-card list, titles, icon, hash, background, and explicit
 `close_on_click: false` behavior live in Home Assistant dashboard configuration and
-can be edited there without changing this repository's card code. Copy both
-`home-dark-cards/home-light-card.js` and
-`home-dark-cards/home-climate-card.js` to `/config/www/home-dark-cards/`; the
-resource URLs register the files but do not upload them. A browser hard refresh is
-required after copying or updating either file.
+can be edited there without changing this repository's card code. The light-card
+source is published inline through the existing resource ID. URL-mode cards still
+require copying their local source files to `/config/www/home-dark-cards/`;
+resource registration alone does not upload those files. A browser hard refresh is
+required after updating a resource.
 
 ### Home person card
 
@@ -388,7 +398,7 @@ required after copying or updating either file.
 - **Purpose:** Responsive presence card with a person avatar, location, optional phone
   battery, and optional distance from `zone.home`.
 - **Resource:** `home-person-card.js`
-- **URL:** `/local/home-dark-cards/home-person-card.js?v=20260802-1939-person-no-border`
+- **URL:** `/local/home-dark-cards/home-person-card.js?v=20260812-1531-source-sync`
 
 This is the current verified Andrei configuration:
 
@@ -435,7 +445,7 @@ battery_entity: sensor.andrei_battery_level
 - **Purpose:** Doorbell camera preview with camera/door/ring status, silent-mode control,
   lock control, lock battery text, and an optional in-card lock confirmation dialog.
 - **Resource:** `home-door-security-card.js`
-- **URL:** `/local/home-dark-cards/home-door-security-card.js`
+- **URL:** `/local/home-dark-cards/home-door-security-card.js?v=20260812-1531-source-sync`
 
 This is the current verified Home view configuration:
 
@@ -493,7 +503,7 @@ confirm_lock_actions: true
 - **Purpose:** House-mode selector plus PM2.5, PM10, and optional AQI metrics with
   display-only air-quality bands. Metric buttons open entity more-info.
 - **Resource:** `home-status-card.js`
-- **URL:** `/local/home-dark-cards/home-status-card.js?v=20260802-1325-status-oneline`
+- **URL:** `/local/home-dark-cards/home-status-card.js?v=20260812-1531-source-sync`
 
 This is the current verified Home view configuration:
 
@@ -538,28 +548,31 @@ grid_options:
 
 ## Adding a card to `home-dark`
 
-1. Copy the card JavaScript file to Home Assistant:
-   `/config/www/home-dark-cards/<card-file>.js`.
-2. Register the matching module resource URL
-   `/local/home-dark-cards/<card-file>.js` in Home Assistant's dashboard resources.
-   Existing resource IDs and URLs are listed in the export metadata and examples above.
+1. For URL-mode cards, copy the card JavaScript file to Home Assistant:
+   `/config/www/home-dark-cards/<card-file>.js`. `home-light-card` is the
+   inline-resource exception and does not require this host-file copy.
+2. Register the matching module resource URL or inline content in Home Assistant's
+   dashboard resources. Existing resource IDs and deployment modes are listed in
+   the export metadata and examples above.
 3. Open the `home-dark` dashboard editor, choose the target view, add a card, select
    **Manual**, and paste the relevant YAML example.
 4. Save the dashboard and hard-refresh the browser if the resource was newly copied or
    updated.
 
-The `/local/...` URL only works after the JavaScript file has been copied to
-`/config/www/home-dark-cards/`. This repository contains local source files; it does not
-copy files to Home Assistant or change the remote dashboard automatically. Resource
-registration and cache-busting URL changes do not upload files; copy the exact local
-JavaScript files first and hard-refresh the browser after updating them.
+The `/local/...` URL only works after the URL-based JavaScript file has been copied to
+`/config/www/home-dark-cards/`. This repository contains local source files; the
+Home Assistant MCP resource operation registers resources but does not copy URL-mode
+files into `/config/www/`. `home-light-card` is currently managed as inline content,
+so its deployed bytes are directly inspectable in the resource registry. After any
+resource update, hard-refresh the browser to load the new module.
 
 ## Export inventory
 
 The byte sizes below are decoded JavaScript content sizes reported by Home Assistant or
-the local source files. The `/local/` resources are deployed from this folder; the
-`home-cover-card.js` source is an exact local copy of the separate inline resource
-registered under resource ID `264907031d174aae8eaf44caa4dab133`.
+the local source files. URL-mode resources are deployed from this folder; the
+`home-light-card.js` source is the exact inline content registered under resource ID
+`376b336445804f819b97c6b461f530cb`, and `home-cover-card.js` is the exact local source
+for the URL resource registered under resource ID `264907031d174aae8eaf44caa4dab133`.
 
 | File | Bytes | Lines |
 |---|---:|---:|
@@ -567,30 +580,26 @@ registered under resource ID `264907031d174aae8eaf44caa4dab133`.
 | `home-chip-card.js` | 3,208 | 60 |
 | `home-room-tile-card.js` | 3,157 | 49 |
 | `home-row-card.js` | 10,123 | 156 |
-| `home-light-card.js` | [Source file] | [Source file] |
+| `home-light-card.js` | 15,928 | 440 |
 | `home-person-card.js` | 8,566 | 153 |
 | `home-door-security-card.js` | 17,326 | 37 |
-| `home-cover-card.js` | 15,628 | 165 |
+| `home-cover-card.js` | 16,026 | 173 |
 
 ## Registering or updating a resource
 
-The URL-based files are deployed under `/config/www/home-dark-cards/` and registered in
-Home Assistant as `/local/home-dark-cards/*.js` module resources. The `home-cover-card`
-resource is the documented exception: Home Assistant currently keeps its module content
-inline, while `home-dark-cards/home-cover-card.js` is the local source of truth and the
-deployed inline copy is preserved. Future custom cards belonging to `home-dark` must be
-added to this folder.
+URL-based files are deployed under `/config/www/home-dark-cards/` and registered in
+Home Assistant as `/local/home-dark-cards/*.js` module resources. `home-light-card` is
+currently registered as inline content, while `home-cover-card` remains a matching URL
+resource. Future custom cards belonging to `home-dark` must be added to this folder.
 
 To register or update a live resource, use the Home Assistant dashboard resource API or
 the corresponding `user-hass` MCP tool:
 
-1. For URL-based resources, place the JavaScript file in
-   `/config/www/home-dark-cards/` without changing its contents. For
-   `home-cover-card.js`, preserve the existing inline resource unless an explicit
-   remote update is requested.
+1. Place the JavaScript file in `/config/www/home-dark-cards/` without changing its
+   contents.
 2. Use `ha_config_set_dashboard_resource` with the existing resource ID,
-   `resource_type: "module"`, and either the matching `/local/home-dark-cards/*.js` URL
-   for URL-based resources or the exact file content for the inline cover resource.
+   `resource_type: "module"` and the matching `/local/home-dark-cards/*.js` URL.
+   Add a new cache-busting query when updating a URL-mode file.
 3. Confirm the returned resource ID and then reload the dashboard resource in Home Assistant if required.
 4. Verify the resource with `ha_config_list_dashboard_resources()` and check the `home-dark` dashboard configuration.
 
