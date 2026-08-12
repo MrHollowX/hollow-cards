@@ -1,0 +1,86 @@
+---
+description: Stable architecture, live dashboard, and deployment context for Home Dark Cards
+alwaysApply: true
+---
+
+# Home Dark Cards: project context
+
+## Architecture and authority
+
+- This repository contains local, vanilla JavaScript Home Assistant Lovelace custom
+  elements under `home-dark-cards/`. It is not a standalone web application.
+- There is no local package manifest, build system, application server, test server,
+  database, or generated bundle. The browser runtime is the Home Assistant frontend.
+- The local source and the live Home Assistant instance are separate authorities:
+  source files describe card behavior; `user-hass` MCP reads and changes the live
+  dashboard, resource registry, and entity state. Do not infer live dashboard
+  structure from stale documentation when MCP can verify it.
+- Do not edit Home Assistant `.storage` files. Do not modify remote configuration,
+  commit, or push unless the user explicitly requests it.
+
+## Deployment workflow
+
+- Manually copy URL-based JavaScript files to
+  `/config/www/home-dark-cards/` on the Home Assistant host.
+- Register each URL-based file as an existing `module` resource at
+  `/local/home-dark-cards/<file>.js`. MCP resource registration cannot upload the
+  file to `/config/www`.
+- Update an existing resource ID in place and use a cache-busting query suffix on
+  the URL; never create duplicate resources for a changed card. Query suffixes are
+  expected to change between deployments.
+- After a deployment, verify `ha_config_list_dashboard_resources` and the
+  `home-dark` dashboard config. Save dashboard config only when its card list
+  changed, then hard-refresh the browser or force-close/reopen the Companion app.
+
+## Verified live `home-dark` structure
+
+- Dashboard URL path: `home-dark`; title: `Home Dashboard Dark`; storage mode.
+- Views are native `sections` views: `home` (Home), `lights` (Lights), `climate`
+  (Climate), `blinds` (Blinds), `media` (Media), and `vacuum` (Vacuum). Navigation
+  is the native view strip, not a JavaScript screen state machine.
+- The Home view contains the header, house status, Andrei and Loredana person
+  cards, ten room tiles, door security, Tesla-style energy flow, and Roborock/
+  Storm Trooper quick rows. Its section background is `#1a2433`.
+- The ten curated rooms and popup hashes are: Living Room `#living-room`,
+  Cinema `#cinema`, Office `#office`, Eric's Room `#erics-room`,
+  Master Bedroom `#master-bedroom`, Kitchen `#kitchen`, Master Bathroom
+  `#master-bathroom`, Eric's Bathroom `#erics-bathroom`, Studio Bathroom
+  `#studio-bathroom`, and Garage `#garage`.
+- Each room tile may navigate by setting `window.location.hash`; the matching
+  `custom:bubble-card` with `card_type: pop-up` owns the popup. Popup names,
+  hashes, backgrounds, `close_on_click`, headings, and child-card composition
+  are dashboard configuration, not hardcoded in JavaScript.
+- Dedicated live views group the curated controls by room: Climate has eight
+  climate cards, Blinds has row controls plus cover cards, Media has Living
+  Room/Cinema/Office media rows, and Vacuum has the `vacuum.roborock` row.
+- Verified Home-view energy mappings are `sensor.whole_house_grid_power` for
+  grid power, `sensor.shelly_pro3em_general_total_active_power` for load,
+  `sensor.solix_c1000_x_state_of_charge` for battery level,
+  `sensor.tesla_wall_connector_total_power` for EV power,
+  `sensor.storm_trooper_battery_level` for EV battery,
+  `switch.storm_trooper_charge` for charging, `device_tracker.storm_trooper_location`
+  for EV presence, and `weather.openweathermap`/`sun.sun` for environment.
+
+## Confirmed local card resource IDs
+
+The live registry currently confirms these IDs: header
+`f5ede969d4124ec89d4e76d2d2f4ecca`, chip `e9296b183aed49a7ba6c3a7af8cfdd81`,
+room tile `02af4e539e264967a4c8b7079075876e`, row
+`840736a3a49340b59f4d314a3cf80ef2`, person
+`d655ab1709e94df7be303b4504d5397c`, door security
+`fdf4fcf92eee4a61805911ed6fc8a781`, status
+`aa8e713224b14feab81eb6aa0586560d`, light
+`376b336445804f819b97c6b461f530cb`, and climate
+`d3ddace99f314afbbbe9ad689d437161`. `home-cover-card` is the separate inline
+resource `264907031d174aae8eaf44caa4dab133`; preserve that exception unless a
+remote inline update is explicitly requested.
+
+## Verification boundaries
+
+- Prefer `node --check home-dark-cards/<file>.js` and `git diff --check` when
+  available. There is no formal local test suite.
+- The connected instance may have dashboard screenshot/browser automation disabled;
+  when unavailable, verify source, resource registry, dashboard config, entity
+  state, and service metadata directly.
+- Before dashboard edits, consult the existing
+  `.cursor/rules/home-assistant-best-practices.mdc` and its referenced guidance.

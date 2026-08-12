@@ -1,0 +1,18 @@
+---
+description: Publish custom Lovelace cards from local source before dashboard changes
+alwaysApply: true
+---
+
+# Home Dark custom-card source-first workflow
+
+For every custom Lovelace card change, update or create the local JavaScript source
+under `home-dark-cards/` first. Treat that local source/scratchpad file as the
+behavioral source of truth; use the `home-assistant` MCP server to publish/sync
+the JavaScript resource in Home Assistant, not to replace the local source.
+
+Only after the resource is successfully registered or updated may you change the
+dashboard configuration to consume the new behavior. Use the existing resource
+ID with an optimistic hash/cache-busting URL when appropriate; do not create
+duplicate resources for an existing card. Verify both the published resource
+(ID, URL/content or preview, and type) and the final dashboard configuration.
+Never edit Home Assistant `.storage` files or local HA configuration directly.

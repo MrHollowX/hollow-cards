@@ -1,16 +1,17 @@
 # Home Dark Cards
 
-This folder contains nine JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js` and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility.
+This folder contains ten JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js` and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js` is the local source for the deployed inline `custom:home-cover-card` resource.
 
 ## Export metadata
 
 - **Source:** Home Assistant dashboard resource registry
 - **Home Assistant Core:** `2026.7.4`
 - **Exported:** `2026-08-01 21:20 (UTC+03:00)`
-- **Dashboard usage:** eight of the nine local resources below are referenced by the `home-dark` dashboard; `home-chip-card` is registered but has no current card instance. The live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards) and 10 room popups.
+- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards) and 10 room popups. `home-chip-card` is registered but has no current card instance. `home-cover-card.js` is preserved locally as the exact source of its inline registered resource.
 - **Deployment directory:** `/config/www/home-dark-cards/`
 - **Registered URL prefix:** `/local/home-dark-cards/`
-- **Resource type:** external JavaScript module registered in URL mode
+- **Resource type:** external JavaScript modules in URL mode plus the inline
+  `home-cover-card` module resource
 - **HACS resources:** not included; this folder contains only the local custom-card resources
 
 ## Exported resources
@@ -26,6 +27,7 @@ This folder contains nine JavaScript custom cards available to the `home-dark` H
 | `home-door-security-card.js` | `home-door-security-card` | `fdf4fcf92eee4a61805911ed6fc8a781` |
 | `home-status-card.js` | `home-status-card` | `aa8e713224b14feab81eb6aa0586560d` |
 | `home-climate-card.js` | `home-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
+| `home-cover-card.js` | `home-cover-card` | `264907031d174aae8eaf44caa4dab133` |
 
 ## Card usage
 
@@ -173,6 +175,43 @@ entity: light.apartment_balcony
 name: Balcony
 ```
 
+
+### Home cover card
+
+- **Card type:** `custom:home-cover-card`
+- **Purpose:** Dark modular control card for blinds and shutters, including
+  capability-aware open, stop, close, position, discrete slat-tilt, and shutter
+  light-position controls.
+- **Resource:** `home-cover-card.js`
+- **Resource ID:** `264907031d174aae8eaf44caa4dab133`
+- **Deployment:** The registered resource is an inline Home Assistant module. This
+  repository file is the exact local source copy; the deployed inline resource is
+  preserved and is not replaced automatically by this repository.
+
+```yaml
+type: custom:home-cover-card
+kind: blinds
+entities:
+  - cover.living_room_window_shutter
+name: Blinds
+half_open_position: 50
+```
+
+- `kind` is required and accepts `blinds` or `shutters`.
+- `entity` or `entities` is required. Values must be `cover.*` entity IDs.
+- `name` is optional. For multiple entities, each entity's `friendly_name` is used.
+- `half_open_position` is clamped to `0`–`100` and is used for the shutters
+  light-position action.
+- `show_tilt_buttons` is optional and defaults to `true` for backward
+  compatibility. When enabled, covers that expose live tilt-position support
+  show four discrete `set_cover_tilt_position` actions at exactly `0%`, `25%`,
+  `75%`, and `100%`, labelled `Fully closed`, `Slightly open`, `Mostly open`,
+  and `Fully open`. Set it to `false` to hide the tilt controls and related
+  unavailable notice for every room/entity in the card.
+- The card's editor exposes `kind`, a multi-select cover entity selector, `name`,
+  `half_open_position`, and `show_tilt_buttons`. The main Open/Stop/Close
+  commands and the continuous cover-position slider remain available; the old
+  position presets and tilt slider are not rendered.
 
 ### Home climate card
 
@@ -517,9 +556,10 @@ JavaScript files first and hard-refresh the browser after updating them.
 
 ## Export inventory
 
-The byte sizes below are the decoded inline-content sizes reported by Home Assistant at
-export time for the original exported files. The local `/local/` resources are deployed
-from this folder and are not inline exports.
+The byte sizes below are decoded JavaScript content sizes reported by Home Assistant or
+the local source files. The `/local/` resources are deployed from this folder; the
+`home-cover-card.js` source is an exact local copy of the separate inline resource
+registered under resource ID `264907031d174aae8eaf44caa4dab133`.
 
 | File | Bytes | Lines |
 |---|---:|---:|
@@ -530,19 +570,27 @@ from this folder and are not inline exports.
 | `home-light-card.js` | [Source file] | [Source file] |
 | `home-person-card.js` | 8,566 | 153 |
 | `home-door-security-card.js` | 17,326 | 37 |
+| `home-cover-card.js` | 15,628 | 165 |
 
 ## Registering or updating a resource
 
-These files are deployed under `/config/www/home-dark-cards/` and registered in Home
-Assistant as `/local/home-dark-cards/*.js` module resources. Future custom cards belonging
-to `home-dark` must be added to this folder.
+The URL-based files are deployed under `/config/www/home-dark-cards/` and registered in
+Home Assistant as `/local/home-dark-cards/*.js` module resources. The `home-cover-card`
+resource is the documented exception: Home Assistant currently keeps its module content
+inline, while `home-dark-cards/home-cover-card.js` is the local source of truth and the
+deployed inline copy is preserved. Future custom cards belonging to `home-dark` must be
+added to this folder.
 
 To register or update a live resource, use the Home Assistant dashboard resource API or
 the corresponding `user-hass` MCP tool:
 
-1. Place the JavaScript file in `/config/www/home-dark-cards/` without changing its contents.
+1. For URL-based resources, place the JavaScript file in
+   `/config/www/home-dark-cards/` without changing its contents. For
+   `home-cover-card.js`, preserve the existing inline resource unless an explicit
+   remote update is requested.
 2. Use `ha_config_set_dashboard_resource` with the existing resource ID,
-   `resource_type: "module"`, and the matching `/local/home-dark-cards/*.js` URL.
+   `resource_type: "module"`, and either the matching `/local/home-dark-cards/*.js` URL
+   for URL-based resources or the exact file content for the inline cover resource.
 3. Confirm the returned resource ID and then reload the dashboard resource in Home Assistant if required.
 4. Verify the resource with `ha_config_list_dashboard_resources()` and check the `home-dark` dashboard configuration.
 

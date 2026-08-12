@@ -1,0 +1,64 @@
+---
+description: Home Dark visual language and mobile interaction design
+alwaysApply: true
+---
+
+# Home Dark visual system
+
+## Surfaces, type, and layout
+
+- Treat `#1a2433` as the page/popup surface and `#212c42` as the primary card
+  surface. Use `#2b3850` for controls, `#f5f7fb` for primary text,
+  `#91a2bb` for secondary text, `#ffb340` for the primary accent, and
+  `#66758f` for muted text. Keep explicit fallbacks when theme variables are
+  absent or invalid.
+- Prefer Home Assistant theme variables such as `--ha-card-background`,
+  `--card-background-color`, `--primary-text-color`,
+  `--secondary-text-color`, `--primary-color`, `--divider-color`, and
+  `--ha-card-border-radius`; card-specific `home-dark-*` variables are also
+  supported by the climate card.
+- Use the established rounded card language (about 20px card radius and
+  compact internal spacing), strong compact typography, and responsive flex/grid
+  layouts with `min-width: 0`. Do not introduce page-level horizontal overflow.
+- Header and status content should remain compact, icon-led, and readable as
+  one-line items where possible. Avoid unnecessary nested boxes and internal
+  borders; a border is justified only when it communicates focus, separation,
+  or a control boundary.
+- Design for the Home Assistant Companion app first: touch targets must be
+  usable on narrow screens, text must ellipsize or wrap safely, sliders need a
+  generous hit area, and menus must scroll within the viewport.
+
+## Person-card semantics
+
+- The person card uses an exact state check: only literal `home` gets the navy
+  home surface and normal theme text/icons.
+- Every other state (`away`, `not_home`, a named zone, `unknown`, or
+  `unavailable`) gets the gray away surface, white text/icons, and a grayscale
+  avatar. Do not add a green presence border or infer a third presence tone.
+- Keep away colors themeable through `--person-away-*` variables, but retain
+  explicit readable fallbacks.
+
+## Menus and popup composition
+
+- When a themed mobile menu is required, implement a custom in-card menu/listbox
+  with keyboard, focus, Escape, outside-click, and viewport-aware behavior.
+  Native HTML selects can invoke platform pickers and must not be introduced for
+  these menus. The existing house-status native selector is a known card-local
+  compatibility exception.
+- Room tiles and popup child cards are intentionally modular. Keep popup hashes,
+  headings, icons, backgrounds, child-card order, and `close_on_click` in the
+  Lovelace dashboard config so users can edit them without reading JavaScript.
+- Preserve event isolation inside Bubble Card popups: child buttons, menus,
+  steppers, sliders, and power controls must not bubble into popup open/close
+  handlers.
+
+## Implementation guardrails
+
+- Use semantic buttons, labels, roles, `aria-*` state, and `:focus-visible`
+  styles for interactive controls. Support pointer, keyboard, cancellation, and
+  lost-focus paths.
+- Render unavailable/unknown values as an explicit readable fallback; never
+  fabricate a capability, state, entity mapping, or vendor-specific behavior.
+- Keep this rule focused on stable design decisions. Verify any current dashboard
+  card membership, entity mapping, resource URL, or resource ID against the
+  live `home-dark` config/resource registry before documenting a change.
