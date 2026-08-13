@@ -6,6 +6,7 @@ class HomeLightCard extends HTMLElement {
       this._sliderPreview = null;
     }
     this._c = c;
+    this._lastRenderSignature = null;
   }
 
   getCardSize() {
@@ -77,6 +78,7 @@ class HomeLightCard extends HTMLElement {
   disconnectedCallback() {
     if (!this._wired) return;
     this._cancelSlider();
+    this._clearIgnoreSliderChangeTimer();
     this.removeEventListener('pointerdown', this._onPointerDown);
     this.removeEventListener('pointermove', this._onPointerMove);
     this.removeEventListener('pointerup', this._onPointerUp);
@@ -198,6 +200,7 @@ class HomeLightCard extends HTMLElement {
     this._activeSlider = null;
     this._pointerId = null;
     this._sliderPreview = null;
+    if (!commit) this._lastRenderSignature = null;
     try {
       if (pointerId != null && slider.hasPointerCapture(pointerId)) {
         slider.releasePointerCapture(pointerId);
@@ -217,11 +220,17 @@ class HomeLightCard extends HTMLElement {
   }
 
   _clearIgnoreSliderChangeLater(slider) {
-    if (this._ignoreSliderChangeTimer) clearTimeout(this._ignoreSliderChangeTimer);
+    this._clearIgnoreSliderChangeTimer();
+    this._ignoreSliderChange = slider;
     this._ignoreSliderChangeTimer = setTimeout(() => {
       if (this._ignoreSliderChange === slider) this._ignoreSliderChange = null;
       this._ignoreSliderChangeTimer = null;
     }, 0);
+  }
+
+  _clearIgnoreSliderChangeTimer() {
+    if (this._ignoreSliderChangeTimer) clearTimeout(this._ignoreSliderChangeTimer);
+    this._ignoreSliderChangeTimer = null;
   }
 
   _updateSliderFromPointer(el, clientX) {
@@ -324,6 +333,17 @@ class HomeLightCard extends HTMLElement {
       ? localValue == null ? authoritativeBrightness : localValue
       : null;
     const name = this._c.name || this._attr(entity, 'friendly_name', 'Light');
+    const renderSignature = [
+      entity,
+      name,
+      dimmable,
+      authoritativeOn,
+      authoritativeBrightness,
+      activePending ? activePending.value : '',
+      preview ? preview.value : '',
+    ].join('|');
+    if (this._shell && renderSignature === this._lastRenderSignature) return;
+    this._lastRenderSignature = renderSignature;
 
     const html = `
       <div class="row-top">

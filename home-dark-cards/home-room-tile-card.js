@@ -1,5 +1,5 @@
 class HomeRoomTileCard extends HTMLElement {
-  setConfig(c){ if(!c.name) throw new Error('name required'); this._c=c; }
+  setConfig(c){ if(!c.name) throw new Error('name required'); this._c=c; this._lastRenderSignature=null; }
   getCardSize(){ return 2; }
   set hass(h){ this._hass=h; this._render(); }
   _st(e){ if(!e) return 'unavailable'; const s=this._hass.states[e]; return s? s.state:'unavailable'; }
@@ -24,9 +24,32 @@ class HomeRoomTileCard extends HTMLElement {
     if(hash){ window.location.hash=hash; return; }
     this._more(this._c.light_group_entity||this._c.climate_entity);
   }
+  _stateSignature(){
+    const c=this._c, fields=[
+      c.light_group_entity,c.climate_entity,c.cover_entity,c.media_entity,c.motion_entity
+    ];
+    return [
+      c.name,c.icon,this._hass&&this._hass.config&&this._hass.config.unit_system
+        ? this._hass.config.unit_system.temperature : '',
+      ...fields.map((entity)=>{
+        if(!entity)return '';
+        const state=this._hass.states[entity], attrs=state&&state.attributes?state.attributes:{};
+        return [
+          entity,state?state.state:'unavailable',
+          attrs.current_temperature==null?'':attrs.current_temperature,
+          attrs.current_humidity==null?'':attrs.current_humidity,
+          attrs.temperature_unit==null?'':attrs.temperature_unit,
+          attrs.unit_of_measurement==null?'':attrs.unit_of_measurement,
+        ].join('|');
+      }),
+    ].join(';;');
+  }
   _render(){
     if(!this._hass) return;
     const c=this._c;
+    const stateSignature=this._stateSignature();
+    if(this._shell && stateSignature===this._lastRenderSignature)return;
+    this._lastRenderSignature=stateSignature;
     const on = c.light_group_entity && this._st(c.light_group_entity)==='on';
     const temp = c.climate_entity? this._attr(c.climate_entity,'current_temperature','--') : null;
     const hum = c.climate_entity? this._attr(c.climate_entity,'current_humidity','') : '';

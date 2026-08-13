@@ -16,7 +16,8 @@ class HomeCoverCard extends HTMLElement{
     const rooms=Array.isArray(config?.rooms)?config.rooms.map(normalize).filter(Boolean):[normalize(config)].filter(Boolean);
     if(!rooms.length) throw new Error('home-cover-card requires a cover entity, entities list, or rooms list');
     if(rooms.some((room)=>!['blinds','shutters'].includes(room.kind))) throw new Error('home-cover-card requires kind: blinds or shutters for every room');
-    this._config={...config,show_tilt_buttons:config?.show_tilt_buttons!==false,rooms};
+    const directSingleEntity=!Array.isArray(config?.rooms)&&rooms.length===1&&rooms[0].entities.length===1;
+    this._config={...config,show_tilt_buttons:config?.show_tilt_buttons!==false,rooms,direct_single_entity:directSingleEntity};
     this._lastStateSignature=null;
     if(this._hass)this._render();
   }
@@ -101,7 +102,9 @@ class HomeCoverCard extends HTMLElement{
     const mismatch=isBlind?(attrs.device_class&&!['blind','shade','curtain'].includes(attrs.device_class)):(attrs.device_class&&attrs.device_class!=='shutter');
     const disabled=(condition)=>unavailable||!condition;
     const id=`cover-${index}-${entity.replace(/[^a-z0-9]/gi,'-')}`;
-    return `<section class="cover ${unavailable?'is-unavailable':''}" aria-labelledby="${id}-name">
+    const opening=this._config.direct_single_entity?'':`<section class="cover ${unavailable?'is-unavailable':''}" aria-labelledby="${id}-name">`;
+    const closing=this._config.direct_single_entity?'':'</section>';
+    return `${opening}
       <div class="entity-head"><div class="entity-icon"><ha-icon icon="${isBlind?'mdi:blinds-horizontal':'mdi:window-shutter'}"></ha-icon></div><div class="entity-copy"><div id="${id}-name" class="entity-name">${esc(configuredName)}</div><div class="entity-meta">${esc(stateValue)}</div></div><div class="mode">${isBlind?'BLINDS':'SHUTTERS'}</div></div>
       ${mismatch?`<div class="notice" role="status"><ha-icon icon="mdi:information-outline"></ha-icon><span>Configured as ${isBlind?'blinds':'shutters'}; device class is ${esc(attrs.device_class)}.</span></div>`:''}
       <div class="actions" role="group" aria-label="${esc(friendly)} controls">
@@ -119,7 +122,7 @@ class HomeCoverCard extends HTMLElement{
         ${this._config.show_tilt_buttons&&!canTilt&&!!(features&(FEATURE_TILT_OPEN|FEATURE_TILT_CLOSE|FEATURE_TILT_POSITION|FEATURE_TILT_STOP))?'<div class="unsupported">Tilt position is unavailable for this entity.</div>':''}
       </div>`:''}
       ${!isBlind&&!canPosition?'<div class="unsupported">Light position is not supported by this cover.</div>':''}
-    </section>`;
+    ${closing}`;
   }
   _renderRoom(room){
     return `<div class="room-group">${room.name?`<div class="room-label">${esc(room.name)}</div>`:''}${room.entities.map((entity,index)=>this._renderEntity(room,entity,index)).join('')}</div>`;
@@ -127,11 +130,19 @@ class HomeCoverCard extends HTMLElement{
   _render(){
     if(!this._config||!this._hass)return;
     this._lastStateSignature=this._stateSignature();
+    const directSingleEntity=this._config.direct_single_entity;
+    const directRoom=this._config.rooms[0];
+    const directEntity=directRoom?.entities[0];
+    const directLabelId=directEntity?`cover-0-${directEntity.replace(/[^a-z0-9]/gi,'-')}-name`:'';
+    const cardAttributes=directSingleEntity?` class="single-cover"${directLabelId?` aria-labelledby="${directLabelId}"`:''}`:'';
+    const content=directSingleEntity
+      ? this._renderEntity(directRoom,directEntity,0)
+      : this._config.rooms.map((room)=>this._renderRoom(room)).join('');
     this.shadowRoot.innerHTML=`<style>
       :host{display:block;width:100%;min-width:0;height:100%;box-sizing:border-box;font-family:var(--paper-font-body1_-_font-family,Roboto,sans-serif)}
-      ha-card{box-sizing:border-box;width:100%;min-width:0;min-height:100%;height:auto;background:transparent;border:0;border-radius:0;color:#f3f6fb;overflow:visible;box-shadow:none}.error{margin:0 12px 12px;padding:9px 11px;border-radius:10px;background:rgba(231,91,91,.15);color:#ffb4b4;font-size:12px}.room-group{box-sizing:border-box;margin:0 12px 14px;padding:14px 16px;background:#212c42;border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.16)}.room-label{padding:0 0 10px;color:#9fc8ca;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase}.cover{margin:0 0 10px;padding:13px 13px 14px;background:#26364b;border:1px solid rgba(142,166,198,.13);border-radius:16px}.cover:last-child{margin-bottom:0}.cover.is-unavailable{opacity:.72}.entity-head{display:flex;align-items:center;gap:10px}.entity-icon{width:30px;height:30px;display:grid;place-items:center;color:#72d4d1}.entity-icon ha-icon{--mdc-icon-size:21px}.entity-copy{min-width:0;flex:1}.entity-name{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.entity-meta{margin-top:3px;color:#9eb2c9;font-size:12px}.mode{align-self:flex-start;padding:4px 7px;border-radius:7px;background:#30445d;color:#9fc8ca;font-size:9px;font-weight:700;letter-spacing:.7px}.notice{display:flex;align-items:center;gap:6px;margin-top:10px;padding:7px 9px;border-radius:9px;background:rgba(240,183,74,.12);color:#f2c87c;font-size:11px}.notice ha-icon{--mdc-icon-size:16px}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:13px}.action{font:inherit;border:1px solid rgba(142,166,198,.2);border-radius:10px;background:#2d425b;color:#eaf1f8;min-height:38px;padding:7px 5px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;touch-action:manipulation}.action{font-size:11px;font-weight:600}.action ha-icon{--mdc-icon-size:17px}.action.accent{grid-column:1/-1;background:#2f5a63;border-color:#477e80;color:#d8ffff}.action:hover:not(:disabled){background:#38536f}.action:focus-visible,input:focus-visible{outline:2px solid #79e5df;outline-offset:2px}.action:disabled,input:disabled{cursor:not-allowed;opacity:.35}.features{margin-top:13px}.slider-row{margin-top:10px}.slider-row:first-child{margin-top:0}.slider-label{display:flex;justify-content:space-between;gap:10px;color:#a9bdd2;font-size:11px;margin-bottom:5px}.slider-label strong{color:#e6f5f5;font-weight:650}.slider-row input{width:100%;accent-color:#70d5d2;cursor:pointer}.tilt-controls{margin-top:12px}.tilt-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.tilt-action{min-height:34px;color:#b9d2dd;font-size:10px}.unsupported{margin-top:11px;color:#879db5;font-size:11px;font-style:italic}
+      ha-card{box-sizing:border-box;width:100%;min-width:0;min-height:100%;height:auto;background:transparent;border:0;border-radius:0;color:#f3f6fb;overflow:visible;box-shadow:none}ha-card.single-cover{padding:14px 16px;background:#212c42;border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.16)}ha-card.single-cover .error{margin:0 0 12px}.error{margin:0 12px 12px;padding:9px 11px;border-radius:10px;background:rgba(231,91,91,.15);color:#ffb4b4;font-size:12px}.room-group{box-sizing:border-box;margin:0 12px 14px;padding:14px 16px;background:#212c42;border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.16)}.room-label{padding:0 0 10px;color:#9fc8ca;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase}.cover{margin:0 0 10px;padding:13px 13px 14px;background:#26364b;border:1px solid rgba(142,166,198,.13);border-radius:16px}.cover:last-child{margin-bottom:0}.cover.is-unavailable{opacity:.72}.entity-head{display:flex;align-items:center;gap:10px}.entity-icon{width:30px;height:30px;display:grid;place-items:center;color:#72d4d1}.entity-icon ha-icon{--mdc-icon-size:21px}.entity-copy{min-width:0;flex:1}.entity-name{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.entity-meta{margin-top:3px;color:#9eb2c9;font-size:12px}.mode{align-self:flex-start;padding:4px 7px;border-radius:7px;background:#30445d;color:#9fc8ca;font-size:9px;font-weight:700;letter-spacing:.7px}.notice{display:flex;align-items:center;gap:6px;margin-top:10px;padding:7px 9px;border-radius:9px;background:rgba(240,183,74,.12);color:#f2c87c;font-size:11px}.notice ha-icon{--mdc-icon-size:16px}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:13px}.action{font:inherit;border:1px solid rgba(142,166,198,.2);border-radius:10px;background:#2d425b;color:#eaf1f8;min-height:38px;padding:7px 5px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;touch-action:manipulation}.action{font-size:11px;font-weight:600}.action ha-icon{--mdc-icon-size:17px}.action.accent{grid-column:1/-1;background:#2f5a63;border-color:#477e80;color:#d8ffff}.action:hover:not(:disabled){background:#38536f}.action:focus-visible,input:focus-visible{outline:2px solid #79e5df;outline-offset:2px}.action:disabled,input:disabled{cursor:not-allowed;opacity:.35}.features{margin-top:13px}.slider-row{margin-top:10px}.slider-row:first-child{margin-top:0}.slider-label{display:flex;justify-content:space-between;gap:10px;color:#a9bdd2;font-size:11px;margin-bottom:5px}.slider-label strong{color:#e6f5f5;font-weight:650}.slider-row input{width:100%;accent-color:#70d5d2;cursor:pointer}.tilt-controls{margin-top:12px}.tilt-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.tilt-action{min-height:34px;color:#b9d2dd;font-size:10px}.unsupported{margin-top:11px;color:#879db5;font-size:11px;font-style:italic}
       .room-group{margin-inline:0}
-    </style><ha-card>${this._error?`<div class="error" role="alert">${esc(this._error)}</div>`:''}${this._config.rooms.map((room)=>this._renderRoom(room)).join('')}</ha-card>`;
+    </style><ha-card${cardAttributes}>${this._error?`<div class="error" role="alert">${esc(this._error)}</div>`:''}${content}</ha-card>`;
   }
 }
 class HomeCoverCardEditor extends HTMLElement{

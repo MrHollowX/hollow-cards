@@ -1,5 +1,5 @@
 class HomeRowCard extends HTMLElement {
-  setConfig(c){ if(!c.kind) throw new Error('kind required'); this._c=c; }
+  setConfig(c){ if(!c.kind) throw new Error('kind required'); this._c=c; this._lastRenderSignature=null; }
   getCardSize(){ return 1; }
   set hass(h){ this._hass=h; this._render(); }
   _st(e){ if(!e) return 'unavailable'; const s=this._hass.states[e]; return s? s.state:'unavailable'; }
@@ -14,31 +14,113 @@ class HomeRowCard extends HTMLElement {
 
   connectedCallback(){
     if(this._wired) return; this._wired=true;
-    this.addEventListener('pointerdown', ev=>{
-      const sl=ev.target.closest('.sl'); if(!sl) return;
-      ev.preventDefault();
-      this._dragging=true; this._activeSlider=sl;
-      sl.setPointerCapture(ev.pointerId);
-      this._updateSliderFromPointer(sl, ev.clientX);
-    });
-    this.addEventListener('pointermove', ev=>{
-      if(!this._dragging || !this._activeSlider) return;
-      ev.preventDefault();
-      this._updateSliderFromPointer(this._activeSlider, ev.clientX);
-    });
-    this.addEventListener('pointerup', ()=>{
-      if(this._activeSlider){ this._commitSlider(this._activeSlider); this._activeSlider=null; }
-      if(this._dragging){ this._dragging=false; this._render(); }
-    });
-    this.addEventListener('pointercancel', ()=>{ this._dragging=false; this._activeSlider=null; });
-    this.addEventListener('click', ev=>{
-      const c=this._c, e=c.entity;
-      if(ev.target.closest('.sl')) return;
-      if(ev.target.closest('[data-toggle]')){ this._call(e.split('.')[0],'toggle',e); return; }
-      if(ev.target.closest('[data-mediatoggle]')){ this._call('media_player','media_play_pause',e); return; }
-      if(ev.target.closest('[data-vac]')){ const cleaning=this._st(e)==='cleaning'; this._call('vacuum', cleaning?'return_to_base':'start', e); return; }
-      if(ev.target.closest('[data-more]')){ this._more(c.kind==='tesla'? c.charge_switch : e); return; }
-    });
+    this._onPointerDown=this._onPointerDown.bind(this);
+    this._onPointerMove=this._onPointerMove.bind(this);
+    this._onPointerUp=this._onPointerUp.bind(this);
+    this._onPointerCancel=this._onPointerCancel.bind(this);
+    this._onLostPointerCapture=this._onLostPointerCapture.bind(this);
+    this._onWindowBlur=this._onWindowBlur.bind(this);
+    this._onClick=this._onClick.bind(this);
+    this.addEventListener('pointerdown',this._onPointerDown);
+    this.addEventListener('pointermove',this._onPointerMove);
+    this.addEventListener('pointerup',this._onPointerUp);
+    this.addEventListener('pointercancel',this._onPointerCancel);
+    this.addEventListener('lostpointercapture',this._onLostPointerCapture);
+    this.addEventListener('click',this._onClick);
+    window.addEventListener('blur',this._onWindowBlur);
+  }
+
+  disconnectedCallback(){
+    if(!this._wired)return;
+    this._cancelSlider();
+    this.removeEventListener('pointerdown',this._onPointerDown);
+    this.removeEventListener('pointermove',this._onPointerMove);
+    this.removeEventListener('pointerup',this._onPointerUp);
+    this.removeEventListener('pointercancel',this._onPointerCancel);
+    this.removeEventListener('lostpointercapture',this._onLostPointerCapture);
+    this.removeEventListener('click',this._onClick);
+    window.removeEventListener('blur',this._onWindowBlur);
+    this._wired=false;
+  }
+
+  _sliderFromEvent(ev){
+    const target=ev.target;
+    return target&&typeof target.closest==='function'?target.closest('.sl'):null;
+  }
+
+  _onPointerDown(ev){
+    const sl=this._sliderFromEvent(ev);
+    if(!sl||this._dragging)return;
+    ev.stopPropagation();
+    ev.preventDefault();
+    this._dragging=true;
+    this._activeSlider=sl;
+    this._pointerId=ev.pointerId;
+    try{sl.setPointerCapture(ev.pointerId);}catch(_error){}
+    this._updateSliderFromPointer(sl,ev.clientX);
+  }
+
+  _onPointerMove(ev){
+    if(!this._dragging||!this._activeSlider||ev.pointerId!==this._pointerId)return;
+    ev.stopPropagation();
+    ev.preventDefault();
+    this._updateSliderFromPointer(this._activeSlider,ev.clientX);
+  }
+
+  _onPointerUp(ev){
+    if(!this._dragging||!this._activeSlider||ev.pointerId!==this._pointerId)return;
+    ev.stopPropagation();
+    ev.preventDefault();
+    this._finishSlider(true);
+  }
+
+  _onPointerCancel(ev){
+    if(!this._dragging||!this._activeSlider||ev.pointerId!==this._pointerId)return;
+    ev.stopPropagation();
+    this._finishSlider(false);
+  }
+
+  _onLostPointerCapture(ev){
+    if(this._dragging&&ev.pointerId===this._pointerId)this._finishSlider(false);
+  }
+
+  _onWindowBlur(){
+    if(this._dragging)this._finishSlider(false);
+  }
+
+  _onClick(ev){
+    const c=this._c, e=c.entity;
+    if(this._sliderFromEvent(ev)){ ev.stopPropagation(); return; }
+    if(ev.target.closest('[data-toggle]')){ this._call(e.split('.')[0],'toggle',e); return; }
+    if(ev.target.closest('[data-mediatoggle]')){ this._call('media_player','media_play_pause',e); return; }
+    if(ev.target.closest('[data-vac]')){ const cleaning=this._st(e)==='cleaning'; this._call('vacuum', cleaning?'return_to_base':'start', e); return; }
+    if(ev.target.closest('[data-more]')){ this._more(c.kind==='tesla'? c.charge_switch : e); return; }
+  }
+
+  _finishSlider(commit){
+    const slider=this._activeSlider;
+    if(!slider)return;
+    const pointerId=this._pointerId;
+    if(commit)this._commitSlider(slider);
+    this._dragging=false;
+    this._activeSlider=null;
+    this._pointerId=null;
+    this._lastRenderSignature=null;
+    try{
+      if(pointerId!=null&&slider.hasPointerCapture(pointerId))slider.releasePointerCapture(pointerId);
+    }catch(_error){}
+    this._render();
+  }
+
+  _cancelSlider(){
+    const slider=this._activeSlider;
+    const pointerId=this._pointerId;
+    this._dragging=false;
+    this._activeSlider=null;
+    this._pointerId=null;
+    try{
+      if(slider&&pointerId!=null&&slider.hasPointerCapture(pointerId))slider.releasePointerCapture(pointerId);
+    }catch(_error){}
   }
 
   _updateSliderFromPointer(el, clientX){
@@ -61,6 +143,21 @@ class HomeRowCard extends HTMLElement {
   _render(){
     if(!this._hass || this._dragging) return;
     const c=this._c, kind=c.kind, e=c.entity;
+    const state=this._hass.states[e];
+    const attrs=state&&state.attributes?state.attributes:{};
+    const renderSignature=[
+      kind,e,c.name||'',c.battery_entity||'',c.charge_switch||'',
+      state?state.state:'unavailable',
+      attrs.brightness==null?'':attrs.brightness,
+      Array.isArray(attrs.supported_color_modes)?attrs.supported_color_modes.join(','):'',
+      attrs.current_position==null?'':attrs.current_position,
+      attrs.media_title==null?'':attrs.media_title,
+      attrs.source==null?'':attrs.source,
+      this._st(c.battery_entity),
+      this._st(c.charge_switch),
+    ].join('|');
+    if(this._shell && renderSignature===this._lastRenderSignature)return;
+    this._lastRenderSignature=renderSignature;
     let html='';
     if(kind==='light'){
       const on=this._st(e)==='on';
