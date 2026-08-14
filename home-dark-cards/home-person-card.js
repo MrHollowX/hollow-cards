@@ -134,20 +134,18 @@ class HomePersonCard extends HTMLElement {
       :host { display: block; min-width: 0; width: 100%; height: 100%; color: var(--primary-text-color, #f5f7fb); }
       .card { box-sizing: border-box; width: 100%; height: 100%; min-height: 76px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--divider-color, rgba(255,255,255,.10)); border-radius: 16px; color: var(--primary-text-color, #f5f7fb); text-align: left; cursor: pointer; background: #212c42; box-shadow: 0 4px 14px rgba(0,0,0,.16); font: inherit; }
       .card.comfortable { padding-block: 8px; }
-      .card:hover { border-color: var(--primary-color, #3d8bfd); }
       .card:focus-visible { outline: 3px solid var(--primary-color, #3d8bfd); outline-offset: 2px; }
       .card.card[data-presence="home"] { background: #212c42 !important; background-color: #212c42 !important; color: var(--primary-text-color, #f5f7fb); }
-      .card.card[data-presence="away"] { background: #626b77 !important; background-color: #626b77 !important; color: #fff !important; border-color: var(--person-away-border-color, rgba(255,255,255,.35)); }
-      .card[data-presence="away"]:hover { border-color: var(--person-away-border-hover-color, rgba(255,255,255,.72)); }
-      .card[data-presence="away"]:focus-visible { outline-color: var(--person-away-focus-color, #fff); }
+      .card.card[data-presence="away"] { background: var(--person-away-background, #3d5270) !important; background-color: var(--person-away-background, #3d5270) !important; color: var(--person-away-color, #f5f7fb) !important; border-color: var(--person-away-border-color, rgba(255,255,255,.35)); }
+      .card[data-presence="away"]:focus-visible { outline-color: var(--person-away-focus-color, #f5f7fb); }
       .avatar { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 50%; object-fit: cover; background: var(--secondary-background-color, #3d4a66); color: var(--secondary-text-color, #aebbd0); }
-      .card[data-presence="away"] .avatar { background: #737b85 !important; background-color: #737b85 !important; color: #fff !important; border: 1px solid var(--person-away-avatar-border-color, rgba(255,255,255,.42)); }
+      .card[data-presence="away"] .avatar { background: var(--person-away-avatar-background, #4a6382) !important; background-color: var(--person-away-avatar-background, #4a6382) !important; color: var(--person-away-color, #f5f7fb) !important; border: 1px solid var(--person-away-avatar-border-color, rgba(255,255,255,.42)); }
       .card[data-presence="away"] .avatar:not(.fallback) { filter: grayscale(1) contrast(1.05); }
       .fallback ha-icon { --mdc-icon-size: 22px; }
       .copy { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
       .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(13px, 2.2vw, 16px); font-weight: 750; }
       .details { min-width: 0; max-width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--secondary-text-color, #9fb0c8); font-size: clamp(10px, 1.8vw, 12px); line-height: 1.25; }
-      .card[data-presence="away"] .name, .card[data-presence="away"] .details, .card[data-presence="away"] .detail-item, .card[data-presence="away"] .detail-item ha-icon, .card[data-presence="away"] .fallback, .card[data-presence="away"] .fallback ha-icon { color: #fff !important; }
+      .card[data-presence="away"] .name, .card[data-presence="away"] .details, .card[data-presence="away"] .detail-item, .card[data-presence="away"] .detail-item ha-icon, .card[data-presence="away"] .fallback, .card[data-presence="away"] .fallback ha-icon { color: var(--person-away-color, #f5f7fb) !important; }
       .detail-item { min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 4px; }
       .detail-item ha-icon { flex: 0 0 auto; --mdc-icon-size: 14px; }
       .detail-item > span { min-width: 0; overflow-wrap: anywhere; }

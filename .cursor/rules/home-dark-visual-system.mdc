@@ -33,8 +33,9 @@ alwaysApply: true
 - The person card uses an exact state check: only literal `home` gets the navy
   home surface and normal theme text/icons.
 - Every other state (`away`, `not_home`, a named zone, `unknown`, or
-  `unavailable`) gets the gray away surface, white text/icons, and a grayscale
-  avatar. Do not add a green presence border or infer a third presence tone.
+  `unavailable`) gets the mid-dark slate-blue away surface (`#3d5270`),
+  light text/icons (`#f5f7fb`), and a grayscale avatar. Do not add a green
+  presence border or infer a third presence tone.
 - Keep away colors themeable through `--person-away-*` variables, but retain
   explicit readable fallbacks.
 

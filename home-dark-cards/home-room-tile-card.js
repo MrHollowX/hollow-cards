@@ -80,7 +80,7 @@ class HomeRoomTileCard extends HTMLElement {
   _css(){
     return `
     :host{ display:block; min-width:0; height:100%; font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; }
-    .tile{ background:#212c42; border-radius:22px; padding:16px 12px 14px; min-height:120px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; text-align:center; color:#fff; }
+    .tile{ background:#212c42; border:1px solid rgba(255,255,255,.1); border-radius:22px; padding:16px 12px 14px; min-height:120px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; text-align:center; color:#fff; }
     .name{ font-size:14px; font-weight:700; }
     .sub{ min-height:14px; font-size:11.5px; color:#8fa0b8; }
     .icons{ display:flex; gap:6px; color:#5f7091; align-items:center; margin-top:2px; min-height:13px; }

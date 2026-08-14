@@ -398,7 +398,7 @@ required after updating a resource.
 - **Purpose:** Responsive presence card with a person avatar, location, optional phone
   battery, and optional distance from `zone.home`.
 - **Resource:** `home-person-card.js`
-- **URL:** `/local/home-dark-cards/home-person-card.js?v=20260812-1531-source-sync`
+- **URL:** `/local/home-dark-cards/home-person-card.js?v=20260814-2223-no-hover-border`
 
 This is the current verified Andrei configuration:
 
@@ -429,11 +429,11 @@ battery_entity: sensor.andrei_battery_level
   theme text without a presence-specific border highlight.
 - Only the literal `home` person state receives the explicit navy `#212c42` surface
   and normal theme text. Every other state, including `away`, `not_home`, named
-  zones, `unknown`, and `unavailable`, receives the gray away surface, white
-  readable text for the name, displayed location/state, battery, proximity, and
-  labels/icons, plus a grayscale avatar. Away colors can be themed with the card's
-  `--person-away-*` custom properties; explicit fallbacks keep the card readable
-  when those properties are absent or invalid.
+  zones, `unknown`, and `unavailable`, receives the mid-dark slate-blue away surface
+  (`#3d5270`), light `#f5f7fb` readable text for the name, displayed location/state,
+  battery, proximity, and labels/icons, plus a grayscale avatar. Away colors can be
+  themed with the card's `--person-away-*` custom properties; explicit fallbacks
+  keep the card readable when those properties are absent or invalid.
 - `kind` and `label` are present in the current dashboard configuration for consistency
   with other cards, but this source reads `entity`, `name`, and the options listed above.
 - The proximity calculation requires valid coordinates on the person and `zone.home`;
