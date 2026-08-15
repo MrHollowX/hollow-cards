@@ -15,6 +15,7 @@ class HomeClimateCard extends HTMLElement {
       this._clearPowerPreview();
     }
     this._config = config;
+    this._lastRenderSignature = null;
   }
 
   getCardSize() {
@@ -831,6 +832,66 @@ class HomeClimateCard extends HTMLElement {
       ? Math.max(this._precision(targetConfig.step), temperature == null ? 0 : this._precision(temperature))
       : 0;
     const currentAction = attributes.hvac_action;
+    const displayedTemperature = targetConfig
+      ? this._displayValue('temperature', targetConfig.value)
+      : '';
+    const displayedHumidity = humidityConfig
+      ? this._displayValue('humidity', humidityConfig.value)
+      : '';
+    const powerControl = available ? this._powerControl() : null;
+    const powerOn = powerControl ? this._powerOn() : false;
+    const pending = this._pending && this._pending.entity === this._config.entity
+      ? this._pending
+      : null;
+    const powerPreview = this._powerPreview;
+    const renderSignature = [
+      this._config.entity,
+      this._config.power_switch || '',
+      name,
+      available,
+      state ? state.state : 'unavailable',
+      currentMode,
+      currentAction || '',
+      temperature,
+      this._temperatureUnit(),
+      temperaturePrecision,
+      currentHumidity,
+      hvacModes.join(','),
+      fanModes.join(','),
+      presetModes.join(','),
+      swingModes.join(','),
+      horizontalSwingModes.join(','),
+      fanMode || '',
+      presetMode || '',
+      swingMode || '',
+      horizontalSwingMode || '',
+      targetConfig
+        ? [targetConfig.value, targetConfig.min, targetConfig.max, targetConfig.step, targetConfig.precision].join(',')
+        : '',
+      humidityConfig
+        ? [humidityConfig.value, humidityConfig.min, humidityConfig.max].join(',')
+        : '',
+      displayedTemperature,
+      displayedHumidity,
+      attributes.target_temp_low,
+      attributes.target_temp_high,
+      attributes.min_temp,
+      attributes.max_temp,
+      attributes.target_temp_step,
+      attributes.precision,
+      attributes.target_humidity,
+      attributes.min_humidity,
+      attributes.max_humidity,
+      attributes.supported_features,
+      powerControl ? `${powerControl.type}:${powerControl.entity}` : '',
+      powerOn,
+      powerPreview ? `${powerPreview.entity}:${powerPreview.type}:${powerPreview.on}` : '',
+      pending ? `${pending.field}:${pending.value}` : '',
+      this._openMenu || '',
+    ].join('|');
+    if (!force && this._shell && renderSignature === this._lastRenderSignature) return;
+    this._lastRenderSignature = renderSignature;
+
     const menus = [
       this._menu('HVAC mode', hvacModes, currentMode, 'set_hvac_mode', 'hvac_mode'),
       this._menu('Fan mode', fanModes, fanMode, 'set_fan_mode', 'fan_mode'),

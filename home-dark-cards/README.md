@@ -1,20 +1,21 @@
 # Home Dark Cards
 
-This folder contains ten JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js` and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js` is the local source for the deployed URL-based `custom:home-cover-card` resource.
+This folder contains eleven JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js` and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js` and `home-floating-menu-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the six dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
+
+**Hosting modes, verified against the live resource registry on 2026-08-15.** Three existing cards are registered as inline content: `home-row-card` (`840736a3a49340b59f4d314a3cf80ef2`), `home-light-card` (`376b336445804f819b97c6b461f530cb`), and `home-cover-card` (`264907031d174aae8eaf44caa4dab133`). These are legacy inline resources and must be reported before any related dashboard change. The eight local cards registered as URL-mode resources under `/local/home-dark-cards/` and requiring manual host copying are `home-header-card`, `home-chip-card`, `home-room-tile-card`, `home-person-card`, `home-door-security-card`, `home-status-card`, `home-climate-card`, and `home-floating-menu-card` (`f6e3ebca911144e2ab3dc847a082a31e`). New or changed cards must use this URL-mode workflow only. Media playback uses a separately registered external card resource.
 
 ## Export metadata
 
 - **Source:** Home Assistant dashboard resource registry
 - **Home Assistant Core:** `2026.7.4`
 - **Exported:** `2026-08-01 21:20 (UTC+03:00)`
-- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards) and 10 room popups. `home-chip-card` is registered but has no current card instance. `home-cover-card.js` is preserved locally as the exact source of its registered URL resource.
+- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups. `home-chip-card` is registered but has no current card instance. `home-cover-card.js` is preserved locally as the source corresponding to its legacy inline resource.
 - **Deployment directory:** `/config/www/home-dark-cards/` for URL-mode resources
 - **Registered URL prefix:** `/local/home-dark-cards/`
-- **Resource type:** JavaScript modules; `home-light-card` is managed as inline
-  content because MCP cannot upload or byte-verify URL-mode `/config/www` files
-- **Current resource sync:** `home-light-card` is the existing resource ID in
-  inline mode and contains the exact validated local source; the other Home Dark
-  resources retain URL-mode cache-busting query parameters
+- **Resource type:** JavaScript modules; URL-mode resources require manual copying
+  to `/config/www/home-dark-cards/` because MCP cannot upload those files
+- **Current resource sync:** the three existing inline card resources are legacy
+  exceptions; all new or changed local cards use URL-mode resources
 - **Removed legacy resource:** the unused `home-navbar-card` registration was
   removed after a cross-dashboard search found no usages
 - **HACS resources:** not included; this folder contains only the local custom-card resources
@@ -33,6 +34,41 @@ This folder contains ten JavaScript custom cards available to the `home-dark` Ho
 | `home-status-card.js` | `home-status-card` | `aa8e713224b14feab81eb6aa0586560d` |
 | `home-climate-card.js` | `home-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
 | `home-cover-card.js` | `home-cover-card` | `264907031d174aae8eaf44caa4dab133` |
+| `home-floating-menu-card.js` | `home-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
+
+### Home floating menu card
+
+- **Card type:** `custom:home-floating-menu-card`
+- **Purpose:** Fixed, safe-area-aware bottom navigation that remains visible while
+  the dashboard view scrolls. The live `home-dark` dashboard places one instance
+  in each of its six views and uses `view_path` to avoid duplicate fixed menus
+  when inactive views remain mounted.
+- **Resource:** `home-floating-menu-card.js`
+- **Resource ID:** `f6e3ebca911144e2ab3dc847a082a31e`
+
+```yaml
+type: custom:home-floating-menu-card
+view_path: home
+show_labels: false
+tabs:
+  - id: home
+    icon: mdi:home
+    label: Home
+    path: /home-dark/home
+  - id: lights
+    icon: mdi:lightbulb
+    label: Lights
+    path: /home-dark/lights
+```
+
+- `tabs` is required only when overriding the six built-in `home-dark` tabs.
+- `view_path` is the current view slug (`home`, `lights`, `climate`, `blinds`,
+  `media`, or `vacuum`) for instances repeated across views.
+- `show_labels` defaults to `false`; labels remain available through button
+  tooltips and accessible names.
+- **Deployment:** Copy `home-floating-menu-card.js` to
+  `/config/www/home-dark-cards/` before loading the dashboard. Its resource is
+  registered as `/local/home-dark-cards/home-floating-menu-card.js`.
 
 ## Card usage
 
@@ -168,7 +204,10 @@ name: Storm Trooper
   use `custom:home-light-card` so the light-specific implementation is independently
   configurable.
 - Cover rows use `current_position` and call `cover.set_cover_position`.
-- Media rows call `media_player.media_play_pause`.
+- Media rows call `media_player.media_play_pause`. The branch remains in the
+  source, but no card on the live `home-dark` dashboard uses `kind: media` any
+  more; media players use the separately maintained
+  `custom:mediocre-media-player-card` resource.
 - Vacuum rows call `vacuum.start` or `vacuum.return_to_base`; the verified current
   vacuum entity is `vacuum.roborock`.
 - The verified current light example is:
@@ -189,11 +228,9 @@ name: Balcony
   light-position controls.
 - **Resource:** `home-cover-card.js`
 - **Resource ID:** `264907031d174aae8eaf44caa4dab133`
-- **URL:** `/local/home-dark-cards/home-cover-card.js?v=20260812-1531-source-sync`
-- **Deployment:** The registered resource is a URL-based Home Assistant module. This
-  repository file is the exact local source copy and must be deployed at
-  `/config/www/home-dark-cards/home-cover-card.js`; registering the URL does not
-  copy the file automatically.
+- **Hosting:** The registered resource is a legacy inline Home Assistant module.
+  Do not update it inline. The local file is retained as the source for future
+  migration to URL mode if explicitly requested.
 
 ```yaml
 type: custom:home-cover-card
@@ -228,7 +265,7 @@ half_open_position: 50
   that entity.
 - **Resource:** `home-climate-card.js`
 - **Resource ID:** `d3ddace99f314afbbbe9ad689d437161`
-- **URL:** `/local/home-dark-cards/home-climate-card.js?v=20260812-1531-source-sync`
+- **URL:** `/local/home-dark-cards/home-climate-card.js?v=20260814-climate-render-skip`
 
 The current `home-dark` dashboard uses this card for all eight climate entities:
 `climate.living_room`, `climate.cinema`, `climate.office_ac`, `climate.erics_room`,
@@ -298,6 +335,12 @@ power_switch: switch.cinema_air_conditioning_knx_switch
 - The live `home-dark` dashboard uses 16 climate-card instances: eight in the
   Climate view and eight in room popups. The dashboard configuration, not this
   JavaScript resource, owns popup membership and room layout.
+- After the first paint, identical Home Assistant updates skip rebuilding the card
+  `innerHTML`. The skip compares a render signature of the entity id, availability,
+  HVAC/preset/fan/swing modes and current values, current and target temperatures
+  (including heat/cool range attributes), humidity, pending/preview/optimistic
+  values, power state, and the open menu. `_render(true)` still redraws for menu
+  open/close and stepper/power optimistic updates even when hass state is unchanged.
 - While a menu is open, HA state updates defer the full DOM refresh so its dynamic
   options and focused option are not replaced while it is being used. Stepper and
   power-button focus is also preserved during normal state updates. Menu, stepper,
@@ -360,10 +403,19 @@ hash: '#living-room'
 name: Living Room
 icon: mdi:sofa
 bg_color: '#1a2433'
+bg_opacity: 100
 close_on_click: false
+button_type: name
+show_header: false
+card_layout: large
 cards:
   - type: heading
     heading: Living Room
+    heading_style: title
+    icon: mdi:sofa
+  - type: custom:home-light-card
+    entity: light.living_room_all
+    name: Room
   - type: custom:home-light-card
     entity: light.apartment_balcony
     name: Balcony
@@ -375,14 +427,36 @@ cards:
     name: TV Light
   - type: custom:home-climate-card
     entity: climate.living_room
-  - type: custom:home-row-card
-    kind: cover
-    entity: cover.living_room_window_shutter
-    name: Blinds
-  - type: custom:home-row-card
-    kind: media
-    entity: media_player.living_room_soundbar_ma
+    power_switch: switch.living_room_air_conditioning_knx_switch
+    name: Living Room
+  - type: custom:home-climate-card
+    entity: climate.living_room_ac
+    power_switch: switch.living_room_air_conditioning_knx_switch
+    name: Living Room Air Conditioning
+  - type: custom:mediocre-media-player-card
+    entity_id: media_player.living_room_soundbar_ma
+    name: Living Room Soundbar
+    compact: true
+  - type: custom:home-cover-card
+    rooms:
+      - name: Shutters
+        kind: shutters
+        entities:
+          - cover.living_room_window_shutter
+          - cover.living_room_door_shutter
+        names:
+          - Window
+          - Door
+        half_open_position: 50
+    show_tilt_buttons: true
 ```
+
+Cinema and Office are the other two popups with a media card. Their media entries
+are `media_player.cinema_ma` (name `Cinema`) and `media_player.heos_office`
+(name `Office`), both compact instances of the separately maintained
+`custom:mediocre-media-player-card`. The remaining seven popups — Eric's Room,
+Master Bedroom, Kitchen, Master Bathroom, Eric's Bathroom, Studio Bathroom, and
+Garage — contain no media card.
 
 The popup child-card list, titles, icon, hash, background, and explicit
 `close_on_click: false` behavior live in Home Assistant dashboard configuration and
@@ -548,31 +622,28 @@ grid_options:
 
 ## Adding a card to `home-dark`
 
-1. For URL-mode cards, copy the card JavaScript file to Home Assistant:
-   `/config/www/home-dark-cards/<card-file>.js`. `home-light-card` is the
-   inline-resource exception and does not require this host-file copy.
-2. Register the matching module resource URL or inline content in Home Assistant's
-   dashboard resources. Existing resource IDs and deployment modes are listed in
-   the export metadata and examples above.
+1. Copy the card JavaScript file to Home Assistant:
+   `/config/www/home-dark-cards/<card-file>.js`.
+2. Register or update the matching URL-mode module resource at
+   `/local/home-dark-cards/<card-file>.js`. Never create or update an inline
+   resource for a local card. Existing inline resources are legacy exceptions;
+   report them before changing the related dashboard card.
 3. Open the `home-dark` dashboard editor, choose the target view, add a card, select
    **Manual**, and paste the relevant YAML example.
 4. Save the dashboard and hard-refresh the browser if the resource was newly copied or
    updated.
 
-The `/local/...` URL only works after the URL-based JavaScript file has been copied to
+The `/local/...` URL only works after the JavaScript file has been copied to
 `/config/www/home-dark-cards/`. This repository contains local source files; the
-Home Assistant MCP resource operation registers resources but does not copy URL-mode
-files into `/config/www/`. `home-light-card` is currently managed as inline content,
-so its deployed bytes are directly inspectable in the resource registry. After any
-resource update, hard-refresh the browser to load the new module.
+Home Assistant MCP resource operation registers resources but does not copy files
+into `/config/www/`. After any resource update, hard-refresh the browser to load
+the new module.
 
 ## Export inventory
 
-The byte sizes below are decoded JavaScript content sizes reported by Home Assistant or
-the local source files. URL-mode resources are deployed from this folder; the
-`home-light-card.js` source is the exact inline content registered under resource ID
-`376b336445804f819b97c6b461f530cb`, and `home-cover-card.js` is the exact local source
-for the URL resource registered under resource ID `264907031d174aae8eaf44caa4dab133`.
+The byte sizes below are local JavaScript source sizes. URL-mode resources are
+deployed from this folder; existing inline resources are legacy exceptions and
+are not the deployment pattern for new or changed cards.
 
 | File | Bytes | Lines |
 |---|---:|---:|
@@ -584,13 +655,13 @@ for the URL resource registered under resource ID `264907031d174aae8eaf44caa4dab
 | `home-person-card.js` | 8,566 | 153 |
 | `home-door-security-card.js` | 17,326 | 37 |
 | `home-cover-card.js` | 16,026 | 173 |
+| `home-floating-menu-card.js` | 10,514 | 348 |
 
 ## Registering or updating a resource
 
-URL-based files are deployed under `/config/www/home-dark-cards/` and registered in
-Home Assistant as `/local/home-dark-cards/*.js` module resources. `home-light-card` is
-currently registered as inline content, while `home-cover-card` remains a matching URL
-resource. Future custom cards belonging to `home-dark` must be added to this folder.
+Local files are deployed under `/config/www/home-dark-cards/` and registered in
+Home Assistant as `/local/home-dark-cards/*.js` module resources. Future custom
+cards belonging to `home-dark` must use this URL-mode workflow.
 
 To register or update a live resource, use the Home Assistant dashboard resource API or
 the corresponding `user-hass` MCP tool:

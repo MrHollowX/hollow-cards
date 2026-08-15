@@ -19,33 +19,50 @@ helpers, follow the `.cursor/rules/home-assistant-best-practices.mdc` rule**
 rule: prefer entity_id over device_id, use native helpers over templates
 where possible, never hand-edit YAML/.storage directly.
 
+## Custom card resource hosting rule
+
+- Never create or update inline Lovelace resources for custom cards.
+- Custom-card behavior must live in a local source file under
+  `home-dark-cards/`, which the user manually copies to the Home Assistant host.
+- Use URL-mode module resources under `/local/home-dark-cards/<file>.js` only
+  after the user has copied the file. Reuse an existing resource ID when one
+  exists; do not create duplicate resources.
+- Before changing a dashboard or resource, inspect the live resource registry.
+  If the dashboard uses an inline resource, tell the user explicitly. Do not
+  silently update or replace that inline resource.
+
 ## System
 
-- HA Core 2026.7.3, Home Assistant OS 18.1, installed as an OS/Supervisor
-  install (not container-only), on a KVM VM (`board: ova`).
+- HA Core 2026.8.1, Home Assistant OS 18.2, Supervisor 2026.07.5, Python 3.14.6,
+  installed as an OS/Supervisor install (not container-only), on a KVM VM
+  (`board: ova`). Re-verified 2026-08-14; the previously recorded Core 2026.7.3 /
+  HA OS 18.1 values were stale.
 - Location: "Home", timezone Europe/Bucharest.
-- Recorder DB: MySQL/MariaDB (~3.2 GB), oldest run 2026-07-11.
-- Lovelace: storage mode, 7 dashboards, 39 views, 18 resources.
-- Installed add-ons: Music Assistant, Terminal & SSH, ZigStar TI CC2652P/P7 FW
-  Flasher, Mosquitto broker, YT Music PO Token Generator, ESPHome Device
-  Builder, Studio Code Server, Zigbee2MQTT, RPC Shutdown, Samba share, chrony,
-  Everything Presence Zone Configurator, Piper (TTS), Whisper (STT), Home
-  Assistant MCP Server.
+- Recorder DB: MySQL/MariaDB (~3,900 MiB), oldest run 2026-08-02.
+- Lovelace: storage mode, 8 dashboards, 38 views, 30 resources.
+- Installed add-ons (16): Music Assistant 2.9.13, Terminal & SSH, Mosquitto
+  broker, YT Music PO Token Generator, ESPHome Device Builder, Studio Code
+  Server, Zigbee2MQTT, RPC Shutdown, Samba share, chrony, Everything Presence
+  Zone Configurator, Piper (TTS), Whisper (STT), Home Assistant MCP Server,
+  OpenThread Border Router, and Matter Server. The ZigStar TI CC2652P/P7 FW
+  Flasher add-on is no longer installed.
 - HACS installed (2.0.5), 28 downloaded custom repos.
 - Integrations seen in system health: Airly, HA Cloud (not logged in), Daikin
   Onecta (OAuth2), HACS, Supervisor/hassio, core, Lovelace, network, recorder.
 
 ## Scale
 
-- 2016 entities across 42 domains, 375 services, 14 areas (no floors defined
+- 2030 entities across 42 domains, 375 services, 14 areas (no floors defined
   — all areas are "unassigned" to a floor). (Was 17; `laundry_room`,
   `soundbar`, `q_series_soundbar` were empty leftovers and removed
-  2026-07-23.)
+  2026-07-23.) Entity count re-verified 2026-08-14; the earlier 2016 was stale.
 - 74 automations (57 on, 16 off, 1 unavailable), only 2 scripts, 1 scene-ish
   setup via automations (no dedicated scenes found in top-level scan).
 - Big domains: sensor (645), binary_sensor (303), number (233), switch (202),
-  select (100), update (89), button (79), light (78), media_player (39),
-  device_tracker (30), climate (13), cover (11).
+  select (100), update (89), button (79), light (78), media_player (37),
+  device_tracker (30), climate (13), cover (11). The media_player count was
+  re-verified as 37 on 2026-08-14 (12 idle, 9 off, 15 unavailable, 1 playing);
+  the earlier 39 was stale.
 
 ## Areas (14, all floor-unassigned)
 
@@ -292,6 +309,49 @@ the dashboard editor, no JS reading required for day-to-day changes.
   internal/external URL is configured for browser automation) — layout
   issues are diagnosed by reading the sections/grid config directly
   against HA's sections-view layout rules, not by visual screenshot.
+
+## Media player integration
+
+The `home-dark` Media view and the Living Room, Cinema, and Office room popups
+use the separately maintained `custom:mediocre-media-player-card` resource.
+The local card set does not contain a media-player source file.
+
+- The external resource is managed separately from the local JavaScript cards.
+
+### Dashboard change
+
+The `home-dark` Media view has three media-player cards, and the Living Room,
+Cinema, and Office Bubble Card popups have compact versions for the same players.
+The remaining seven popups contain no media entity. The obsolete local media-card
+resource was removed after verifying that no dashboard configuration referenced it.
+
+### Open recommendation: Office uses the weaker entity
+
+The Media view's Office card targets `media_player.heos_office`, but
+`media_player.office_ma` is the Music Assistant wrapper for the same physical
+device (both carry unique_id `1346989420`) and is strictly more capable: it adds
+SEEK, SHUFFLE_SET, REPEAT_SET, MEDIA_ANNOUNCE and SEARCH_MEDIA on top of
+everything `heos_office` supports. Living Room and Cinema already use their `_ma`
+entities, so Office is the odd one out. Switching it would enable the seek bar
+and the shuffle/repeat buttons there. Not changed unilaterally.
+
+### Verified resource hosting modes (2026-08-14)
+
+The live registry contradicts the older note that only `home-cover-card` is
+inline. Three cards are inline and need no host-file copy: `home-row-card`,
+`home-light-card` and `home-cover-card`. The other seven local cards are URL-mode
+under `/local/home-dark-cards/` and do need the manual copy. Resource
+`18170230da53421c9cf077e3f6e84fc9` is the obsolete
+`HomeDashboardCard` monolith, still registered and flagged `_legacy_worker`.
+
+### Verified `media_player.play_media` payload
+
+Core's `MEDIA_PLAYER_PLAY_MEDIA_SCHEMA` declares `media_content_type` and
+`media_content_id` as required top-level strings. The `media` object exposed by
+the service picker is optional sugar that `_promote_media_fields` flattens into
+those same two keys, and supplying both `media` and the flat keys raises
+`vol.Invalid`. The card therefore sends the flat keys. `enqueue` and `announce`
+are `vol.Exclusive` in one group, so only one is ever sent.
 
 ## Known rough edges
 

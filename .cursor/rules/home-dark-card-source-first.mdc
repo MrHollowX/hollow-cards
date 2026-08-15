@@ -16,3 +16,16 @@ ID with an optimistic hash/cache-busting URL when appropriate; do not create
 duplicate resources for an existing card. Verify both the published resource
 (ID, URL/content or preview, and type) and the final dashboard configuration.
 Never edit Home Assistant `.storage` files or local HA configuration directly.
+
+## Resource hosting
+
+- Never create or update inline Lovelace resources for custom cards.
+- Keep every custom-card implementation in a local file under
+  `home-dark-cards/`; the user manually copies URL-mode files to
+  `/config/www/home-dark-cards/`.
+- Register or update only URL-mode module resources at
+  `/local/home-dark-cards/<file>.js`, reusing the existing resource ID when
+  available. Do not create duplicate resources.
+- Inspect the live resource registry before dashboard work. If the dashboard
+  uses an inline resource, explicitly tell the user and do not silently update
+  or replace it.
