@@ -83,11 +83,8 @@ class HomeSwitchCard extends HTMLElement {
 
   _detailItems() {
     const configured = this._c && this._c.state_content;
-    const gridRows = Number(this._c && this._c.grid_options && this._c.grid_options.rows);
-    const expanded = this._c && this._c.expanded
-      || (Number.isFinite(gridRows) && gridRows > 1);
     const items = configured == null
-      ? (expanded ? ['last-changed'] : [])
+      ? ['last-changed']
       : Array.isArray(configured) ? [...configured] : [configured];
 
     if (this._c && this._c.attribute) {
@@ -463,9 +460,6 @@ class HomeSwitchCard extends HTMLElement {
         --switch-muted: var(--home-dark-muted-text, #66758f);
         --switch-page-bg: var(--home-dark-page-background, #1a2433);
       }
-      :host(.rows-tall) {
-        height: 100%;
-      }
       .switch-card {
         box-sizing: border-box;
         width: 100%;
@@ -478,7 +472,6 @@ class HomeSwitchCard extends HTMLElement {
         color-scheme: dark;
       }
       .switch-card.rows-tall {
-        height: 100%;
         min-height: 108px;
       }
       .row-top {

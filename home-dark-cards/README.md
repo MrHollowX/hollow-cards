@@ -392,7 +392,7 @@ name: Couch
   only; it does not change the entity or service behavior.
 - **Resource:** `home-switch-card.js`
 - **Resource ID:** `257d462671f14a0fba4d422931a99f2b`
-- **URL:** `/local/home-dark-cards/home-switch-card.js?v=20260816-switch-card-14`
+- **URL:** `/local/home-dark-cards/home-switch-card.js?v=20260816-switch-card-17`
 - **Deployment:** URL mode. Copy the local source to
   `/config/www/home-dark-cards/home-switch-card.js` before loading the resource.
 
@@ -432,14 +432,14 @@ The other verified entities are `switch.erics_bathroom_fan` and
   `call-service`, `navigate`, `url`, `fire-dom-event`, and `none`.
 - The right-side toggle button always performs a direct entity toggle. Configured
   actions apply to the left content area.
-- `expanded: true` enables configurable entity information in the single
-  secondary-text row. A card with numeric `grid_options.rows` greater than `1`
-  is also treated as expanded automatically; the card remains one row tall.
+- A card with numeric `grid_options.rows` greater than `1` uses the tall layout;
+  the card remains one row tall within its assigned grid span.
 - `state_content` accepts `state`, `last-changed`, `last-updated`,
   `last-reported`, attribute names, or objects such as
-  `{attribute: current_speed, name: Speed, unit: rpm}`. If `expanded` is enabled
-  without `state_content`, the default is `last-changed`, rendered as
-  `On for 5 minutes` or `Off for 2 hours`.
+  `{attribute: current_speed, name: Speed, unit: rpm}`. Without
+  `state_content`, the default is `last-changed`, rendered as `On for 5 minutes`
+  or `Off for 2 hours` in a long row. In the tall layout, the complete combined
+  status appears below the separator.
 - `attribute` and `unit` provide the native entity-card-style single attribute
   display. `attributes` accepts one attribute name or a list of attribute names
   or attribute objects. `show_last_changed: true` adds the duration without
@@ -736,7 +736,7 @@ are not the deployment pattern for new or changed cards.
 | `home-door-security-card.js` | 17,326 | 37 |
 | `home-cover-card.js` | 16,026 | 173 |
 | `home-floating-menu-card.js` | 10,514 | 348 |
-| `home-switch-card.js` | [local source] | 621 |
+| `home-switch-card.js` | [local source] | 620 |
 
 ## Registering or updating a resource
 
