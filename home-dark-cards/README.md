@@ -1,15 +1,15 @@
 # Home Dark Cards
 
-This folder contains eleven JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js` and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js` and `home-floating-menu-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the six dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
+This folder contains twelve JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js`, `home-switch-card.js`, and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js` and `home-floating-menu-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the six dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
 
-**Hosting modes, verified against the live resource registry on 2026-08-15.** Three existing cards are registered as inline content: `home-row-card` (`840736a3a49340b59f4d314a3cf80ef2`), `home-light-card` (`376b336445804f819b97c6b461f530cb`), and `home-cover-card` (`264907031d174aae8eaf44caa4dab133`). These are legacy inline resources and must be reported before any related dashboard change. The eight local cards registered as URL-mode resources under `/local/home-dark-cards/` and requiring manual host copying are `home-header-card`, `home-chip-card`, `home-room-tile-card`, `home-person-card`, `home-door-security-card`, `home-status-card`, `home-climate-card`, and `home-floating-menu-card` (`f6e3ebca911144e2ab3dc847a082a31e`). New or changed cards must use this URL-mode workflow only. Media playback uses a separately registered external card resource.
+**Hosting modes, verified against the live resource registry on 2026-08-15.** Three existing cards are registered as inline content: `home-row-card` (`840736a3a49340b59f4d314a3cf80ef2`), `home-light-card` (`376b336445804f819b97c6b461f530cb`), and `home-cover-card` (`264907031d174aae8eaf44caa4dab133`). These are legacy inline resources and must be reported before any related dashboard change. The nine local cards registered as URL-mode resources under `/local/home-dark-cards/` and requiring manual host copying are `home-header-card`, `home-chip-card`, `home-room-tile-card`, `home-person-card`, `home-door-security-card`, `home-status-card`, `home-climate-card`, `home-floating-menu-card` (`f6e3ebca911144e2ab3dc847a082a31e`), and `home-switch-card` (`257d462671f14a0fba4d422931a99f2b`). New or changed cards must use this URL-mode workflow only. Media playback uses a separately registered external card resource.
 
 ## Export metadata
 
 - **Source:** Home Assistant dashboard resource registry
-- **Home Assistant Core:** `2026.7.4`
-- **Exported:** `2026-08-01 21:20 (UTC+03:00)`
-- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups. `home-chip-card` is registered but has no current card instance. `home-cover-card.js` is preserved locally as the source corresponding to its legacy inline resource.
+- **Home Assistant Core:** `2026.8.1`
+- **Exported:** `2026-08-15 20:58 (UTC+03:00)`
+- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), three `custom:home-switch-card` references for the bathroom fans, six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups. `home-chip-card` is registered but has no current card instance. `home-cover-card.js` is preserved locally as the source corresponding to its legacy inline resource.
 - **Deployment directory:** `/config/www/home-dark-cards/` for URL-mode resources
 - **Registered URL prefix:** `/local/home-dark-cards/`
 - **Resource type:** JavaScript modules; URL-mode resources require manual copying
@@ -35,6 +35,7 @@ This folder contains eleven JavaScript custom cards available to the `home-dark`
 | `home-climate-card.js` | `home-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
 | `home-cover-card.js` | `home-cover-card` | `264907031d174aae8eaf44caa4dab133` |
 | `home-floating-menu-card.js` | `home-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
+| `home-switch-card.js` | `home-switch-card` | `257d462671f14a0fba4d422931a99f2b` |
 
 ### Home floating menu card
 
@@ -382,6 +383,85 @@ name: Couch
   sending a service call. Pointer capture and listeners are cleaned up when the card
   disconnects.
 
+### Home switch card
+
+- **Card type:** `custom:home-switch-card`
+- **Purpose:** Theme-aware control row for switch-like entities. The entity is toggled
+  by the right-side switch control, while the left content supports configurable tap,
+  hold, and double-tap actions. The selected `switch_type` changes the visual design
+  only; it does not change the entity or service behavior.
+- **Resource:** `home-switch-card.js`
+- **Resource ID:** `257d462671f14a0fba4d422931a99f2b`
+- **URL:** `/local/home-dark-cards/home-switch-card.js?v=20260816-switch-card-14`
+- **Deployment:** URL mode. Copy the local source to
+  `/config/www/home-dark-cards/home-switch-card.js` before loading the resource.
+
+The three current verified instances are the bathroom fan controls:
+
+```yaml
+type: custom:home-switch-card
+entity: switch.master_bathroom_fan
+name: Fan
+switch_type: fan
+grid_options:
+  columns: 12
+  rows: auto
+```
+
+The other verified entities are `switch.erics_bathroom_fan` and
+`switch.studio_bathroom_fan`; each uses the same `switch_type: fan` and full-width
+`grid_options`.
+
+- `entity` is required. Current dashboard instances use `switch.*` entities; the
+  toggle service domain is derived from the entity ID.
+- `name` is optional. When omitted, the entity's `friendly_name` is used.
+- `show_state` defaults to `true` and controls the state text in both the
+  normal long-row layout and the tall layout. Set `show_state: false` to hide
+  it while retaining configured duration or attribute text.
+- `switch_type` is optional and defaults to `generic`. Supported visual types are:
+  `generic` (`mdi:toggle-switch`), `fan` (`mdi:fan`), `light` (`mdi:lightbulb`),
+  `heater` (`mdi:radiator`), `pump` (`mdi:pump`), `outlet`
+  (`mdi:power-socket-eu`), and `lock` (`mdi:lock`). An unsupported value falls back
+  to `generic`.
+- `icon` optionally overrides the icon selected by `switch_type`.
+- `tap_action` defaults to `{action: toggle}`. The entity dialog is not opened by
+  default.
+- `hold_action` defaults to `{action: none}`.
+- `double_tap_action` defaults to `{action: none}`.
+- Supported configured actions are `toggle`, `more-info`, `perform-action`,
+  `call-service`, `navigate`, `url`, `fire-dom-event`, and `none`.
+- The right-side toggle button always performs a direct entity toggle. Configured
+  actions apply to the left content area.
+- `expanded: true` enables configurable entity information in the single
+  secondary-text row. A card with numeric `grid_options.rows` greater than `1`
+  is also treated as expanded automatically; the card remains one row tall.
+- `state_content` accepts `state`, `last-changed`, `last-updated`,
+  `last-reported`, attribute names, or objects such as
+  `{attribute: current_speed, name: Speed, unit: rpm}`. If `expanded` is enabled
+  without `state_content`, the default is `last-changed`, rendered as
+  `On for 5 minutes` or `Off for 2 hours`.
+- `attribute` and `unit` provide the native entity-card-style single attribute
+  display. `attributes` accepts one attribute name or a list of attribute names
+  or attribute objects. `show_last_changed: true` adds the duration without
+  replacing other configured details.
+- `grid_options` is passed through to Home Assistant's grid layout. The card
+  implements `getGridOptions()` so values such as `columns: 12` and `rows: auto`
+  can make it span the full width of a popup/grid.
+- When `grid_options.rows` is greater than `1`, the card applies a full-height
+  layout with a `108px` minimum card height so it can visually span the same
+  vertical space as a taller sibling card, such as a light card with a slider.
+- `on` state uses the accent color and enables type-specific visuals. `fan` icons
+  rotate continuously, pump icons rotate more slowly, heater icons pulse, and light
+  icons receive an accent glow.
+- `off` state uses the muted icon color. `unknown` and `unavailable` states display
+  readable status text and disable the toggle.
+- `prefers-reduced-motion: reduce` disables the fan, pump, and heater animations.
+- The card uses the Home Dark tokens `--home-dark-card-background`,
+  `--home-dark-primary-text`, `--home-dark-secondary-text`, `--home-dark-accent`,
+  `--home-dark-control-background`, `--home-dark-muted-text`, and
+  `--home-dark-page-background`, with fallbacks to `#212c42`, `#f5f7fb`, `#91a2bb`,
+  `#ffb340`, `#2b3850`, `#66758f`, and `#1a2433`.
+
 ### Current climate split and room popups
 
 The live dashboard has 10 room popups. Eight contain a climate card; Kitchen and
@@ -656,6 +736,7 @@ are not the deployment pattern for new or changed cards.
 | `home-door-security-card.js` | 17,326 | 37 |
 | `home-cover-card.js` | 16,026 | 173 |
 | `home-floating-menu-card.js` | 10,514 | 348 |
+| `home-switch-card.js` | [local source] | 621 |
 
 ## Registering or updating a resource
 
