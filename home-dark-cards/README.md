@@ -1,23 +1,24 @@
 # Home Dark Cards
 
-This folder contains twelve JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js`, `home-switch-card.js`, and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js` and `home-floating-menu-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the six dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
+This folder contains thirteen JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js`, `home-switch-card.js`, and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js`, `home-floating-menu-card.js`, and `home-entity-status-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the six dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
 
-**Hosting modes, verified against the live resource registry on 2026-08-15.** Three existing cards are registered as inline content: `home-row-card` (`840736a3a49340b59f4d314a3cf80ef2`), `home-light-card` (`376b336445804f819b97c6b461f530cb`), and `home-cover-card` (`264907031d174aae8eaf44caa4dab133`). These are legacy inline resources and must be reported before any related dashboard change. The nine local cards registered as URL-mode resources under `/local/home-dark-cards/` and requiring manual host copying are `home-header-card`, `home-chip-card`, `home-room-tile-card`, `home-person-card`, `home-door-security-card`, `home-status-card`, `home-climate-card`, `home-floating-menu-card` (`f6e3ebca911144e2ab3dc847a082a31e`), and `home-switch-card` (`257d462671f14a0fba4d422931a99f2b`). New or changed cards must use this URL-mode workflow only. Media playback uses a separately registered external card resource.
+**Hosting modes, verified against the live resource registry on 2026-08-19.** All thirteen local cards are registered as URL-mode module resources under `/local/home-dark-cards/` and require manual host copying. Media playback uses a separately registered external card resource. The unused legacy `HomeDashboardCard` inline resource was removed after a cross-dashboard search found no references.
 
 ## Export metadata
 
 - **Source:** Home Assistant dashboard resource registry
 - **Home Assistant Core:** `2026.8.1`
-- **Exported:** `2026-08-15 20:58 (UTC+03:00)`
-- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), three `custom:home-switch-card` references for the bathroom fans, six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups. `home-chip-card` is registered but has no current card instance. `home-cover-card.js` is preserved locally as the source corresponding to its legacy inline resource.
+- **Exported:** `2026-08-19 17:34 (UTC+03:00)`
+- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), six `custom:home-entity-status-card` references (three Climate-view cards and three bathroom room-popup cards), three `custom:home-switch-card` references for the bathroom fans, six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups. `home-chip-card` is registered but has no current card instance.
 - **Deployment directory:** `/config/www/home-dark-cards/` for URL-mode resources
 - **Registered URL prefix:** `/local/home-dark-cards/`
 - **Resource type:** JavaScript modules; URL-mode resources require manual copying
   to `/config/www/home-dark-cards/` because MCP cannot upload those files
-- **Current resource sync:** the three existing inline card resources are legacy
-  exceptions; all new or changed local cards use URL-mode resources
-- **Removed legacy resource:** the unused `home-navbar-card` registration was
-  removed after a cross-dashboard search found no usages
+- **Current resource sync:** all local cards use URL-mode resources with
+  cache-busting query suffixes
+- **Removed legacy resources:** the unused `HomeDashboardCard` and
+  `home-navbar-card` registrations were removed after cross-dashboard searches
+  found no usages
 - **HACS resources:** not included; this folder contains only the local custom-card resources
 
 ## Exported resources
@@ -33,6 +34,7 @@ This folder contains twelve JavaScript custom cards available to the `home-dark`
 | `home-door-security-card.js` | `home-door-security-card` | `fdf4fcf92eee4a61805911ed6fc8a781` |
 | `home-status-card.js` | `home-status-card` | `aa8e713224b14feab81eb6aa0586560d` |
 | `home-climate-card.js` | `home-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
+| `home-entity-status-card.js` | `home-entity-status-card` | `72bcc61a0f334c23912a28e272f5a6ef` |
 | `home-cover-card.js` | `home-cover-card` | `264907031d174aae8eaf44caa4dab133` |
 | `home-floating-menu-card.js` | `home-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
 | `home-switch-card.js` | `home-switch-card` | `257d462671f14a0fba4d422931a99f2b` |
@@ -182,7 +184,7 @@ popup_hash: '#living-room'
   and the Tesla quick-device summary. Its existing `kind: light` branch remains
   supported for compatibility; new light rows use `home-light-card`.
 - **Resource:** `home-row-card.js`
-- **URL:** `/local/home-dark-cards/home-row-card.js?v=20260812-1531-source-sync`
+- **URL:** `/local/home-dark-cards/home-row-card.js?v=20260819-1214-row-url`
 
 This is the current verified Tesla row used on the Home view:
 
@@ -229,9 +231,7 @@ name: Balcony
   light-position controls.
 - **Resource:** `home-cover-card.js`
 - **Resource ID:** `264907031d174aae8eaf44caa4dab133`
-- **Hosting:** The registered resource is a legacy inline Home Assistant module.
-  Do not update it inline. The local file is retained as the source for future
-  migration to URL mode if explicitly requested.
+- **URL:** `/local/home-dark-cards/home-cover-card.js?v=20260819-1214-cover-url`
 
 ```yaml
 type: custom:home-cover-card
@@ -350,6 +350,57 @@ power_switch: switch.cinema_air_conditioning_knx_switch
   A deferred refresh is applied after the menu closes or focus leaves the control,
   except for local optimistic control updates that are rendered immediately.
 
+### Home entity status card
+
+- **Card type:** `custom:home-entity-status-card`
+- **Purpose:** Compact, theme-aligned status group for numeric and binary Home
+  Assistant entities. Each metric opens its normal Home Assistant more-info dialog.
+- **Resource:** `home-entity-status-card.js`
+- **URL:** `/local/home-dark-cards/home-entity-status-card.js?v=20260819-1734-compact-vertical-layout`
+- **Hosting:** URL mode under `/local/home-dark-cards/`; copy the local file to
+  `/config/www/home-dark-cards/` before loading a changed resource URL.
+
+```yaml
+type: custom:home-entity-status-card
+show_header: false
+entity_layout: horizontal
+metric_layout: vertical
+entities:
+  - entity: sensor.studio_bathroom_temperature
+    label: Temperature
+    min: 0
+    max: 30
+    dot_ranges:
+      - { max: 16, max_exclusive: true, tone: blue }
+      - { min: 16, max: 18, max_exclusive: true, tone: light-blue }
+      - { min: 18, max: 25, max_exclusive: true, tone: green }
+      - { min: 25, max: 27, max_exclusive: true, tone: yellow }
+      - { min: 27, max: 30, max_exclusive: true, tone: orange }
+      - { min: 30, tone: red }
+  - entity: sensor.studio_bathroom_th_sensor_humidity
+    label: Humidity
+    min: 0
+    max: 100
+  - entity: binary_sensor.studio_bathroom_occupancy
+    label: Occupancy
+```
+
+- `entities` is required. Strings are accepted as shorthand; objects support
+  `entity`, `label`, `unit`, `precision`, `min`, `max`, `color_direction`,
+  `dot_ranges`, `active_state`, and `state_map`.
+- `min` and `max` determine how many of the five dots are active. `dot_ranges`
+  assigns a semantic dot color without replacing proportional fill.
+- `dot_ranges` evaluates in order. Each range supports `min`, `max`,
+  `min_exclusive`, `max_exclusive`, `tone` (`blue`, `light-blue`, `green`,
+  `yellow`, `orange`, or `red`), and optional `dots` for an explicit fill count.
+- `entity_layout` controls whether metrics are grouped horizontally or vertically.
+  `metric_layout: vertical` puts the entity label above bottom-to-top dots and its
+  state below; `metric_layout: row` is the default compact row presentation.
+- Motion, occupancy, and presence binary sensors show gray dots when clear; when
+  active, their green dots animate from the outer pair toward the center and back.
+  Numeric metric updates animate their active dots once from left to right.
+- `show_header` defaults to `true`; set it to `false` to hide the card name and icon.
+
 ### Home light card
 
 - **Card type:** `custom:home-light-card`
@@ -358,10 +409,7 @@ power_switch: switch.cinema_air_conditioning_knx_switch
   `supported_color_modes` contains a mode other than `onoff`.
 - **Resource:** `home-light-card.js`
 - **Resource ID:** `376b336445804f819b97c6b461f530cb`
-- **Deployment:** The existing resource ID is managed as an inline Home Assistant
-  module containing the exact validated local source. This avoids relying on an
-  unverified `/config/www` URL file and makes the deployed content inspectable
-  through the resource registry.
+- **URL:** `/local/home-dark-cards/home-light-card.js?v=20260819-1214-light-url`
 
 ```yaml
 type: custom:home-light-card
@@ -540,11 +588,10 @@ Garage — contain no media card.
 
 The popup child-card list, titles, icon, hash, background, and explicit
 `close_on_click: false` behavior live in Home Assistant dashboard configuration and
-can be edited there without changing this repository's card code. The light-card
-source is published inline through the existing resource ID. URL-mode cards still
-require copying their local source files to `/config/www/home-dark-cards/`;
-resource registration alone does not upload those files. A browser hard refresh is
-required after updating a resource.
+can be edited there without changing this repository's card code. All local card
+sources use URL-mode resources under `/local/home-dark-cards/` and require copying
+their files to `/config/www/home-dark-cards/`; resource registration alone does not
+upload those files. A browser hard refresh is required after updating a resource.
 
 ### Home person card
 
@@ -705,9 +752,8 @@ grid_options:
 1. Copy the card JavaScript file to Home Assistant:
    `/config/www/home-dark-cards/<card-file>.js`.
 2. Register or update the matching URL-mode module resource at
-   `/local/home-dark-cards/<card-file>.js`. Never create or update an inline
-   resource for a local card. Existing inline resources are legacy exceptions;
-   report them before changing the related dashboard card.
+   `/local/home-dark-cards/<card-file>.js` with a cache-busting query suffix.
+   Never create or update an inline resource for a local card.
 3. Open the `home-dark` dashboard editor, choose the target view, add a card, select
    **Manual**, and paste the relevant YAML example.
 4. Save the dashboard and hard-refresh the browser if the resource was newly copied or
@@ -721,9 +767,8 @@ the new module.
 
 ## Export inventory
 
-The byte sizes below are local JavaScript source sizes. URL-mode resources are
-deployed from this folder; existing inline resources are legacy exceptions and
-are not the deployment pattern for new or changed cards.
+The byte sizes below are local JavaScript source sizes. All local resources are
+deployed from this folder in URL mode.
 
 | File | Bytes | Lines |
 |---|---:|---:|
