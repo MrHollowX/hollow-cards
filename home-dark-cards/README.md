@@ -1,8 +1,8 @@
 # Home Dark Cards
 
-This folder contains thirteen JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js`, `home-switch-card.js`, and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-cover-card.js`, `home-floating-menu-card.js`, and `home-entity-status-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the six dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
+This folder contains fourteen JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js`, `home-switch-card.js`, and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-group-card.js` is a generic expandable container for Home Dark child cards. `home-cover-card.js`, `home-floating-menu-card.js`, and `home-entity-status-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the six dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
 
-**Hosting modes, verified against the live resource registry on 2026-08-19.** All thirteen local cards are registered as URL-mode module resources under `/local/home-dark-cards/` and require manual host copying. Media playback uses a separately registered external card resource. The unused legacy `HomeDashboardCard` inline resource was removed after a cross-dashboard search found no references.
+**Hosting modes, verified against the live resource registry on 2026-08-20.** All fourteen local cards are registered as URL-mode module resources under `/local/home-dark-cards/` and require manual host copying. Media playback uses a separately registered external card resource. The unused legacy `HomeDashboardCard` inline resource was removed after a cross-dashboard search found no references.
 
 ## Export metadata
 
@@ -38,6 +38,7 @@ This folder contains thirteen JavaScript custom cards available to the `home-dar
 | `home-cover-card.js` | `home-cover-card` | `264907031d174aae8eaf44caa4dab133` |
 | `home-floating-menu-card.js` | `home-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
 | `home-switch-card.js` | `home-switch-card` | `257d462671f14a0fba4d422931a99f2b` |
+| `home-group-card.js` | `home-group-card` | `e0a94f1cc4cc4b9b95f828176e7c0a57` |
 
 ### Home floating menu card
 
@@ -438,6 +439,40 @@ name: Couch
 - Pointer cancellation, lost capture, and window blur cancel the interaction without
   sending a service call. Pointer capture and listeners are cleaned up when the card
   disconnects.
+
+### Home group card
+
+- **Card type:** `custom:home-group-card`
+- **Purpose:** Expandable Home Dark container that creates and hosts configured
+  Lovelace child cards. Child cards keep their own controls and styling.
+- **Resource:** `home-group-card.js`
+- **Resource ID:** `e0a94f1cc4cc4b9b95f828176e7c0a57`
+- **URL:** `/local/home-dark-cards/home-group-card.js?v=20260820-1447-persistent-disclosure`
+
+```yaml
+type: custom:home-group-card
+title: Master Bedroom Lights
+entity: light.master_bedroom_all # Optional; omit for a title-only group
+open: false
+cards:
+  - type: custom:home-light-card
+    entity: light.master_bedroom_entry
+    name: Entry
+  - type: custom:home-light-card
+    entity: light.master_bedroom_hue_light
+    name: Entry (Hue)
+```
+
+- `cards` is required and accepts normal Lovelace card configuration objects,
+  including every Home Dark custom card.
+- `entity` is optional. When present, its friendly name supplies the title unless
+  `title` or `name` is configured, and its state is shown below the title.
+- Without an `entity`, configure `title` or `name`; the card renders the same
+  expandable header without entity state.
+- `open` defaults to `false`. `show_entity_state: false` hides the optional entity
+  state while retaining the entity details button.
+- `grid_options` is passed through to the sections-view layout. The default is a
+  full-width, auto-height card.
 
 ### Home switch card
 
