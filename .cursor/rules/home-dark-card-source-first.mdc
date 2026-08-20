@@ -21,8 +21,12 @@ Never edit Home Assistant `.storage` files or local HA configuration directly.
 
 - Never create or update inline Lovelace resources for custom cards.
 - Keep every custom-card implementation in a local file under
-  `home-dark-cards/`; the user manually copies URL-mode files to
-  `/config/www/home-dark-cards/`.
+  `home-dark-cards/`.
+- For a URL-mode custom-card change, assume the user has copied the updated
+  local file to `/config/www/home-dark-cards/` once the local edit is complete.
+  Immediately update the existing resource with a new cache-busting URL; do not
+  wait for copy confirmation unless the user explicitly says they have not
+  copied it.
 - Register or update only URL-mode module resources at
   `/local/home-dark-cards/<file>.js`, reusing the existing resource ID when
   available. Do not create duplicate resources.

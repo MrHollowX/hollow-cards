@@ -9,7 +9,7 @@ This folder contains thirteen JavaScript custom cards available to the `home-dar
 - **Source:** Home Assistant dashboard resource registry
 - **Home Assistant Core:** `2026.8.1`
 - **Exported:** `2026-08-19 17:34 (UTC+03:00)`
-- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), six `custom:home-entity-status-card` references (three Climate-view cards and three bathroom room-popup cards), three `custom:home-switch-card` references for the bathroom fans, six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups. `home-chip-card` is registered but has no current card instance.
+- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), 13 `custom:home-entity-status-card` references (three Climate-view cards, three bathroom room-popup cards, five room-popup door/window groups, and Cinema/Garage occupancy groups), three `custom:home-switch-card` references for the bathroom fans, six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups. `home-chip-card` is registered but has no current card instance.
 - **Deployment directory:** `/config/www/home-dark-cards/` for URL-mode resources
 - **Registered URL prefix:** `/local/home-dark-cards/`
 - **Resource type:** JavaScript modules; URL-mode resources require manual copying
@@ -356,7 +356,7 @@ power_switch: switch.cinema_air_conditioning_knx_switch
 - **Purpose:** Compact, theme-aligned status group for numeric and binary Home
   Assistant entities. Each metric opens its normal Home Assistant more-info dialog.
 - **Resource:** `home-entity-status-card.js`
-- **URL:** `/local/home-dark-cards/home-entity-status-card.js?v=20260819-1734-compact-vertical-layout`
+- **URL:** `/local/home-dark-cards/home-entity-status-card.js?v=20260819-2335-progressive-lux`
 - **Hosting:** URL mode under `/local/home-dark-cards/`; copy the local file to
   `/config/www/home-dark-cards/` before loading a changed resource URL.
 
@@ -386,18 +386,26 @@ entities:
 ```
 
 - `entities` is required. Strings are accepted as shorthand; objects support
-  `entity`, `label`, `unit`, `precision`, `min`, `max`, `color_direction`,
-  `dot_ranges`, `active_state`, and `state_map`.
+  `entity`, `label`, `unit`, `precision`, `min`, `max`, `zero_below_min`,
+  `color_direction`, `dot_ranges`, `dot_color_mode`, `active_state`, and
+  `state_map`.
 - `min` and `max` determine how many of the five dots are active. `dot_ranges`
   assigns a semantic dot color without replacing proportional fill.
+- Set `zero_below_min: true` to leave every dot gray below `min`; this is useful
+  for lux metrics where the configured minimum represents detectable light.
+- `dot_color_mode: low-to-high` colors filled dots progressively from amber
+  through yellow to green, while preserving the proportional dot count.
 - `dot_ranges` evaluates in order. Each range supports `min`, `max`,
   `min_exclusive`, `max_exclusive`, `tone` (`blue`, `light-blue`, `green`,
   `yellow`, `orange`, or `red`), and optional `dots` for an explicit fill count.
 - `entity_layout` controls whether metrics are grouped horizontally or vertically.
   `metric_layout: vertical` puts the entity label above bottom-to-top dots and its
-  state below; `metric_layout: row` is the default compact row presentation.
+  state below; up to six horizontal vertical metrics use equal-width columns.
+  `metric_layout: row` is the default compact row presentation.
 - Motion, occupancy, and presence binary sensors show gray dots when clear; when
   active, their green dots animate from the outer pair toward the center and back.
+- Door, window, garage-door, and opening binary sensors show five green dots when
+  open and five gray dots when closed.
   Numeric metric updates animate their active dots once from left to right.
 - `show_header` defaults to `true`; set it to `false` to hide the card name and icon.
 

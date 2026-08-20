@@ -23,10 +23,15 @@ where possible, never hand-edit YAML/.storage directly.
 
 - Never create or update inline Lovelace resources for custom cards.
 - Custom-card behavior must live in a local source file under
-  `home-dark-cards/`, which the user manually copies to the Home Assistant host.
+ `home-dark-cards/`.
+- For a URL-mode custom-card change, assume the user has copied the updated
+ local file to `/config/www/home-dark-cards/` once the local edit is complete.
+ Immediately update the existing resource with a new cache-busting URL; do not
+ wait for copy confirmation unless the user explicitly says they have not
+ copied it.
 - Use URL-mode module resources under `/local/home-dark-cards/<file>.js` only
-  after the user has copied the file. Reuse an existing resource ID when one
-  exists; do not create duplicate resources.
+ after the local source update. Reuse an existing resource ID when one exists;
+ do not create duplicate resources.
 - Before changing a dashboard or resource, inspect the live resource registry.
   If the dashboard uses an inline resource, tell the user explicitly. Do not
   silently update or replace that inline resource.

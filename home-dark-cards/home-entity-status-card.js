@@ -151,6 +151,8 @@ class HomeEntityStatusCard extends HTMLElement {
     const deviceClass = String(state?.attributes?.device_class || '').toLowerCase();
     const isMotionSensor = metric.entity.startsWith('binary_sensor.') &&
       ['motion', 'occupancy', 'presence'].includes(deviceClass);
+    const isContactSensor = metric.entity.startsWith('binary_sensor.') &&
+      ['door', 'window', 'garage_door', 'opening'].includes(deviceClass);
     const isActive = !unavailable && !isNumeric && this._isActive(state.state, metric);
     const min = this._number(metric.min);
     const max = this._number(metric.max);
@@ -159,7 +161,9 @@ class HomeEntityStatusCard extends HTMLElement {
       ? Math.max(0, Math.min(1, (numericValue - min) / (max - min)))
       : null;
     const dotRange = isNumeric ? this._dotRange(numericValue, metric.dot_ranges) : null;
-    const activeDots = unavailable
+    const hideDotsBelowMinimum = isNumeric && metric.zero_below_min === true &&
+      min != null && numericValue < min;
+    const activeDots = unavailable || hideDotsBelowMinimum
       ? 0
       : isNumeric
         ? dotRange && dotRange.dots != null
@@ -191,12 +195,13 @@ class HomeEntityStatusCard extends HTMLElement {
     return {
       activeDots,
       detail,
+      dotColorMode: metric.dot_color_mode === 'low-to-high' ? 'low-to-high' : '',
       isMotionActive: isMotionSensor && isActive,
       isNumeric,
       label,
       state,
       stateValue: state?.state ?? '',
-      tone: dotRange?.tone || '',
+      tone: dotRange?.tone || (isContactSensor && isActive ? 'green' : ''),
       unavailable,
       unit,
       value,
@@ -227,6 +232,7 @@ class HomeEntityStatusCard extends HTMLElement {
     this._numericValues = new Map(metrics
       .filter(({ value }) => value.isNumeric)
       .map(({ config, value }) => [config.entity, value.stateValue]));
+    const metricCount = Math.max(1, Math.min(6, metrics.length));
     const renderKey = JSON.stringify({
       name: this._config.name,
       icon: this._config.icon,
@@ -258,7 +264,7 @@ class HomeEntityStatusCard extends HTMLElement {
       const valueText = value.unit && !value.unavailable && this._number(value.state?.state) != null
         ? `${value.value} ${value.unit}`
         : value.value;
-      return `<button class="metric${value.unavailable ? ' unavailable' : ''}${value.isMotionActive ? ' motion-active' : ''}${valueUpdated ? ' value-updated' : ''}${value.tone ? ` dot-tone-${value.tone}` : ''}" type="button"
+      return `<button class="metric${value.unavailable ? ' unavailable' : ''}${value.isMotionActive ? ' motion-active' : ''}${valueUpdated ? ' value-updated' : ''}${value.dotColorMode ? ` dot-color-${value.dotColorMode}` : ''}${value.tone ? ` dot-tone-${value.tone}` : ''}" type="button"
         data-entity="${this._escape(config.entity)}"
         aria-label="Show details for ${this._escape(value.label)}: ${this._escape(valueText)}">
         <span class="dots" aria-hidden="true">${dots}</span>
@@ -273,7 +279,8 @@ class HomeEntityStatusCard extends HTMLElement {
           <ha-icon icon="${this._escape(this._config.icon)}"></ha-icon>
           <span>${this._escape(this._config.name)}</span>
         </div>` : ''}
-        <div class="metrics ${this._config.entity_layout} metric-${this._config.metric_layout}">${content}</div>
+        <div class="metrics ${this._config.entity_layout} metric-${this._config.metric_layout}"
+          style="--metric-count:${metricCount}">${content}</div>
       </ha-card>`;
   }
 
@@ -332,6 +339,10 @@ class HomeEntityStatusCard extends HTMLElement {
       .metric:focus-visible { outline:2px solid var(--status-accent); outline-offset:3px; }
       .dots { display:flex; gap:5px; }
       .metrics.horizontal.metric-row .dots { flex-direction:column; justify-self:center; }
+      .metrics.horizontal.metric-vertical {
+        display:grid;
+        grid-template-columns:repeat(var(--metric-count),minmax(0,1fr));
+      }
       .metrics.metric-vertical .metric {
         flex:1 1 0;
         display:flex;
@@ -387,6 +398,11 @@ class HomeEntityStatusCard extends HTMLElement {
       .metric.dot-tone-yellow .dot.active { --dot-color:#ffb340; }
       .metric.dot-tone-orange .dot.active { --dot-color:#ff8c42; }
       .metric.dot-tone-red .dot.active { --dot-color:#f04c56; }
+      .metric.dot-color-low-to-high .dot-0.active { --dot-color:#ff8c42; }
+      .metric.dot-color-low-to-high .dot-1.active { --dot-color:#ffb340; }
+      .metric.dot-color-low-to-high .dot-2.active { --dot-color:#f2d33f; }
+      .metric.dot-color-low-to-high .dot-3.active { --dot-color:#8ed45b; }
+      .metric.dot-color-low-to-high .dot-4.active { --dot-color:#53d38a; }
       .metric.value-updated .dot.active {
         animation:metric-update-sweep .56s ease-out both;
         transform-origin:center;

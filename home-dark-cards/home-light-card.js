@@ -4,8 +4,14 @@ class HomeLightCard extends HTMLElement {
     if (this._c && this._c.entity !== c.entity) {
       this._clearPendingSlider();
       this._sliderPreview = null;
+      this._clearToggleAnimation();
     }
-    this._c = c;
+    this._c = {
+      ...c,
+      tap_action: c.tap_action || { action: 'none' },
+      hold_action: c.hold_action || { action: 'none' },
+      double_tap_action: c.double_tap_action || { action: 'none' },
+    };
     this._lastRenderSignature = null;
   }
 
@@ -43,9 +49,76 @@ class HomeLightCard extends HTMLElement {
     }));
   }
 
+  _actionConfig(kind) {
+    const configured = this._c[`${kind}_action`];
+    if (typeof configured === 'string') return { action: configured };
+    return configured || { action: 'none' };
+  }
+
+  _toggleLight(entity) {
+    if (!entity || this._st(entity) === 'unavailable') return;
+    if (entity === this._c.entity && this._st(entity) !== 'on' && this._dimmable()) {
+      this._clearToggleAnimation();
+      this._toggleAnimationEntity = entity;
+      this._toggleAnimationTimer = setTimeout(() => this._clearToggleAnimation(), 5000);
+    }
+    this._call(entity.split('.')[0], 'toggle', entity);
+  }
+
+  _runAction(kind) {
+    const actionConfig = this._actionConfig(kind);
+    const action = actionConfig.action || 'none';
+    const entity = actionConfig.entity || this._c.entity;
+    if (action === 'none') return;
+    if (action === 'toggle') {
+      this._toggleLight(entity);
+      return;
+    }
+    if (action === 'more-info') {
+      this._more(entity);
+      return;
+    }
+    if (action === 'perform-action' || action === 'call-service') {
+      const serviceName = actionConfig.perform_action || actionConfig.service;
+      if (!serviceName || !this._hass) return;
+      const [domain, service] = serviceName.split('.', 2);
+      if (!domain || !service) return;
+      this._hass.callService(
+        domain,
+        service,
+        actionConfig.data || actionConfig.service_data || {},
+        actionConfig.target,
+      );
+      return;
+    }
+    if (action === 'navigate' && actionConfig.navigation_path) {
+      window.history.pushState({}, '', actionConfig.navigation_path);
+      window.dispatchEvent(new Event('location-changed'));
+      return;
+    }
+    if (action === 'url' && actionConfig.url_path) {
+      window.open(actionConfig.url_path, '_blank', 'noopener');
+      return;
+    }
+    if (action === 'fire-dom-event') {
+      this.dispatchEvent(new CustomEvent('ll-custom', {
+        detail: actionConfig,
+        bubbles: true,
+        composed: true,
+      }));
+    }
+  }
+
   _dimmable() {
     const modes = this._attr(this._c.entity, 'supported_color_modes', []);
     return Array.isArray(modes) && modes.some(m => m !== 'onoff');
+  }
+
+  _lightIcon(on) {
+    const stateIcon = on ? this._c.icon_on : this._c.icon_off;
+    if (typeof stateIcon === 'string' && stateIcon.trim()) return stateIcon;
+    if (typeof this._c.icon === 'string' && this._c.icon.trim()) return this._c.icon;
+    return 'mdi:lightbulb';
   }
 
   connectedCallback() {
@@ -79,6 +152,9 @@ class HomeLightCard extends HTMLElement {
     if (!this._wired) return;
     this._cancelSlider();
     this._clearIgnoreSliderChangeTimer();
+    this._clearGestureTimers();
+    this._clearToggleAnimation();
+    this._cancelBrightnessAnimation();
     this.removeEventListener('pointerdown', this._onPointerDown);
     this.removeEventListener('pointermove', this._onPointerMove);
     this.removeEventListener('pointerup', this._onPointerUp);
@@ -97,21 +173,41 @@ class HomeLightCard extends HTMLElement {
     return target && typeof target.closest === 'function' ? target.closest('.sl') : null;
   }
 
+  _actionTarget(ev) {
+    const target = ev.target;
+    return target && typeof target.closest === 'function'
+      ? target.closest('[data-action]')
+      : null;
+  }
+
   _onPointerDown(ev) {
     const slider = this._sliderFromEvent(ev);
-    if (!slider || this._dragging) return;
-    ev.stopPropagation();
-    ev.preventDefault();
-    this._dragging = true;
-    this._activeSlider = slider;
-    this._pointerId = ev.pointerId;
-    this._sliderCommitted = false;
-    try {
-      slider.setPointerCapture(ev.pointerId);
-    } catch (err) {
-      // Pointer capture is best-effort; the pointer events still work in-browser.
+    if (slider) {
+      if (this._dragging) return;
+      ev.stopPropagation();
+      ev.preventDefault();
+      this._dragging = true;
+      this._activeSlider = slider;
+      this._pointerId = ev.pointerId;
+      this._sliderCommitted = false;
+      try {
+        slider.setPointerCapture(ev.pointerId);
+      } catch (err) {
+        // Pointer capture is best-effort; the pointer events still work in-browser.
+      }
+      this._updateSliderFromPointer(slider, ev.clientX);
+      return;
     }
-    this._updateSliderFromPointer(slider, ev.clientX);
+
+    const actionTarget = this._actionTarget(ev);
+    if (!actionTarget || ev.target.closest('[data-toggle]')) return;
+    ev.stopPropagation();
+    if (this._holdTimer) clearTimeout(this._holdTimer);
+    this._holdTimer = setTimeout(() => {
+      this._holdTimer = null;
+      this._suppressNextClick = true;
+      this._runAction('hold');
+    }, 550);
   }
 
   _onPointerMove(ev) {
@@ -122,16 +218,31 @@ class HomeLightCard extends HTMLElement {
   }
 
   _onPointerUp(ev) {
-    if (!this._dragging || !this._activeSlider || ev.pointerId !== this._pointerId) return;
+    if (this._dragging && this._activeSlider && ev.pointerId === this._pointerId) {
+      ev.stopPropagation();
+      ev.preventDefault();
+      this._finishSlider(true);
+      return;
+    }
+    const actionTarget = this._actionTarget(ev);
+    if (!actionTarget || ev.target.closest('[data-toggle]')) return;
     ev.stopPropagation();
-    ev.preventDefault();
-    this._finishSlider(true);
+    if (this._holdTimer) {
+      clearTimeout(this._holdTimer);
+      this._holdTimer = null;
+    }
   }
 
   _onPointerCancel(ev) {
-    if (!this._dragging || !this._activeSlider || ev.pointerId !== this._pointerId) return;
-    ev.stopPropagation();
-    this._finishSlider(false);
+    if (this._dragging && this._activeSlider && ev.pointerId === this._pointerId) {
+      ev.stopPropagation();
+      this._finishSlider(false);
+      return;
+    }
+    if (this._holdTimer) {
+      clearTimeout(this._holdTimer);
+      this._holdTimer = null;
+    }
   }
 
   _onLostPointerCapture(ev) {
@@ -140,6 +251,7 @@ class HomeLightCard extends HTMLElement {
 
   _onWindowBlur() {
     if (this._dragging) this._finishSlider(false);
+    this._clearGestureTimers();
   }
 
   _onSliderInput(ev) {
@@ -172,18 +284,52 @@ class HomeLightCard extends HTMLElement {
       return;
     }
     if (ev.target.closest && ev.target.closest('[data-toggle]')) {
-      const entity = this._c.entity;
-      this._call(entity.split('.')[0], 'toggle', entity);
+      ev.stopPropagation();
+      ev.preventDefault();
+      this._toggleLight(this._c.entity);
+      return;
     }
-    if (ev.target.closest && ev.target.closest('[data-more]')) this._more(this._c.entity);
+    if (!this._actionTarget(ev)) return;
+    ev.stopPropagation();
+    if (this._suppressNextClick) {
+      this._suppressNextClick = false;
+      return;
+    }
+    this._queueTap();
   }
 
   _onKeydown(ev) {
     if ((ev.key === 'Enter' || ev.key === ' ') &&
-        ev.target.closest && ev.target.closest('[data-more]')) {
+        this._actionTarget(ev)) {
       ev.preventDefault();
-      this._more(this._c.entity);
+      ev.stopPropagation();
+      this._clearGestureTimers();
+      this._suppressNextClick = true;
+      this._runAction('tap');
+      setTimeout(() => {
+        this._suppressNextClick = false;
+      }, 0);
     }
+  }
+
+  _clearGestureTimers() {
+    if (this._tapTimer) clearTimeout(this._tapTimer);
+    if (this._holdTimer) clearTimeout(this._holdTimer);
+    this._tapTimer = null;
+    this._holdTimer = null;
+  }
+
+  _queueTap() {
+    if (this._tapTimer) {
+      clearTimeout(this._tapTimer);
+      this._tapTimer = null;
+      this._runAction('double_tap');
+      return;
+    }
+    this._tapTimer = setTimeout(() => {
+      this._tapTimer = null;
+      this._runAction('tap');
+    }, 260);
   }
 
   _finishSlider(commit) {
@@ -288,6 +434,30 @@ class HomeLightCard extends HTMLElement {
     this._pendingSlider = null;
   }
 
+  _clearToggleAnimation() {
+    if (this._toggleAnimationTimer) clearTimeout(this._toggleAnimationTimer);
+    this._toggleAnimationTimer = null;
+    this._toggleAnimationEntity = null;
+  }
+
+  _cancelBrightnessAnimation() {
+    if (this._brightnessAnimationFrame) {
+      cancelAnimationFrame(this._brightnessAnimationFrame);
+    }
+    this._brightnessAnimationFrame = null;
+  }
+
+  _animateBrightnessFill(fill, targetWidth) {
+    if (!fill) return;
+    this._cancelBrightnessAnimation();
+    this._brightnessAnimationFrame = requestAnimationFrame(() => {
+      this._brightnessAnimationFrame = requestAnimationFrame(() => {
+        fill.style.width = `${targetWidth}%`;
+        this._brightnessAnimationFrame = null;
+      });
+    });
+  }
+
   _expirePendingSlider() {
     if (!this._pendingSlider) return;
     this._clearPendingSlider();
@@ -332,10 +502,18 @@ class HomeLightCard extends HTMLElement {
     const brightness = dimmable
       ? localValue == null ? authoritativeBrightness : localValue
       : null;
+    const animateBrightness = dimmable
+      && authoritativeOn
+      && !activePending
+      && this._toggleAnimationEntity === entity;
+    if (animateBrightness) this._clearToggleAnimation();
     const name = this._c.name || this._attr(entity, 'friendly_name', 'Light');
     const renderSignature = [
       entity,
       name,
+      this._c.icon || '',
+      this._c.icon_on || '',
+      this._c.icon_off || '',
       dimmable,
       authoritativeOn,
       authoritativeBrightness,
@@ -347,8 +525,8 @@ class HomeLightCard extends HTMLElement {
 
     const html = `
       <div class="row-top">
-        <div class="row-left" data-more role="button" tabindex="0" aria-label="Show details for ${name}">
-          ${this._ic('mdi:lightbulb', on ? 'ic-amber' : 'ic-mute')}
+        <div class="row-left" data-action role="button" tabindex="0" aria-label="Light actions for ${name}">
+          ${this._ic(this._lightIcon(on), on ? 'ic-amber' : 'ic-mute')}
           <div>
             <div class="row-name">${name}</div>
             <div class="row-sub">${on ? (brightness != null ? `On &middot; ${brightness}%` : 'On') : 'Off'}</div>
@@ -362,7 +540,7 @@ class HomeLightCard extends HTMLElement {
       </div>
       ${dimmable ? `
         <div class="slider-wrap">
-          <div class="bar"><div class="bar-fill amber" style="width:${on ? brightness : 0}%"></div></div>
+          <div class="bar"><div class="bar-fill amber" style="width:${animateBrightness ? 0 : on ? brightness : 0}%"></div></div>
           <input type="range" class="sl amber" min="0" max="100" value="${on ? brightness : 0}"
             aria-label="Brightness for ${name}" data-e="${entity}">
         </div>
@@ -375,6 +553,9 @@ class HomeLightCard extends HTMLElement {
       this._card = this.querySelector('.row-card');
     }
     this._card.innerHTML = html;
+    if (animateBrightness) {
+      this._animateBrightnessFill(this._card.querySelector('.bar-fill'), brightness);
+    }
   }
 
   _css() {
@@ -417,7 +598,11 @@ class HomeLightCard extends HTMLElement {
         height:6px; border-radius:3px; background:var(--light-track);
         overflow:hidden; pointer-events:none;
       }
-      .bar-fill { height:100%; background:var(--light-accent); }
+      .bar-fill {
+        height:100%;
+        background:var(--light-accent);
+        transition:width 1s cubic-bezier(.2,.8,.2,1);
+      }
       .sl {
         position:absolute; left:0; top:0; -webkit-appearance:none; appearance:none;
         width:100%; height:28px; margin:0; background:transparent;
@@ -446,6 +631,9 @@ class HomeLightCard extends HTMLElement {
       .toggle.on .knob { left:21px; background:var(--light-dark); }
       .ic-amber { color:var(--light-accent); }
       .ic-mute { color:var(--light-muted); }
+      @media (prefers-reduced-motion: reduce) {
+        .bar-fill { transition:none; }
+      }
     `;
   }
 }

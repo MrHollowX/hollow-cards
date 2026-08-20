@@ -14,7 +14,10 @@ class HomeClimateCard extends HTMLElement {
       this._clearPending();
       this._clearPowerPreview();
     }
-    this._config = config;
+    this._config = {
+      ...config,
+      show_power_toggle: config.show_power_toggle === true,
+    };
     this._lastRenderSignature = null;
   }
 
@@ -753,8 +756,8 @@ class HomeClimateCard extends HTMLElement {
       config.precision == null ? 0 : this._precision(config.precision),
       this._precision(value),
     );
-    const powerControl = this._powerControl();
-    const powerOn = this._powerOn();
+    const powerControl = this._config.show_power_toggle ? this._powerControl() : null;
+    const powerOn = powerControl ? this._powerOn() : false;
     return `<div class="value-control">
       <div class="temperature-control-header">
         <span class="control-label">Target temperature</span>
