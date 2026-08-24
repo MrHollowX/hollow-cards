@@ -2,7 +2,7 @@ const DEFAULT_TABS = [
   { id: 'home', icon: 'mdi:home', label: 'Home', path: '/home-dark/home' },
   { id: 'lights', icon: 'mdi:lightbulb', label: 'Lights', path: '/home-dark/lights' },
   { id: 'climate', icon: 'mdi:thermometer', label: 'Climate', path: '/home-dark/climate' },
-  { id: 'blinds', icon: 'mdi:blinds', label: 'Blinds', path: '/home-dark/blinds' },
+  { id: 'cameras', icon: 'mdi:cctv', label: 'Cameras', path: '/home-dark/cameras' },
   { id: 'media', icon: 'mdi:music', label: 'Media', path: '/home-dark/media' },
   { id: 'vacuum', icon: 'mdi:robot-vacuum', label: 'Vacuum', path: '/home-dark/vacuum' },
 ];
