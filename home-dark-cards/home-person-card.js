@@ -77,6 +77,33 @@ class HomePersonCard extends HTMLElement {
     return state === 'home' ? 'home' : 'away';
   }
 
+  _zoneForState(state) {
+    const normalized = typeof state === 'string' ? state.trim().toLowerCase() : '';
+    if (!normalized || normalized === 'not_home' || normalized === 'away' || normalized === 'unknown' || normalized === 'unavailable') return null;
+    return Object.entries(this._hass?.states || {}).find(([entityId, zone]) =>
+      (normalized === 'home' && entityId === 'zone.home') ||
+      (entityId.startsWith('zone.') &&
+      typeof zone.attributes?.friendly_name === 'string' &&
+      zone.attributes.friendly_name.trim().toLowerCase() === normalized)
+    )?.[1] || null;
+  }
+
+  _zoneAtCoordinates(personState) {
+    const matches = Object.entries(this._hass?.states || {}).map(([entityId, zone]) => {
+      const radius = Number(zone.attributes?.radius);
+      const distance = entityId.startsWith('zone.') && Number.isFinite(radius) && radius >= 0
+        ? this._distanceKm(personState, zone)
+        : null;
+      return { zone, radius, distance };
+    }).filter(({ zone, radius, distance }) =>
+      zone.attributes?.friendly_name &&
+      distance != null &&
+      distance * 1000 <= radius
+    );
+    matches.sort((left, right) => left.radius - right.radius);
+    return matches[0]?.zone || null;
+  }
+
   _distanceKm(personState, homeState) {
     const lat1 = Number(personState && personState.attributes.latitude);
     const lon1 = Number(personState && personState.attributes.longitude);
@@ -104,10 +131,14 @@ class HomePersonCard extends HTMLElement {
     const name = this._config.name || this._attr(this._config.entity, 'friendly_name', 'Person');
     const picture = this._attr(this._config.entity, 'entity_picture', '');
     const state = person.state;
-    const location = this._config.show_location ? this._location(state) : '';
+    const resolvedZone = this._zoneForState(state) || this._zoneAtCoordinates(person);
+    const knownLocation = resolvedZone || (typeof state === 'string' && state.trim().toLowerCase() === 'home');
+    const locationName = resolvedZone?.attributes?.friendly_name || this._location(state);
+    const location = this._config.show_location ? locationName : '';
     const battery = this._battery();
-    const distance = this._config.show_proximity ? this._distanceKm(person, this._state('zone.home')) : null;
-    const proximity = distance == null ? null : `${distance < 10 ? distance.toFixed(1) : Math.round(distance)} km from Home`;
+    const outsideKnownZone = !knownLocation;
+    const distance = this._config.show_proximity && outsideKnownZone ? this._distanceKm(person, this._state('zone.home')) : null;
+    const proximity = distance == null ? null : `${distance.toFixed(1)} km from Home`;
     const presence = this._presence(state);
     const active = presence === 'home';
     const away = presence === 'away';
@@ -116,45 +147,55 @@ class HomePersonCard extends HTMLElement {
     const renderKey = JSON.stringify([name, picture, state, location, battery?.percent || '', proximity || '', active, away, spacingClass, this._config.show_name]);
     if (renderKey === this._lastRenderKey) return;
     this._lastRenderKey = renderKey;
-    const ariaDetails = [location, battery ? battery.ariaLabel : '', proximity].filter(Boolean);
+    const status = proximity || location;
+    const statusIcon = proximity ? 'mdi:map-marker-distance' : 'mdi:map-marker';
+    const ariaDetails = [status, battery ? battery.ariaLabel : ''].filter(Boolean);
     const avatar = picture
       ? `<img class="avatar" src="${this._text(picture)}" alt="${this._text(name)} avatar">`
       : `<span class="avatar fallback" role="img" aria-label="${this._text(name)} avatar unavailable"><ha-icon icon="mdi:account"></ha-icon></span>`;
     const label = `${name}${ariaDetails.length ? `, ${ariaDetails.join(', ')}` : ''}`;
-    const detailItems = [
-      location ? `<span class="detail-item"><ha-icon icon="mdi:map-marker" title="Location" aria-label="Location"></ha-icon><span>${this._text(location)}</span></span>` : '',
-      battery ? `<span class="detail-item"><ha-icon icon="mdi:battery" title="${this._text(battery.ariaLabel)}" aria-label="${this._text(battery.ariaLabel)}"></ha-icon><span>${this._text(battery.percent)}</span></span>` : '',
-      proximity ? `<span class="detail-item"><ha-icon icon="mdi:map-marker-distance" title="Proximity" aria-label="Proximity"></ha-icon><span>${this._text(proximity)}</span></span>` : ''
-    ].filter(Boolean).join('');
-    this.shadowRoot.innerHTML = `<style>${this._css()}</style><button class="card ${presenceClass}${presenceClass ? ' ' : ''}${spacingClass}" data-presence="${presence}" type="button" aria-label="${this._text(label)}">${avatar}<span class="copy">${this._config.show_name ? `<span class="name">${this._text(name)}</span>` : ''}${detailItems ? `<span class="details">${detailItems}</span>` : ''}</span></button>`;
+    const statusItem = status
+      ? `<span class="status"><ha-icon icon="${statusIcon}" aria-hidden="true"></ha-icon><span title="${this._text(status)}">${this._text(status)}</span></span>`
+      : '';
+    const batteryItem = battery
+      ? `<span class="detail-item"><ha-icon icon="mdi:battery" title="${this._text(battery.ariaLabel)}" aria-label="${this._text(battery.ariaLabel)}"></ha-icon><span>${this._text(battery.percent)}</span></span>`
+      : '';
+    this.shadowRoot.innerHTML = `<style>${this._css()}</style><button class="card ${presenceClass}${presenceClass ? ' ' : ''}${spacingClass}" data-presence="${presence}" type="button" aria-label="${this._text(label)}">${avatar}<span class="copy"><span class="header">${this._config.show_name ? `<span class="name">${this._text(name)}</span>` : ''}${batteryItem}</span>${statusItem ? `<span class="details">${statusItem}</span>` : ''}</span></button>`;
   }
 
   _css() {
     return `
       :host { display: block; min-width: 0; width: 100%; height: 100%; color: var(--primary-text-color, #f5f7fb); }
-      .card { box-sizing: border-box; width: 100%; height: 100%; min-height: 76px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--divider-color, rgba(255,255,255,.10)); border-radius: 16px; color: var(--primary-text-color, #f5f7fb); text-align: left; cursor: pointer; background: #212c42; box-shadow: 0 4px 14px rgba(0,0,0,.16); font: inherit; }
-      .card.comfortable { padding-block: 8px; }
+      .card { box-sizing: border-box; width: 100%; height: 100%; min-height: 66px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--divider-color, rgba(255,255,255,.10)); border-radius: var(--ha-card-border-radius, 20px); color: var(--primary-text-color, #f5f7fb); text-align: left; cursor: pointer; background: var(--home-dark-card-background, #212c42); box-shadow: 0 4px 14px rgba(0,0,0,.16); font: inherit; }
+      .card.comfortable { padding-block: 9px; }
       .card:focus-visible { outline: 3px solid var(--primary-color, #3d8bfd); outline-offset: 2px; }
-      .card.card[data-presence="home"] { background: #212c42 !important; background-color: #212c42 !important; color: var(--primary-text-color, #f5f7fb); }
+      .card.card[data-presence="home"] { background: var(--home-dark-card-background, #212c42) !important; background-color: var(--home-dark-card-background, #212c42) !important; color: var(--primary-text-color, #f5f7fb); }
       .card.card[data-presence="away"] { background: var(--person-away-background, #3d5270) !important; background-color: var(--person-away-background, #3d5270) !important; color: var(--person-away-color, #f5f7fb) !important; border-color: var(--person-away-border-color, rgba(255,255,255,.35)); }
       .card[data-presence="away"]:focus-visible { outline-color: var(--person-away-focus-color, #f5f7fb); }
-      .avatar { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 50%; object-fit: cover; background: var(--secondary-background-color, #3d4a66); color: var(--secondary-text-color, #aebbd0); }
+      .avatar { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border-radius: 50%; object-fit: cover; background: var(--secondary-background-color, #3d4a66); color: var(--secondary-text-color, #aebbd0); }
       .card[data-presence="away"] .avatar { background: var(--person-away-avatar-background, #4a6382) !important; background-color: var(--person-away-avatar-background, #4a6382) !important; color: var(--person-away-color, #f5f7fb) !important; border: 1px solid var(--person-away-avatar-border-color, rgba(255,255,255,.42)); }
       .card[data-presence="away"] .avatar:not(.fallback) { filter: grayscale(1) contrast(1.05); }
       .fallback ha-icon { --mdc-icon-size: 22px; }
-      .copy { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
-      .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(13px, 2.2vw, 16px); font-weight: 750; }
-      .details { min-width: 0; max-width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--secondary-text-color, #9fb0c8); font-size: clamp(10px, 1.8vw, 12px); line-height: 1.25; }
-      .card[data-presence="away"] .name, .card[data-presence="away"] .details, .card[data-presence="away"] .detail-item, .card[data-presence="away"] .detail-item ha-icon, .card[data-presence="away"] .fallback, .card[data-presence="away"] .fallback ha-icon { color: var(--person-away-color, #f5f7fb) !important; }
-      .detail-item { min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 4px; }
+      .copy { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 3px; overflow: hidden; }
+      .header { min-width: 0; display: flex; align-items: center; gap: 6px; }
+      .name { display: block; min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(13px, 2.2vw, 16px); font-weight: 750; }
+      .status { min-width: 0; max-width: 66%; flex: 0 1 auto; display: inline-flex; align-items: center; gap: 3px; min-height: 20px; padding: 1px 7px; border-radius: 999px; background: var(--home-person-status-background, #2b3850); color: var(--secondary-text-color, #91a2bb); font-size: clamp(10px, 1.8vw, 12px); font-weight: 650; line-height: 1.2; }
+      .status ha-icon { flex: 0 0 auto; --mdc-icon-size: 13px; }
+      .status > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .details { min-width: 0; display: flex; align-items: center; gap: 6px; color: var(--secondary-text-color, #91a2bb); font-size: clamp(10px, 1.8vw, 12px); font-weight: 650; line-height: 1.2; }
+      .details .status { width: 100%; max-width: 100%; min-height: 0; padding: 0; border-radius: 0; background: transparent; }
+      .details .status > span { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+      .card[data-presence="away"] .name, .card[data-presence="away"] .status, .card[data-presence="away"] .status ha-icon, .card[data-presence="away"] .details, .card[data-presence="away"] .detail-item, .card[data-presence="away"] .detail-item ha-icon, .card[data-presence="away"] .fallback, .card[data-presence="away"] .fallback ha-icon { color: var(--person-away-color, #f5f7fb) !important; }
+      .card[data-presence="away"] .status { background: transparent; }
+      .detail-item { min-width: 0; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; }
       .detail-item ha-icon { flex: 0 0 auto; --mdc-icon-size: 14px; }
-      .detail-item > span { min-width: 0; overflow-wrap: anywhere; }
+      .detail-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       @media (max-width: 360px) {
-        .card { gap: 6px; padding: 0 8px; border-radius: 14px; }
-        .card.comfortable { padding-block: 6px; }
-        .avatar { width: 34px; height: 34px; flex-basis: 34px; }
+        .card { min-height: 62px; gap: 8px; padding-inline: 8px; border-radius: 16px; }
+        .card.comfortable { padding-block: 8px; }
+        .avatar { width: 38px; height: 38px; flex-basis: 38px; }
         .name { font-size: 13px; }
-        .details { font-size: 10px; }
+        .status, .details { font-size: 10px; }
       }
     `;
   }

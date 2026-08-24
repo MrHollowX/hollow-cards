@@ -27,10 +27,6 @@ alwaysApply: false
 - `home-climate-card`: requires a `climate.*` `entity`; optional `name` and
   confirmed `power_switch`. It renders only live HVAC, fan, preset, swing,
   humidity, temperature, and power capabilities.
-- `home-row-card`: requires `kind`; `cover`, `media`, `vacuum`, and `tesla`
-  are its generic/quick-device roles. Its `kind: light` branch remains for
-  compatibility with existing dashboard cards, but new dedicated light
-  controls belong in `home-light-card`.
 - `home-door-security-card`: requires `camera_entity` and `lock_entity`;
   optional camera, door, ring, silent-switch, battery, labels, and confirmation
   settings control its camera/lock UI.
@@ -43,16 +39,14 @@ alwaysApply: false
   room/entity; enabled tilt-capable blinds render discrete slat-tilt actions at
   0%, 25%, 75%, and 100% rather than a tilt slider or position presets.
 
-## Split between dedicated and generic controls
+## Dedicated controls
 
-- Use `home-light-card` for new light rows and popup light controls. The current
-  live room popups use it; the live Lights view still contains legacy
-  `home-row-card kind: light` instances and must not be silently rewritten by a
-  source-only change.
+- Use `home-light-card` for light rows and popup light controls.
 - Use `home-climate-card` for climate controls in the Climate view and room
   popups. Room tiles only summarize climate state and navigate.
-- Keep `home-row-card` for covers, media players, vacuums, and Tesla quick
-  summaries. Use live entity capabilities rather than assuming a device feature.
+- Use the dedicated domain card or a verified external card for covers, media,
+  vacuums, and vehicle summaries. Use live entity capabilities rather than
+  assuming a device feature.
 
 ## Lovelace element contract
 

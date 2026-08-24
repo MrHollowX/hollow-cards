@@ -217,18 +217,12 @@ the dashboard editor, no JS reading required for day-to-day changes.
     `media_entity`, `motion_entity` (all optional except `name`). Tap →
     more-info on its light group (or climate if no lights). Domain
     icons + an "on" tag render only for whichever fields are set.
-  - `home-row-card` — one entity control row. Config: `kind` (`light` /
-    `cover` / `climate` / `media` / `vacuum` / `tesla`), `entity`,
-    `name`. Handles its own toggle/slider/stepper/play-pause per kind;
-    light rows only show a brightness slider when
-    `supported_color_modes` says the light is dimmable.
   - `home-navbar-card` — config-driven bottom tab bar (`tabs: [{id,
     icon, path}]`, `current`). Built but **not used** in the shipped
     config — see below.
   - Resource IDs: header `f5ede969d4124ec89d4e76d2d2f4ecca`, chip
     `e9296b183aed49a7ba6c3a7af8cfdd81`, room-tile
-    `02af4e539e264967a4c8b7079075876e`, row
-    `840736a3a49340b59f4d314a3cf80ef2`, navbar
+    `02af4e539e264967a4c8b7079075876e`, navbar
     `ca45e225cdc14d5c9913b421f5c33d58`. The old monolith resource
     (`f93dd85117d34e15b016bdf8e44d571e`) is still registered but no
     longer referenced by any dashboard — safe to delete if unused
@@ -248,39 +242,32 @@ the dashboard editor, no JS reading required for day-to-day changes.
   `heading` card — same entities, same granularity, just organized by
   domain instead of by room. Revisit if per-room pages are wanted back
   (straightforward: one more view per room, still built from the same
-  `home-row-card` instances).
+  modular card architecture).
 - **Home view** sections: `home-header-card` → 4 `home-chip-card`s
   (Andrei, Loredana, whole-house `light.house_all` group, front door
-  lock) → "Quick Devices" (`home-row-card` kind `vacuum` +
-  kind `tesla`) → "Rooms" (10 `home-room-tile-card`s, one per area) →
+  lock) → "Quick Devices" → "Rooms" (10 `home-room-tile-card`s, one per area) →
   the `custom:tesla-style-energy-flow` HACS card (user's exact config,
   unchanged) as a plain, independently removable card — no more DOM
   -surgery/persistent-slot workaround, since native views don't
   innerHTML-wipe other cards on re-render the way the monolith's
   `_render()` did.
 - **Lights / Climate / Blinds / Media views**: one section per room
-  (native `heading` card + one `home-row-card` per entity), covering the
+  (native `heading` card plus domain-specific controls), covering the
   same entity lists established during the per-light-rows work (individual
   lights per room including Eric's Room's 6 Hue bulbs
   `light.erics_room_line_hue_light_1`–`_6`, `_all` aggregates and
   diagnostic/presence LEDs excluded). Climate: 8 rooms. Blinds: 5 rooms.
   Media: 3 rooms (Living Room, Cinema, Office).
-- **Vacuum view**: single `home-row-card` kind `vacuum` for
-  `vacuum.roborock`.
+- **Vacuum view**: `custom:home-vacuum-card` for `vacuum.roborock`, with
+  map, actions, status metrics, alerts, and collapsible sections.
 - Reuses `vacuum.roborock`, `switch.storm_trooper_charge` +
   `sensor.storm_trooper_battery_level`, `lock.front_door`,
   `person.andrei` / `person.loredana`, `weather.openweathermap`,
   `light.house_all` (whole-house light group, used for the Home chip) —
   same entities as before plus this one new group lookup.
-- All prior fixes carried forward into the new cards: HTML-entity-only
-  text (no literal non-ASCII in source, avoids the mojibake bug),
-  `supported_color_modes`-based dimmable detection, and the full
-  touch-slider fix (`.slider-wrap` with a proper 28px hit target,
-  transparent absolutely-positioned `<input>`, manual `pointerdown`/
-  `pointermove`/`pointerup` handling with `_updateSliderFromPointer` so
-  tapping anywhere jumps immediately and dragging tracks the finger,
-  `_commitSlider` firing the service call once on release) — all now
-  living in `home-row-card` instead of the monolith.
+- All prior fixes carried forward into the modular card set include
+  HTML-entity-only text, capability-aware light dimmability, and touch-friendly
+  slider interaction.
 - **Fix (2026-07-24, layout):** after the modular rebuild the Home view
   looked broken — the individual dark cards (header/chips/tiles/rows)
   floated on HA's default theme background instead of one unified dark
@@ -335,14 +322,12 @@ everything `heos_office` supports. Living Room and Cinema already use their `_ma
 entities, so Office is the odd one out. Switching it would enable the seek bar
 and the shuffle/repeat buttons there. Not changed unilaterally.
 
-### Verified resource hosting modes (2026-08-14)
+### Verified resource hosting modes (2026-08-24)
 
-The live registry contradicts the older note that only `home-cover-card` is
-inline. Three cards are inline and need no host-file copy: `home-row-card`,
-`home-light-card` and `home-cover-card`. The other seven local cards are URL-mode
-under `/local/home-dark-cards/` and do need the manual copy. Resource
-`18170230da53421c9cf077e3f6e84fc9` is the obsolete
-`HomeDashboardCard` monolith, still registered and flagged `_legacy_worker`.
+Local Home Dark cards are registered as URL-mode module resources under
+`/local/home-dark-cards/` and require manual copying to
+`/config/www/home-dark-cards/`. Retired, unreferenced resources are removed after
+a cross-dashboard search confirms no remaining usage.
 
 ### Verified `media_player.play_media` payload
 

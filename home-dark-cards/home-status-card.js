@@ -7,6 +7,11 @@ class HomeStatusCard extends HTMLElement {
     this._renderKey = '';
     this._optionKey = '';
     this._pendingMode = '';
+    this._clickable = false;
+    this._showMetrics = true;
+    this._modeMenuOpen = false;
+    this._modeMenuIndex = 0;
+    this._globalEventsWired = false;
     this._wired = false;
   }
 
@@ -30,11 +35,16 @@ class HomeStatusCard extends HTMLElement {
       pm25_moderate_max: this._threshold(config.pm25_moderate_max, 35),
       pm10_good_max: this._threshold(config.pm10_good_max, 45),
       pm10_moderate_max: this._threshold(config.pm10_moderate_max, 100),
-      show_aqi: config.show_aqi !== false
+      show_aqi: config.show_aqi !== false,
+      clickable: config.clickable === true,
+      show_metrics: config.show_metrics === true
     };
+    this._clickable = this._config.clickable;
+    this._showMetrics = this._config.show_metrics;
     this._renderKey = '';
     this._optionKey = '';
     this._pendingMode = '';
+    this._modeMenuOpen = false;
     this._render();
   }
 
@@ -57,22 +67,68 @@ class HomeStatusCard extends HTMLElement {
   }
 
   connectedCallback() {
-    if (this._wired) return;
-    this._wired = true;
-    this.shadowRoot.addEventListener('change', event => {
-      if (event.target === this._modeSelect) this._selectMode(event.target.value);
-    });
-    this.shadowRoot.addEventListener('click', event => {
-      const metric = event.target.closest('[data-entity]');
-      if (metric && metric.dataset.entity) this._moreInfo(metric.dataset.entity);
-    });
-    this.shadowRoot.addEventListener('keydown', event => {
-      const metric = event.target.closest('[data-entity]');
-      if (metric && (event.key === 'Enter' || event.key === ' ')) {
-        event.preventDefault();
-        this._moreInfo(metric.dataset.entity);
-      }
-    });
+    if (!this._wired) {
+      this._wired = true;
+      this.shadowRoot.addEventListener('pointerdown', event => {
+        if (event.target.closest('.mode-control')) event.stopPropagation();
+      });
+      this.shadowRoot.addEventListener('click', event => {
+        const trigger = event.target.closest('.mode-trigger');
+        if (trigger) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (this._modeMenuOpen) {
+            this._closeModeMenu(true);
+          } else {
+            const options = this._modeOptionButtons();
+            const currentIndex = Math.max(0, options.findIndex(option => option.dataset.modeValue === this._modeCurrent));
+            this._openModeMenu(currentIndex);
+          }
+          return;
+        }
+        const option = event.target.closest('[data-mode-option]');
+        if (option && !option.disabled) {
+          event.preventDefault();
+          event.stopPropagation();
+          this._selectMode(option.dataset.modeValue);
+          return;
+        }
+        const metric = event.target.closest('[data-entity]');
+        if (metric && metric.dataset.entity) this._moreInfo(metric.dataset.entity);
+      });
+      this.shadowRoot.addEventListener('keydown', event => {
+        const metric = event.target.closest('[data-entity]');
+        if (metric && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          this._moreInfo(metric.dataset.entity);
+          return;
+        }
+        this._handleModeMenuKeydown(event);
+      });
+      this.shadowRoot.addEventListener('focusout', event => {
+        if (!this._modeMenuOpen) return;
+        const next = event.relatedTarget;
+        if (next && this.shadowRoot.contains(next)) return;
+        Promise.resolve().then(() => {
+          const active = this.shadowRoot.activeElement;
+          if (!active || !this.shadowRoot.contains(active)) this._closeModeMenu();
+        });
+      });
+    }
+    if (!this._globalEventsWired) {
+      this._globalEventsWired = true;
+      document.addEventListener('pointerdown', this._onDocumentPointerDown);
+      window.addEventListener('blur', this._onWindowBlur);
+      window.addEventListener('resize', this._onViewportChange);
+    }
+  }
+
+  disconnectedCallback() {
+    if (!this._globalEventsWired) return;
+    this._globalEventsWired = false;
+    document.removeEventListener('pointerdown', this._onDocumentPointerDown);
+    window.removeEventListener('blur', this._onWindowBlur);
+    window.removeEventListener('resize', this._onViewportChange);
   }
 
   _state(entity) {
@@ -101,7 +157,9 @@ class HomeStatusCard extends HTMLElement {
       this._render();
       return;
     }
+    this._closeModeMenu();
     this._pendingMode = option;
+    this._setModeDisplay(option);
     Promise.resolve(this._hass.callService('input_select', 'select_option', {
       entity_id: this._config.house_mode_entity,
       option
@@ -111,6 +169,18 @@ class HomeStatusCard extends HTMLElement {
       this._render();
     });
   }
+
+  _onDocumentPointerDown = event => {
+    if (!this._modeMenuOpen) return;
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+    if (!path.includes(this)) this._closeModeMenu();
+  };
+
+  _onWindowBlur = () => this._closeModeMenu();
+
+  _onViewportChange = () => {
+    if (this._modeMenuOpen) this._positionModeMenu();
+  };
 
   _isUnavailable(state) {
     return !state || ['unknown', 'unavailable', 'none'].includes(String(state.state).toLowerCase());
@@ -163,46 +233,66 @@ class HomeStatusCard extends HTMLElement {
               <div class="subtitle">Live home overview</div>
             </div>
           </div>
-          <div class="mode">
-            <label class="mode-label"></label>
-            <select class="mode-select"></select>
+          <div class="header-actions">
+            <div class="mode">
+              <span class="mode-label"></span>
+              <div class="mode-control">
+                <button class="mode-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="mode-value"></span>
+                  <ha-icon icon="mdi:chevron-down" aria-hidden="true"></ha-icon>
+                </button>
+                <div class="mode-options" role="listbox" tabindex="-1"></div>
+              </div>
+            </div>
+            <button class="details-toggle" type="button">
+              <ha-icon class="details-icon" aria-hidden="true"></ha-icon>
+            </button>
           </div>
         </div>
-        <div class="metrics">
-          <button class="metric" type="button" data-kind="pm25">
-            <ha-icon class="metric-icon" icon="mdi:blur"></ha-icon>
-            <span class="metric-copy">
-              <span class="metric-label"></span>
-              <strong class="metric-value"></strong>
-              <span class="metric-status"></span>
-            </span>
-          </button>
-          <button class="metric" type="button" data-kind="pm10">
-            <ha-icon class="metric-icon" icon="mdi:blur-radial"></ha-icon>
-            <span class="metric-copy">
-              <span class="metric-label"></span>
-              <strong class="metric-value"></strong>
-              <span class="metric-status"></span>
-            </span>
-          </button>
-          <button class="metric aqi" type="button" data-kind="aqi">
-            <ha-icon class="metric-icon" icon="mdi:air-filter"></ha-icon>
-            <span class="metric-copy">
-              <span class="metric-label"></span>
-              <strong class="metric-value"></strong>
-              <span class="metric-status">Common Air Quality Index</span>
-            </span>
-          </button>
-        </div>
-        <div class="footer">
-          <ha-icon icon="mdi:update"></ha-icon>
-          <span class="updated"></span>
+        <div class="details">
+          <div class="metrics">
+            <button class="metric" type="button" data-kind="pm25">
+              <ha-icon class="metric-icon" icon="mdi:blur"></ha-icon>
+              <span class="metric-copy">
+                <span class="metric-label"></span>
+                <strong class="metric-value"></strong>
+                <span class="metric-status"></span>
+              </span>
+            </button>
+            <button class="metric" type="button" data-kind="pm10">
+              <ha-icon class="metric-icon" icon="mdi:blur-radial"></ha-icon>
+              <span class="metric-copy">
+                <span class="metric-label"></span>
+                <strong class="metric-value"></strong>
+                <span class="metric-status"></span>
+              </span>
+            </button>
+            <button class="metric aqi" type="button" data-kind="aqi">
+              <ha-icon class="metric-icon" icon="mdi:air-filter"></ha-icon>
+              <span class="metric-copy">
+                <span class="metric-label"></span>
+                <strong class="metric-value"></strong>
+                <span class="metric-status">Common Air Quality Index</span>
+              </span>
+            </button>
+          </div>
+          <div class="footer">
+            <ha-icon icon="mdi:update"></ha-icon>
+            <span class="updated"></span>
+          </div>
         </div>
       </ha-card>`;
     this._shell = true;
+    this._card = this.shadowRoot.querySelector('.card');
     this._title = this.shadowRoot.querySelector('.title');
     this._modeLabel = this.shadowRoot.querySelector('.mode-label');
-    this._modeSelect = this.shadowRoot.querySelector('.mode-select');
+    this._modeTrigger = this.shadowRoot.querySelector('.mode-trigger');
+    this._modeValue = this.shadowRoot.querySelector('.mode-value');
+    this._modeOptionsPanel = this.shadowRoot.querySelector('.mode-options');
+    this._detailsToggle = this.shadowRoot.querySelector('.details-toggle');
+    this._detailsIcon = this.shadowRoot.querySelector('.details-icon');
+    this._details = this.shadowRoot.querySelector('.details');
+    this._detailsToggle.addEventListener('click', () => this._toggleMetrics());
     this._metrics = {
       pm25: this._metric(this.shadowRoot.querySelector('[data-kind="pm25"]')),
       pm10: this._metric(this.shadowRoot.querySelector('[data-kind="pm10"]')),
@@ -237,30 +327,154 @@ class HomeStatusCard extends HTMLElement {
     const safeOptions = Array.isArray(options) ? options.filter(option => typeof option === 'string') : [];
     const optionKey = JSON.stringify(safeOptions);
     if (optionKey !== this._optionKey) {
-      this._modeSelect.replaceChildren();
-      if (!safeOptions.length) {
-        const empty = document.createElement('option');
-        empty.value = '';
-        empty.textContent = 'Unavailable';
-        this._modeSelect.append(empty);
-      } else {
-        safeOptions.forEach(option => {
-          const item = document.createElement('option');
-          item.value = option;
-          item.textContent = option;
-          this._modeSelect.append(item);
-        });
-      }
+      this._modeOptionsPanel.replaceChildren();
+      safeOptions.forEach(option => {
+        const item = document.createElement('button');
+        item.className = 'mode-option';
+        item.type = 'button';
+        item.dataset.modeOption = '';
+        item.dataset.modeValue = option;
+        item.setAttribute('role', 'option');
+        item.textContent = option;
+        this._modeOptionsPanel.append(item);
+      });
       this._optionKey = optionKey;
     }
     if (this._pendingMode && modeState === this._pendingMode) this._pendingMode = '';
     const selected = this._pendingMode && safeOptions.includes(this._pendingMode)
       ? this._pendingMode
       : safeOptions.includes(modeState) ? modeState : '';
-    this._modeSelect.value = selected;
+    this._modeCurrent = selected;
+    this._setModeDisplay(selected || 'Unavailable');
     const modeEntityState = this._state(this._config.house_mode_entity);
-    this._modeSelect.disabled = !safeOptions.length || this._isUnavailable(modeEntityState);
-    this._modeSelect.setAttribute('aria-label', this._config.mode_label);
+    const disabled = !safeOptions.length || this._isUnavailable(modeEntityState);
+    this._modeTrigger.disabled = disabled;
+    this._modeTrigger.setAttribute('aria-label', this._config.mode_label);
+    this._modeOptionButtons().forEach(option => {
+      option.classList.toggle('selected', option.dataset.modeValue === selected);
+      option.setAttribute('aria-selected', String(option.dataset.modeValue === selected));
+    });
+    if (disabled) this._closeModeMenu();
+  }
+
+  _setModeDisplay(value) {
+    if (this._modeValue) this._modeValue.textContent = value;
+  }
+
+  _modeOptionButtons() {
+    return this._modeOptionsPanel
+      ? Array.from(this._modeOptionsPanel.querySelectorAll('[data-mode-option]'))
+      : [];
+  }
+
+  _openModeMenu(index = 0) {
+    const options = this._modeOptionButtons();
+    if (!options.length || this._modeTrigger.disabled) return;
+    this._modeMenuOpen = true;
+    this._modeMenuIndex = Math.max(0, Math.min(options.length - 1, index));
+    this._card.classList.add('mode-menu-open');
+    this._modeOptionsPanel.classList.add('open');
+    this._modeTrigger.setAttribute('aria-expanded', 'true');
+    this._positionModeMenu();
+    options[this._modeMenuIndex].focus();
+  }
+
+  _closeModeMenu(focusTrigger = false) {
+    if (!this._modeMenuOpen && !this._modeOptionsPanel) return;
+    this._modeMenuOpen = false;
+    this._modeMenuIndex = 0;
+    if (this._card) this._card.classList.remove('mode-menu-open');
+    if (this._modeOptionsPanel) this._modeOptionsPanel.classList.remove('open', 'above');
+    if (this._modeTrigger) this._modeTrigger.setAttribute('aria-expanded', 'false');
+    if (focusTrigger && this._modeTrigger) this._modeTrigger.focus();
+  }
+
+  _positionModeMenu() {
+    if (!this._modeMenuOpen || !this._modeTrigger || !this._modeOptionsPanel) return;
+    const rect = this._modeTrigger.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const gap = 8;
+    const below = Math.max(0, viewportHeight - rect.bottom - gap);
+    const above = Math.max(0, rect.top - gap);
+    const openAbove = above > below && above >= 48;
+    const available = openAbove ? above : below;
+    this._modeOptionsPanel.classList.toggle('above', openAbove);
+    this._modeOptionsPanel.style.maxHeight = `${Math.max(48, Math.min(220, available || 48))}px`;
+  }
+
+  _handleModeMenuKeydown(event) {
+    const trigger = event.target.closest('.mode-trigger');
+    if (trigger) {
+      if (event.key === 'Escape' && this._modeMenuOpen) {
+        event.preventDefault();
+        event.stopPropagation();
+        this._closeModeMenu(true);
+        return;
+      }
+      if (event.key === 'Enter' || event.key === ' ' ||
+          event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        event.stopPropagation();
+        const options = this._modeOptionButtons();
+        const currentIndex = Math.max(0, options.findIndex(option => option.dataset.modeValue === this._modeCurrent));
+        this._openModeMenu(event.key === 'ArrowUp' ? options.length - 1 : currentIndex);
+        return;
+      }
+    }
+    const option = event.target.closest('[data-mode-option]');
+    if (!option) return;
+    const options = this._modeOptionButtons();
+    const currentIndex = options.indexOf(option);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this._closeModeMenu(true);
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      event.stopPropagation();
+      this._selectMode(option.dataset.modeValue);
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' ||
+        event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextIndex = event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? options.length - 1
+          : currentIndex + (event.key === 'ArrowDown' ? 1 : -1);
+      this._modeMenuIndex = (nextIndex + options.length) % options.length;
+      options[this._modeMenuIndex].focus();
+    }
+  }
+
+  _toggleMetrics() {
+    if (!this._clickable) return;
+    this._closeModeMenu();
+    this._showMetrics = !this._showMetrics;
+    this._renderKey = '';
+    this._updateDetailsToggle();
+  }
+
+  _updateDetailsToggle() {
+    if (!this._detailsToggle || !this._details || !this._detailsIcon) return;
+    const expanded = this._showMetrics;
+    this._details.hidden = !expanded;
+    this._card.classList.toggle('collapsed', !expanded);
+    this._detailsToggle.disabled = !this._clickable;
+    this._detailsToggle.classList.toggle('clickable', this._clickable);
+    this._detailsToggle.setAttribute('aria-expanded', String(expanded));
+    this._detailsToggle.setAttribute(
+      'aria-label',
+      this._clickable
+        ? `${expanded ? 'Hide' : 'Show'} home status details`
+        : 'Home status'
+    );
+    this._detailsIcon.setAttribute('icon', expanded ? 'mdi:chevron-up' : 'mdi:chevron-down');
+    this._detailsToggle.hidden = !this._clickable;
   }
 
   _render() {
@@ -277,13 +491,15 @@ class HomeStatusCard extends HTMLElement {
       pm10?.state, pm10?.attributes?.unit_of_measurement, aqi?.state,
       aqi?.attributes?.unit_of_measurement, c.name, c.mode_label, c.pm25_label,
       c.pm10_label, c.aqi_label, c.show_aqi, c.pm25_good_max,
-      c.pm25_moderate_max, c.pm10_good_max, c.pm10_moderate_max
+      c.pm25_moderate_max, c.pm10_good_max, c.pm10_moderate_max,
+      this._clickable, this._showMetrics
     ]);
     if (key === this._renderKey) return;
     this._renderKey = key;
 
     this._title.textContent = c.name;
     this._modeLabel.textContent = c.mode_label;
+    this._updateDetailsToggle();
     this._updateOptions(options, mode?.state || '');
 
     const pm25Quality = this._quality(pm25, c.pm25_good_max, c.pm25_moderate_max);
@@ -302,18 +518,36 @@ class HomeStatusCard extends HTMLElement {
   _css() {
     return `
       :host{display:block;width:100%;min-width:0;color:#f5f7fb;font-family:-apple-system,'Segoe UI',Helvetica,sans-serif}
-      .card{box-sizing:border-box;width:100%;overflow:hidden;padding:16px;background:#212c42;border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.16)}
-      .header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+      .card{box-sizing:border-box;width:100%;overflow:hidden;padding:16px;background:#212c42;border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.16);container:status-card / inline-size}
+      .card.mode-menu-open{position:relative;z-index:20;overflow:visible}
+      .header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;min-height:52px;margin-bottom:14px}
       .heading{display:flex;align-items:center;gap:10px;min-width:0}
       .home-icon{flex:none;color:#ffb340;--mdc-icon-size:27px}
       .heading-copy{min-width:0}
       .title{font-size:16px;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .subtitle{margin-top:3px;color:#91a2bb;font-size:11px}
-      .mode{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:104px}
-      .mode-label{color:#91a2bb;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-      .mode-select{box-sizing:border-box;max-width:150px;min-height:34px;padding:5px 25px 5px 9px;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:#2b3850;color:#fff;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
-      .mode-select:focus-visible{outline:3px solid #3d8bfd;outline-offset:2px}
-      .mode-select:disabled{color:#91a2bb;cursor:not-allowed;opacity:.8}
+      .header-actions{display:flex;align-items:center;gap:8px;min-width:0}
+      .details-toggle{display:grid;place-items:center;flex:none;width:32px;height:32px;padding:0;border:0;border-radius:9px;background:rgba(43,56,80,.58);color:#91a2bb}
+      .details-toggle.clickable{cursor:pointer;-webkit-tap-highlight-color:transparent}
+      .details-toggle.clickable:hover{background:#2b3850;color:#f5f7fb}
+      .details-toggle.clickable:active{transform:scale(.94)}
+      .details-toggle:focus-visible{outline:3px solid #3d8bfd;outline-offset:2px}
+      .details-toggle[hidden],.details[hidden]{display:none}
+      .details-icon{--mdc-icon-size:20px}
+      .mode{display:grid;gap:4px;min-width:104px;width:clamp(104px,31cqw,130px)}
+      .mode-label{color:#91a2bb;font-size:10px;font-weight:700;text-align:center;text-transform:uppercase;letter-spacing:.05em}
+      .mode-control{position:relative}
+      .mode-trigger{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;min-height:36px;padding:5px 8px 5px 10px;border:1px solid rgba(255,255,255,.16);border-radius:10px;background:#2b3850;color:#f5f7fb;font:inherit;font-size:12px;font-weight:750;text-align:left;cursor:pointer}
+      .mode-trigger ha-icon{flex:none;color:#91a2bb;--mdc-icon-size:19px}
+      .mode-trigger:focus-visible,.mode-option:focus-visible{outline:3px solid #3d8bfd;outline-offset:2px}
+      .mode-trigger:disabled{color:#91a2bb;cursor:not-allowed;opacity:.8}
+      .mode-value{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .mode-options{display:none;position:absolute;z-index:20;top:calc(100% + 5px);right:0;left:0;overflow-y:auto;overscroll-behavior:contain;padding:4px;border:1px solid rgba(255,255,255,.18);border-radius:10px;background:#2b3850;box-shadow:0 12px 28px rgba(0,0,0,.35)}
+      .mode-options.open{display:block}
+      .mode-options.above{top:auto;bottom:calc(100% + 5px)}
+      .mode-option{box-sizing:border-box;display:block;width:100%;padding:8px 9px;border:0;border-radius:7px;background:transparent;color:#f5f7fb;font:inherit;font-size:12px;font-weight:650;line-height:1.25;text-align:left;cursor:pointer}
+      .mode-option:hover,.mode-option:focus-visible,.mode-option.selected{background:rgba(255,255,255,.1);color:#f5f7fb}
+      .mode-option.selected{color:#ffb340}
       .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
       .metric{display:flex;align-items:center;gap:9px;min-width:0;padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:#26334b;color:#f5f7fb;text-align:left;cursor:pointer}
       .metric:focus-visible{outline:3px solid #3d8bfd;outline-offset:2px}
@@ -328,8 +562,10 @@ class HomeStatusCard extends HTMLElement {
       .metric-status{margin-top:4px;font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .footer{display:flex;align-items:center;gap:5px;margin-top:11px;color:#74859e;font-size:10px}
       .footer ha-icon{--mdc-icon-size:13px}
-      @media(max-width:560px){.card{padding:13px}.header{align-items:flex-start;gap:10px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric.aqi{grid-column:1/-1}.title{font-size:15px}.mode{min-width:92px}.mode-select{max-width:130px}}
-      @media(max-width:380px){.header{display:block}.mode{align-items:flex-start;margin-top:10px}.mode-select{max-width:100%}.metrics{grid-template-columns:1fr}.metric.aqi{grid-column:auto}}
+      @container status-card (max-width:560px){.card{padding:13px}.header{gap:12px;min-height:50px}.title{font-size:15px}.metrics{gap:6px}.metric{gap:5px;padding:7px;border-radius:11px}.metric-icon{--mdc-icon-size:18px}.metric-value{font-size:12px}.metric-status{margin-top:3px;font-size:9px}}
+      @container status-card (max-width:310px){.header{grid-template-columns:minmax(0,1fr);grid-template-areas:"heading" "actions";gap:10px}.heading{grid-area:heading}.header-actions{grid-area:actions;justify-content:space-between;width:100%}.mode{width:clamp(104px,50cqw,150px);min-width:0}.details-toggle{justify-self:end}}
+      .card.collapsed{padding-bottom:10px}
+      .card.collapsed .header{margin-bottom:0}
     `;
   }
 }

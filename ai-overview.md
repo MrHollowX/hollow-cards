@@ -24,8 +24,8 @@
   - `home-climate-card`: Capability-driven HVAC menus, temperature and humidity
     steppers, configurable switch power control, and native climate power
     fallback when the live entity exposes both required capability bits.
-  - `home-row-card`: Compatibility rows for lights, covers, media players,
-    vacuums, and the Tesla quick-device summary.
+  - `home-vacuum-card`: Roborock controls, live map, status metrics, alerts, and
+    collapsible configuration sections.
   - `home-door-security-card`: Doorbell camera preview, ring and door status,
     silent-mode switch, lock control, lock battery text, and optional lock
     confirmation.
@@ -191,8 +191,8 @@ flowchart LR
   - `home-climate-card.js`: Dynamic control generation from live climate
     attributes, native mode menus, target steppers, power capability detection,
     optimistic pending values, and viewport-aware menus.
-  - `home-row-card.js`: Compatibility branches for light, cover, media, vacuum,
-    and Tesla rows.
+  - `home-vacuum-card.js`: Roborock actions, map, metric formatting, alerts, and
+    collapsible sections.
   - `home-cover-card.js`: Shadow DOM cover controls, capability detection, position
     slider, discrete slat-tilt actions, editor form, and error feedback.
   - `home-door-security-card.js`: Shadow DOM camera and lock UI, camera fallback,
@@ -344,7 +344,7 @@ ha_custom_cards_set/
 │   ├── home-room-tile-card.js      # Room summary and popup navigation
 │   ├── home-light-card.js          # Standalone light control row
 │   ├── home-climate-card.js        # Standalone climate control card
-│   ├── home-row-card.js            # Compatibility entity rows
+│   ├── home-vacuum-card.js         # Roborock controls, map, and status
 │   ├── home-cover-card.js          # Blinds and shutters control card
 │   ├── home-door-security-card.js  # Doorbell and lock card
 │   ├── home-chip-card.js            # Compact status chip
@@ -374,7 +374,7 @@ The README records these local card resource IDs:
 | `home-header-card.js` | `home-header-card` | `f5ede969d4124ec89d4e76d2d2f4ecca` |
 | `home-chip-card.js` | `home-chip-card` | `e9296b183aed49a7ba6c3a7af8cfdd81` |
 | `home-room-tile-card.js` | `home-room-tile-card` | `02af4e539e264967a4c8b7079075876e` |
-| `home-row-card.js` | `home-row-card` | `840736a3a49340b59f4d314a3cf80ef2` |
+| `home-vacuum-card.js` | `home-vacuum-card` | `3192edab42a1488192bc960c27807df7` |
 | `home-light-card.js` | `home-light-card` | `376b336445804f819b97c6b461f530cb` |
 | `home-person-card.js` | `home-person-card` | `d655ab1709e94df7be303b4504d5397c` |
 | `home-door-security-card.js` | `home-door-security-card` | `fdf4fcf92eee4a61805911ed6fc8a781` |
@@ -573,8 +573,7 @@ this.dispatchEvent(new CustomEvent('hass-more-info', {
   `mobile-home` dashboard, the `home-design` dashboard, and the modular
   `home-dark` card set. The HACS resources used by remote dashboards are not
   local source files.
-- `home-light-card.js` is the independent light implementation. The light branch
-  in `home-row-card.js` remains for compatibility with existing cards.
+- `home-light-card.js` is the independent light implementation.
 - `home-climate-card.js` is split from room summaries:
   `home-room-tile-card.js` displays readings and navigates to a popup, while
   climate control behavior lives in the dedicated climate card.

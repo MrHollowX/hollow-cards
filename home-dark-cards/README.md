@@ -1,8 +1,8 @@
 # Home Dark Cards
 
-This folder contains fourteen JavaScript custom cards available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js`, `home-switch-card.js`, and `home-climate-card.js` are separate, independently registered controls; the legacy light branch in `home-row-card.js` remains for compatibility. `home-group-card.js` is a generic expandable container for Home Dark child cards. `home-cover-card.js`, `home-floating-menu-card.js`, and `home-entity-status-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the six dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
+This folder contains the JavaScript custom-card sources available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js`, `home-switch-card.js`, and `home-climate-card.js` are separate, independently registered controls. `home-group-card.js` is a generic expandable container for Home Dark child cards. `home-cover-card.js`, `home-floating-menu-card.js`, `home-entity-status-card.js`, `home-energy-overview-card.js`, and `home-vacuum-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
 
-**Hosting modes, verified against the live resource registry on 2026-08-20.** All fourteen local cards are registered as URL-mode module resources under `/local/home-dark-cards/` and require manual host copying. Media playback uses a separately registered external card resource. The unused legacy `HomeDashboardCard` inline resource was removed after a cross-dashboard search found no references.
+**Hosting modes, verified against the live resource registry on 2026-08-24.** Local cards are registered as URL-mode module resources under `/local/home-dark-cards/` and require manual host copying. Media playback uses a separately registered external card resource. The unused legacy `HomeDashboardCard` inline resource was removed after a cross-dashboard search found no references.
 
 ## Export metadata
 
@@ -28,7 +28,6 @@ This folder contains fourteen JavaScript custom cards available to the `home-dar
 | `home-header-card.js` | `home-header-card` | `f5ede969d4124ec89d4e76d2d2f4ecca` |
 | `home-chip-card.js` | `home-chip-card` | `e9296b183aed49a7ba6c3a7af8cfdd81` |
 | `home-room-tile-card.js` | `home-room-tile-card` | `02af4e539e264967a4c8b7079075876e` |
-| `home-row-card.js` | `home-row-card` | `840736a3a49340b59f4d314a3cf80ef2` |
 | `home-light-card.js` | `home-light-card` | `376b336445804f819b97c6b461f530cb` |
 | `home-person-card.js` | `home-person-card` | `d655ab1709e94df7be303b4504d5397c` |
 | `home-door-security-card.js` | `home-door-security-card` | `fdf4fcf92eee4a61805911ed6fc8a781` |
@@ -39,6 +38,8 @@ This folder contains fourteen JavaScript custom cards available to the `home-dar
 | `home-floating-menu-card.js` | `home-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
 | `home-switch-card.js` | `home-switch-card` | `257d462671f14a0fba4d422931a99f2b` |
 | `home-group-card.js` | `home-group-card` | `e0a94f1cc4cc4b9b95f828176e7c0a57` |
+| `home-energy-overview-card.js` | `home-energy-overview-card` | `da52af5bbea0436d882c4261595b237e` |
+| `home-vacuum-card.js` | `home-vacuum-card` | `3192edab42a1488192bc960c27807df7` |
 
 ### Home floating menu card
 
@@ -178,51 +179,133 @@ popup_hash: '#living-room'
   to that hash so a Bubble Card `card_type: pop-up` with the same hash can open.
   Popup contents are configured in the Home Assistant dashboard, not in this resource.
 
-### Home row card
+### Home vacuum card
 
-- **Card type:** `custom:home-row-card`
-- **Purpose:** Single-entity control row for covers, media players, vacuums,
-  and the Tesla quick-device summary. Its existing `kind: light` branch remains
-  supported for compatibility; new light rows use `home-light-card`.
-- **Resource:** `home-row-card.js`
-- **URL:** `/local/home-dark-cards/home-row-card.js?v=20260819-1214-row-url`
+- **Card type:** `custom:home-vacuum-card`
+- **Purpose:** Home Dark Roborock control card with current state, Clean/Pause/Dock/
+  Locate controls, a live map, icon-led cleaning and dock metrics, and collapsible
+  configuration sections.
+- **Resource:** `home-vacuum-card.js`
+- **Resource ID:** `3192edab42a1488192bc960c27807df7`
+- **URL:** `/local/home-dark-cards/home-vacuum-card.js?v=20260824-1637`
 
-This is the current verified Tesla row used on the Home view:
-
-```yaml
-type: custom:home-row-card
-kind: tesla
-battery_entity: sensor.storm_trooper_battery_level
-charge_switch: switch.storm_trooper_charge
-name: Storm Trooper
-```
-
-- `kind` is required and supports `light`, `cover`, `media`, `vacuum`, and
-  `tesla`.
-- `entity` is used by `light`, `cover`, `media`, and `vacuum` rows. The
-  Tesla row uses `battery_entity` and `charge_switch` instead; its entity value is
-  `[Needs configuration]` because the current card does not require one.
-- `name` is optional and supplies the displayed name.
-- Existing light rows toggle the light and show a brightness slider only when
-  `supported_color_modes` contains a mode other than `onoff`. New light rows should
-  use `custom:home-light-card` so the light-specific implementation is independently
-  configurable.
-- Cover rows use `current_position` and call `cover.set_cover_position`.
-- Media rows call `media_player.media_play_pause`. The branch remains in the
-  source, but no card on the live `home-dark` dashboard uses `kind: media` any
-  more; media players use the separately maintained
-  `custom:mediocre-media-player-card` resource.
-- Vacuum rows call `vacuum.start` or `vacuum.return_to_base`; the verified current
-  vacuum entity is `vacuum.roborock`.
-- The verified current light example is:
+This is the current verified Vacuum-view configuration:
 
 ```yaml
-type: custom:home-row-card
-kind: light
-entity: light.apartment_balcony
-name: Balcony
+type: custom:home-vacuum-card
+entity: vacuum.roborock
+name: Roborock
+status_entity: sensor.roborock_status
+battery_entity: sensor.roborock_battery
+room_entity: sensor.roborock_current_room
+map_image_entity: image.roborock_home_custom
+map_title: Roborock map
+collapsed_sections:
+  - settings
+select_entities:
+  - entity: select.living_room_roborock_cleaning_mode
+    name: Cleaning mode
+  - entity: select.roborock_mop_intensity
+    name: Mop intensity
+  - entity: select.roborock_mop_mode
+    name: Mop mode
+status_sections:
+  - title: Cleaning overview
+    entities:
+      - entity: sensor.roborock_cleaning_area
+        label: Cleaned area
+        icon: mdi:floor-plan
+        suffix: ' m2'
+      - entity: sensor.roborock_cleaning_time
+        label: Cleaning time
+        icon: mdi:clock-outline
+        format: duration-minutes
+      - entity: sensor.roborock_last_clean_begin
+        label: Last clean began
+        icon: mdi:calendar-clock
+        format: date-time
+  - title: Dock health
+    entities:
+      - entity: binary_sensor.living_room_roborock_dock_clean_water_box
+        label: Clean water
+        icon: mdi:water-check-outline
+        state_map: { 'off': Ready, 'on': Refill }
+      - entity: binary_sensor.living_room_roborock_dock_dirty_water_box
+        label: Dirty water
+        icon: mdi:water-remove-outline
+        state_map: { 'off': Empty, 'on': Empty tank }
+      - entity: binary_sensor.living_room_roborock_dock_mop_drying
+        label: Mop drying
+        icon: mdi:weather-sunny
+        state_map: { 'off': Idle, 'on': Drying }
+      - entity: sensor.roborock_dock_dock_error
+        label: Dock status
+        icon: mdi:garage-variant
+        state_map: { ok: Healthy }
+      - entity: binary_sensor.roborock_water_shortage
+        label: Water shortage
+        icon: mdi:water-alert
+        state_map: { 'off': Water OK, 'on': Refill water }
+        alert_states: [ 'on' ]
 ```
 
+- `entity` is required and is the vacuum controlled by the four action buttons.
+- `status_entity`, `battery_entity`, and `room_entity` are optional display entities.
+  Missing or unavailable values render a readable fallback.
+- `map_image_entity` is optional. It must expose an `entity_picture` attribute; tapping
+  the rendered map opens that image entity's more-info dialog.
+- `select_entities` configures themed, keyboard-accessible listboxes. Each entry needs
+  an `entity` from the `select` domain; `name` is optional.
+- `status_sections` is optional. Each section has a `title` and an `entities` list.
+  Metric entries support `entity`, `label`, `icon`, `suffix`, `state_map`,
+  `alert_states`, and `format`. `format` accepts `duration-minutes` and `date-time`.
+  States included in `alert_states` use red icon and value treatment.
+- Every map or status section can be collapsed. Their keys are `map`, `status-0`,
+  `status-1`, and so on in `status_sections` order; the settings key is `settings`.
+  Add any keys to `collapsed_sections` to make those sections start collapsed. When
+  omitted, map and status sections start expanded and Cleaning Settings starts
+  collapsed.
+
+### Home energy overview card
+
+- **Card type:** `custom:home-energy-overview-card`
+- **Purpose:** Responsive Home Dark summary of daily energy usage and cost. Each
+  item opens the usage entity's native more-info dialog.
+- **Resource:** `home-energy-overview-card.js`
+- **Resource ID:** `da52af5bbea0436d882c4261595b237e`
+
+The verified current card on the `home-dark` Lights view is:
+
+```yaml
+type: custom:home-energy-overview-card
+title: Daily Overview
+icon: mdi:chart-line
+price_entity: input_number.energy_price
+price_per_kwh: 1.13
+items:
+  - label: Studio
+    icon: mdi:desk
+    usage_entity: sensor.studio_general_studio_energy_today
+  - label: Garage
+    icon: mdi:garage
+    usage_entity: sensor.garage_energy_meter_garage_energy_today
+  - label: Apartment
+    icon: mdi:home-apartment
+    usage_entity: sensor.apartment_energy_meter_apartment_energy_today
+  - label: Total
+    icon: mdi:transmission-tower
+    usage_entity: sensor.grid_energy_today
+```
+
+- `items` is required and must contain one or more entries with a
+  `usage_entity` and either a `cost_entity`, `price_per_kwh`, or a card-level
+  `price_entity`.
+- An item's `cost_entity` is used directly when configured. Otherwise, the card
+  multiplies the usage by the current non-negative `price_entity` value, falling
+  back to the item's `price_per_kwh`.
+- `title` defaults to `Today's usage & cost`; `icon` defaults to `mdi:chart-line`.
+- Missing, unavailable, or non-numeric usage, cost, or price values render
+  `Unavailable` rather than a calculated value.
 
 ### Home cover card
 
@@ -807,24 +890,6 @@ The `/local/...` URL only works after the JavaScript file has been copied to
 Home Assistant MCP resource operation registers resources but does not copy files
 into `/config/www/`. After any resource update, hard-refresh the browser to load
 the new module.
-
-## Export inventory
-
-The byte sizes below are local JavaScript source sizes. All local resources are
-deployed from this folder in URL mode.
-
-| File | Bytes | Lines |
-|---|---:|---:|
-| `home-header-card.js` | 2,367 | 41 |
-| `home-chip-card.js` | 3,208 | 60 |
-| `home-room-tile-card.js` | 3,157 | 49 |
-| `home-row-card.js` | 10,123 | 156 |
-| `home-light-card.js` | 15,928 | 440 |
-| `home-person-card.js` | 8,566 | 153 |
-| `home-door-security-card.js` | 17,326 | 37 |
-| `home-cover-card.js` | 16,026 | 173 |
-| `home-floating-menu-card.js` | 10,514 | 348 |
-| `home-switch-card.js` | [local source] | 620 |
 
 ## Registering or updating a resource
 
