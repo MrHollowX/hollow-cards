@@ -1,0 +1,313 @@
+blueprint:
+  name: KNX Thermostat and Daikin HVAC State Manager
+  description: >-
+    Keeps a KNX heating thermostat safe around open doors and windows in Winter,
+    and uses its cooling request, target temperature, and KNX AC enable switch
+    to control a Daikin air conditioner in Summer.
+  domain: automation
+  author: MrHollowX
+  source_url: https://github.com/MrHollowX/ha_custom_cards_set/blob/main/blueprints/automation/knx-daikin-hvac-state-manager.yaml
+  homeassistant:
+    min_version: "2026.8.0"
+  input:
+    climate_entities:
+      name: Climate entities
+      icon: mdi:thermostat
+      input:
+        season_selector:
+          name: Summer/Winter selector
+          description: On enables Summer cooling control; off enables Winter heating protection.
+          selector:
+            entity:
+              domain: input_boolean
+        winter_climate_entity:
+          name: Winter KNX climate entity
+          description: KNX thermostat or valve to protect when doors or windows are open.
+          selector:
+            entity:
+              domain: climate
+        summer_thermostat:
+          name: Summer KNX thermostat
+          description: KNX thermostat that provides the cooling request and target temperature.
+          selector:
+            entity:
+              domain: climate
+        air_conditioner:
+          name: Daikin air conditioner
+          description: Air conditioner controlled in Summer.
+          selector:
+            entity:
+              domain: climate
+        cooling_request:
+          name: KNX cooling request
+          description: Turns on when the KNX thermostat requests cooling.
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: cold
+        air_conditioning_enable_switch:
+          name: KNX air conditioning enable switch
+          description: Enables or disables Summer cooling for this zone.
+          selector:
+            entity:
+              domain: switch
+    safety:
+      name: Door and window safety
+      icon: mdi:door-closed-lock
+      input:
+        opening_sensors:
+          name: Opening sensors
+          description: Every door and window that must remain closed while the zone is conditioned.
+          selector:
+            entity:
+              multiple: true
+              domain: binary_sensor
+              device_class:
+                - door
+                - window
+                - opening
+                - garage_door
+        winter_last_preset:
+          name: Winter preset memory
+          description: Input text helper used to retain the Winter preset while openings are unsafe.
+          selector:
+            entity:
+              domain: input_text
+        winter_safe_preset:
+          name: Winter safe preset
+          description: Preset used while an opening is unsafe.
+          default: building_protection
+          selector:
+            select:
+              options:
+                - building_protection
+                - comfort
+                - economy
+                - standby
+              custom_value: true
+        winter_fallback_preset:
+          name: Winter fallback preset
+          description: Preset used when no valid saved Winter preset can be restored.
+          default: comfort
+          selector:
+            select:
+              options:
+                - building_protection
+                - comfort
+                - economy
+                - standby
+              custom_value: true
+    timing:
+      name: Timing
+      icon: mdi:timer-outline
+      collapsed: true
+      input:
+        cooling_request_on_delay:
+          name: Cooling-request confirmation delay
+          description: Seconds the KNX cooling request must remain on before cooling starts.
+          default: 10
+          selector:
+            number:
+              min: 0
+              max: 300
+              step: 1
+              unit_of_measurement: seconds
+              mode: slider
+        enable_switch_off_delay:
+          name: Enable-switch off confirmation delay
+          description: Seconds the KNX enable switch must remain off before cooling stops.
+          default: 10
+          selector:
+            number:
+              min: 0
+              max: 300
+              step: 1
+              unit_of_measurement: seconds
+              mode: slider
+        openings_closed_delay:
+          name: Openings-closed restoration delay
+          description: Seconds all openings must remain closed before conditioning may be restored.
+          default: 30
+          selector:
+            number:
+              min: 0
+              max: 300
+              step: 1
+              unit_of_measurement: seconds
+              mode: slider
+
+mode: restart
+max_exceeded: silent
+
+variables:
+  season_selector: !input season_selector
+  winter_climate_entity: !input winter_climate_entity
+  summer_thermostat: !input summer_thermostat
+  air_conditioner: !input air_conditioner
+  cooling_request: !input cooling_request
+  air_conditioning_enable_switch: !input air_conditioning_enable_switch
+  opening_sensors: !input opening_sensors
+  winter_last_preset: !input winter_last_preset
+  winter_safe_preset: !input winter_safe_preset
+  winter_fallback_preset: !input winter_fallback_preset
+  all_openings_closed: >-
+    {{ expand(opening_sensors)
+       | selectattr('state', 'eq', 'off')
+       | list
+       | count == (opening_sensors | count) }}
+  target_temperature_is_valid: >-
+    {{ is_number(state_attr(summer_thermostat, 'temperature')) }}
+  target_temperature: >-
+    {% set requested = state_attr(summer_thermostat, 'temperature') | float %}
+    {% set minimum = state_attr(air_conditioner, 'min_temp') | float(requested) %}
+    {% set maximum = state_attr(air_conditioner, 'max_temp') | float(requested) %}
+    {{ [[requested, minimum] | max, maximum] | min }}
+
+triggers:
+  - trigger: state
+    entity_id: !input summer_thermostat
+    attribute: temperature
+    id: target_temperature_changed
+    note: Keeps the Daikin setpoint aligned with the room thermostat.
+  - trigger: state
+    entity_id: !input cooling_request
+    id: cooling_request_changed
+  - trigger: state
+    entity_id: !input air_conditioning_enable_switch
+    id: enable_switch_changed
+  - trigger: state
+    entity_id: !input opening_sensors
+    id: openings_changed
+  - trigger: state
+    entity_id: !input season_selector
+    id: season_changed
+  - trigger: homeassistant
+    event: start
+    id: home_assistant_started
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: target_temperature_changed
+          - condition: template
+            value_template: "{{ target_temperature_is_valid }}"
+        sequence:
+          - action: climate.set_temperature
+            target:
+              entity_id: !input air_conditioner
+            data:
+              temperature: "{{ target_temperature | float }}"
+            note: The target is constrained to the Daikin's reported temperature range.
+    default:
+      - choose:
+          - conditions:
+              - condition: trigger
+                id: cooling_request_changed
+              - condition: state
+                entity_id: !input cooling_request
+                state: "on"
+            sequence:
+              - delay:
+                  seconds: !input cooling_request_on_delay
+          - conditions:
+              - condition: trigger
+                id: enable_switch_changed
+              - condition: state
+                entity_id: !input air_conditioning_enable_switch
+                state: "off"
+            sequence:
+              - delay:
+                  seconds: !input enable_switch_off_delay
+          - conditions:
+              - condition: trigger
+                id: openings_changed
+              - condition: template
+                value_template: "{{ all_openings_closed }}"
+            sequence:
+              - delay:
+                  seconds: !input openings_closed_delay
+
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: !input season_selector
+                state: "on"
+            sequence:
+              - if:
+                  - condition: template
+                    value_template: >-
+                      {{ all_openings_closed
+                         and is_state(air_conditioning_enable_switch, 'on')
+                         and is_state(cooling_request, 'on') }}
+                then:
+                  - if:
+                      - condition: template
+                        value_template: "{{ target_temperature_is_valid }}"
+                    then:
+                      - action: climate.set_temperature
+                        target:
+                          entity_id: !input air_conditioner
+                        data:
+                          temperature: "{{ target_temperature | float }}"
+                  - action: climate.set_hvac_mode
+                    target:
+                      entity_id: !input air_conditioner
+                    data:
+                      hvac_mode: cool
+                    note: Daikin units selected for this blueprint must support cool mode.
+                else:
+                  - action: climate.set_hvac_mode
+                    target:
+                      entity_id: !input air_conditioner
+                    data:
+                      hvac_mode: "off"
+                    note: An open or unavailable opening sensor is treated as unsafe.
+          - conditions:
+              - condition: state
+                entity_id: !input season_selector
+                state: "off"
+            sequence:
+              - action: climate.set_hvac_mode
+                target:
+                  entity_id: !input air_conditioner
+                data:
+                  hvac_mode: "off"
+              - if:
+                  - condition: template
+                    value_template: "{{ not all_openings_closed }}"
+                then:
+                  - if:
+                      - condition: template
+                        value_template: "{{ states(winter_last_preset) == '' }}"
+                    then:
+                      - action: input_text.set_value
+                        target:
+                          entity_id: !input winter_last_preset
+                        data:
+                          value: >-
+                            {{ state_attr(winter_climate_entity, 'preset_mode')
+                               or winter_fallback_preset }}
+                  - action: climate.set_preset_mode
+                    target:
+                      entity_id: !input winter_climate_entity
+                    data:
+                      preset_mode: !input winter_safe_preset
+                else:
+                  - if:
+                      - condition: template
+                        value_template: "{{ states(winter_last_preset) != '' }}"
+                    then:
+                      - action: climate.set_preset_mode
+                        target:
+                          entity_id: !input winter_climate_entity
+                        data:
+                          preset_mode: >-
+                            {% set saved = states(winter_last_preset) %}
+                            {% set presets = state_attr(winter_climate_entity, 'preset_modes') or [] %}
+                            {{ saved if saved in presets else winter_fallback_preset }}
+                      - action: input_text.set_value
+                        target:
+                          entity_id: !input winter_last_preset
+                        data:
+                          value: ""
