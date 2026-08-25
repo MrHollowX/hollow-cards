@@ -124,6 +124,17 @@ blueprint:
               step: 1
               unit_of_measurement: seconds
               mode: slider
+        enable_switch_on_delay:
+          name: Enable-switch on confirmation delay
+          description: Seconds the KNX enable switch must remain on before cooling may start.
+          default: 10
+          selector:
+            number:
+              min: 0
+              max: 300
+              step: 1
+              unit_of_measurement: seconds
+              mode: slider
         openings_closed_delay:
           name: Openings-closed restoration delay
           description: Seconds all openings must remain closed before conditioning may be restored.
@@ -210,6 +221,15 @@ actions:
             sequence:
               - delay:
                   seconds: !input cooling_request_on_delay
+          - conditions:
+              - condition: trigger
+                id: enable_switch_changed
+              - condition: state
+                entity_id: !input air_conditioning_enable_switch
+                state: "on"
+            sequence:
+              - delay:
+                  seconds: !input enable_switch_on_delay
           - conditions:
               - condition: trigger
                 id: enable_switch_changed
