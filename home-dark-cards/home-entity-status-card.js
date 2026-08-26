@@ -201,7 +201,9 @@ class HomeEntityStatusCard extends HTMLElement {
       label,
       state,
       stateValue: state?.state ?? '',
-      tone: dotRange?.tone || (isContactSensor && isActive ? 'green' : ''),
+      tone: metric.preserve_dot_colors === true
+        ? ''
+        : dotRange?.tone || (isContactSensor && isActive ? 'green' : ''),
       unavailable,
       unit,
       value,
@@ -291,11 +293,13 @@ class HomeEntityStatusCard extends HTMLElement {
         min-width:0;
         width:100%;
         font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;
-        --status-background:var(--home-dark-card-background,#212c42);
-        --status-primary:var(--home-dark-primary-text,#f5f7fb);
-        --status-secondary:var(--home-dark-secondary-text,#91a2bb);
-        --status-muted:var(--home-dark-muted-text,#66758f);
-        --status-accent:var(--home-dark-accent,#ffb340);
+        --status-background:var(--card-background-color,var(--ha-card-background,#212c42));
+        --status-card-radius:var(--home-entity-status-card-border-radius,20px);
+        --status-primary:var(--primary-text-color,#f5f7fb);
+        --status-secondary:var(--secondary-text-color,#91a2bb);
+        --status-muted:var(--disabled-text-color,#66758f);
+        --status-accent:var(--primary-color,#ffb340);
+        --status-divider:var(--divider-color,rgba(255,255,255,.08));
       }
       .card {
         box-sizing:border-box;
@@ -304,8 +308,8 @@ class HomeEntityStatusCard extends HTMLElement {
         overflow:hidden;
         background:var(--status-background);
         color:var(--status-primary);
-        border:1px solid rgba(255,255,255,.08);
-        border-radius:var(--ha-card-border-radius,20px);
+        border:1px solid var(--status-divider);
+        border-radius:var(--status-card-radius);
         box-shadow:0 4px 14px rgba(0,0,0,.16);
       }
       .card * { box-sizing:border-box; }
@@ -333,9 +337,9 @@ class HomeEntityStatusCard extends HTMLElement {
         font:inherit;
         text-align:left;
       }
-      .metrics.vertical .metric + .metric { border-top:1px solid rgba(255,255,255,.09); }
+      .metrics.vertical .metric + .metric { border-top:1px solid var(--status-divider); }
       .metrics.horizontal.metric-row .metric { flex:1 1 0; grid-template-columns:1fr; text-align:center; }
-      .metrics.horizontal.metric-row .metric + .metric { border-left:1px solid rgba(255,255,255,.09); }
+      .metrics.horizontal.metric-row .metric + .metric { border-left:1px solid var(--status-divider); }
       .metric:focus-visible { outline:2px solid var(--status-accent); outline-offset:3px; }
       .dots { display:flex; gap:5px; }
       .metrics.horizontal.metric-row .dots { flex-direction:column; justify-self:center; }
@@ -385,7 +389,7 @@ class HomeEntityStatusCard extends HTMLElement {
         background:rgba(255,255,255,.09);
         transform:translateY(-50%);
       }
-      .dot { width:5px; height:5px; border-radius:50%; background:var(--status-muted); opacity:.78; }
+      .dot { width:6px; height:6px; border-radius:50%; background:var(--status-secondary); box-shadow:0 0 0 1px color-mix(in srgb,var(--status-secondary) 55%,var(--status-primary)); opacity:1; }
       .dot-0 { --dot-color:#1f7a45; }
       .dot-1 { --dot-color:#8ed45b; }
       .dot-2 { --dot-color:#f2d33f; }
@@ -394,6 +398,7 @@ class HomeEntityStatusCard extends HTMLElement {
       .dot.active { background:var(--dot-color); box-shadow:0 0 0 1px var(--status-background),0 0 0 2px var(--dot-color); opacity:1; }
       .metric.dot-tone-blue .dot.active { --dot-color:#3d8bfd; }
       .metric.dot-tone-light-blue .dot.active { --dot-color:#67c8ff; }
+      .metric.dot-tone-light-blue strong { color:#67c8ff; }
       .metric.dot-tone-green .dot.active { --dot-color:#53d38a; }
       .metric.dot-tone-yellow .dot.active { --dot-color:#ffb340; }
       .metric.dot-tone-orange .dot.active { --dot-color:#ff8c42; }

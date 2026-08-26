@@ -560,29 +560,32 @@ class HomeLightCard extends HTMLElement {
 
   _css() {
     return `
-      :host {
+      home-light-card {
         display: block;
         width: 100%;
         min-width: 0;
         font-family: -apple-system, 'Segoe UI', Helvetica, sans-serif;
-        --light-card-bg: var(--home-dark-card-background, #212c42);
-        --light-primary-text: var(--home-dark-primary-text, #f5f7fb);
-        --light-secondary-text: var(--home-dark-secondary-text, #91a2bb);
-        --light-accent: var(--home-dark-accent, var(--accent-color, #ffb340));
-        --light-dark: var(--home-dark-page-background, #1a2433);
-        --light-track: var(--home-dark-control-background, #2b3850);
-        --light-muted: var(--home-dark-muted-text, #66758f);
+        --light-card-bg: var(--card-background-color, var(--ha-card-background, #212c42));
+        --light-card-radius: var(--home-light-card-border-radius, 20px);
+        --light-primary-text: var(--primary-text-color, #f5f7fb);
+        --light-secondary-text: var(--secondary-text-color, #91a2bb);
+        --light-accent: var(--primary-color, var(--accent-color, #ffb340));
+        --light-dark: var(--primary-background-color, #1a2433);
+        --light-track: var(--secondary-background-color, #2b3850);
+        --light-muted: var(--disabled-text-color, #66758f);
+        --light-divider: var(--divider-color, rgba(255,255,255,.1));
       }
-      .row-card {
+      home-light-card > ha-card.row-card {
         box-sizing: border-box;
         width: 100%;
         min-width: 0;
         background: var(--light-card-bg) !important;
+        background-color: var(--light-card-bg) !important;
         color: var(--light-primary-text);
-        border-radius: var(--ha-card-border-radius, 20px);
-        border: 1px solid rgba(255,255,255,.1);
+        border-radius: var(--light-card-radius) !important;
+        border: 1px solid var(--light-divider) !important;
+        box-shadow: var(--ha-card-box-shadow, 0 4px 14px rgba(0,0,0,.16)) !important;
         padding: 14px 16px;
-        color-scheme: dark;
       }
       .row-top { display:flex; justify-content:space-between; align-items:center; gap:10px; }
       .row-left {

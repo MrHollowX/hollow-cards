@@ -190,6 +190,11 @@ class HomeFloatingMenuCard extends HTMLElement {
           margin: 0;
           overflow: visible;
           pointer-events: none;
+          --menu-surface: var(--card-background-color, var(--ha-card-background, #161f2f));
+          --menu-primary: var(--primary-text-color, #f5f7fb);
+          --menu-muted: var(--secondary-text-color, #91a2bb);
+          --menu-accent: var(--primary-color, #ffb340);
+          --menu-divider: var(--divider-color, rgba(102, 117, 143, 0.32));
         }
 
         .menu {
@@ -208,9 +213,9 @@ class HomeFloatingMenuCard extends HTMLElement {
           padding: 6px;
           box-sizing: border-box;
           pointer-events: auto;
-          border: 1px solid rgba(102, 117, 143, 0.32);
+          border: 1px solid var(--menu-divider);
           border-radius: 34px;
-          background: rgba(22, 31, 47, 0.96);
+          background: color-mix(in srgb, var(--menu-surface) 96%, transparent);
           box-shadow: 0 10px 28px rgba(5, 10, 20, 0.38);
           -webkit-backdrop-filter: blur(18px);
           backdrop-filter: blur(18px);
@@ -231,7 +236,7 @@ class HomeFloatingMenuCard extends HTMLElement {
           padding: 0 8px;
           border: 0;
           border-radius: 27px;
-          color: var(--home-dark-muted, #91a2bb);
+          color: var(--menu-muted);
           background: transparent;
           font: inherit;
           cursor: pointer;
@@ -240,8 +245,8 @@ class HomeFloatingMenuCard extends HTMLElement {
         }
 
         button:hover {
-          color: var(--home-dark-text, #f5f7fb);
-          background: rgba(43, 56, 80, 0.72);
+          color: var(--menu-primary);
+          background: color-mix(in srgb, var(--menu-surface) 72%, transparent);
         }
 
         button:active {
@@ -249,8 +254,8 @@ class HomeFloatingMenuCard extends HTMLElement {
         }
 
         button.active {
-          color: var(--home-dark-active-text, #1a2433);
-          background: var(--home-dark-accent, #ffb340);
+          color: var(--primary-background-color, #1a2433);
+          background: var(--menu-accent);
         }
 
         ha-icon {
@@ -274,7 +279,7 @@ class HomeFloatingMenuCard extends HTMLElement {
         }
 
         button:focus-visible {
-          outline: 2px solid var(--home-dark-focus, #f5f7fb);
+          outline: 2px solid var(--primary-color, #f5f7fb);
           outline-offset: -3px;
         }
 

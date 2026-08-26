@@ -27,6 +27,10 @@ class HomeStatusCard extends HTMLElement {
       pm10_entity: config.pm10_entity,
       aqi_entity: typeof config.aqi_entity === 'string' ? config.aqi_entity : '',
       name: typeof config.name === 'string' ? config.name : 'House Status',
+      icon: typeof config.icon === 'string' && config.icon ? config.icon : 'mdi:home-heart',
+      pm25_icon: typeof config.pm25_icon === 'string' && config.pm25_icon ? config.pm25_icon : 'mdi:blur',
+      pm10_icon: typeof config.pm10_icon === 'string' && config.pm10_icon ? config.pm10_icon : 'mdi:blur-radial',
+      aqi_icon: typeof config.aqi_icon === 'string' && config.aqi_icon ? config.aqi_icon : 'mdi:air-filter',
       mode_label: typeof config.mode_label === 'string' ? config.mode_label : 'House Mode',
       pm25_label: typeof config.pm25_label === 'string' ? config.pm25_label : 'PM2.5',
       pm10_label: typeof config.pm10_label === 'string' ? config.pm10_label : 'PM10',
@@ -223,11 +227,17 @@ class HomeStatusCard extends HTMLElement {
   _ensureShell() {
     if (this._shell) return;
     this.shadowRoot.innerHTML = `
-      <style>${this._css()}</style>
+      <style>${this._css()}
+        .details-toggle,.mode-trigger,.mode-options,.metric{background:var(--status-control);color:var(--status-primary);border-color:var(--status-divider)}
+        .mode-label,.mode-trigger ha-icon,.metric-icon,.subtitle{color:var(--status-secondary)}
+        .details-toggle.clickable:hover,.mode-option:hover,.mode-option:focus-visible,.mode-option.selected{background:color-mix(in srgb,var(--status-control) 72%,var(--status-surface));color:var(--status-primary)}
+        .mode-option.selected{color:var(--status-accent)}
+        .details-toggle:focus-visible,.mode-trigger:focus-visible,.mode-option:focus-visible,.metric:focus-visible{outline-color:var(--status-accent)}
+      </style>
       <ha-card class="card">
         <div class="header">
           <div class="heading">
-            <ha-icon class="home-icon" icon="mdi:home-heart"></ha-icon>
+            <ha-icon class="home-icon" icon="${this._config.icon}"></ha-icon>
             <div class="heading-copy">
               <div class="title"></div>
               <div class="subtitle">Live home overview</div>
@@ -252,7 +262,7 @@ class HomeStatusCard extends HTMLElement {
         <div class="details">
           <div class="metrics">
             <button class="metric" type="button" data-kind="pm25">
-              <ha-icon class="metric-icon" icon="mdi:blur"></ha-icon>
+              <ha-icon class="metric-icon" icon="${this._config.pm25_icon}"></ha-icon>
               <span class="metric-copy">
                 <span class="metric-label"></span>
                 <strong class="metric-value"></strong>
@@ -260,7 +270,7 @@ class HomeStatusCard extends HTMLElement {
               </span>
             </button>
             <button class="metric" type="button" data-kind="pm10">
-              <ha-icon class="metric-icon" icon="mdi:blur-radial"></ha-icon>
+              <ha-icon class="metric-icon" icon="${this._config.pm10_icon}"></ha-icon>
               <span class="metric-copy">
                 <span class="metric-label"></span>
                 <strong class="metric-value"></strong>
@@ -268,7 +278,7 @@ class HomeStatusCard extends HTMLElement {
               </span>
             </button>
             <button class="metric aqi" type="button" data-kind="aqi">
-              <ha-icon class="metric-icon" icon="mdi:air-filter"></ha-icon>
+              <ha-icon class="metric-icon" icon="${this._config.aqi_icon}"></ha-icon>
               <span class="metric-copy">
                 <span class="metric-label"></span>
                 <strong class="metric-value"></strong>
@@ -490,7 +500,7 @@ class HomeStatusCard extends HTMLElement {
       mode?.state, options, pm25?.state, pm25?.attributes?.unit_of_measurement,
       pm10?.state, pm10?.attributes?.unit_of_measurement, aqi?.state,
       aqi?.attributes?.unit_of_measurement, c.name, c.mode_label, c.pm25_label,
-      c.pm10_label, c.aqi_label, c.show_aqi, c.pm25_good_max,
+      c.pm10_label, c.aqi_label, c.icon, c.pm25_icon, c.pm10_icon, c.aqi_icon, c.show_aqi, c.pm25_good_max,
       c.pm25_moderate_max, c.pm10_good_max, c.pm10_moderate_max,
       this._clickable, this._showMetrics
     ]);
@@ -505,27 +515,27 @@ class HomeStatusCard extends HTMLElement {
     const pm25Quality = this._quality(pm25, c.pm25_good_max, c.pm25_moderate_max);
     const pm10Quality = this._quality(pm10, c.pm10_good_max, c.pm10_moderate_max);
     this._updateMetric(this._metrics.pm25, c.pm25_entity, c.pm25_label,
-      this._formatValue(pm25, 'ug/m3'), pm25Quality.label, pm25Quality.tone, 'mdi:blur');
+      this._formatValue(pm25, 'ug/m3'), pm25Quality.label, pm25Quality.tone, c.pm25_icon);
     this._updateMetric(this._metrics.pm10, c.pm10_entity, c.pm10_label,
-      this._formatValue(pm10, 'ug/m3'), pm10Quality.label, pm10Quality.tone, 'mdi:blur-radial');
+      this._formatValue(pm10, 'ug/m3'), pm10Quality.label, pm10Quality.tone, c.pm10_icon);
     const aqiValue = this._formatValue(aqi, 'CAQI');
     const aqiStatus = !aqi ? 'Not configured' : this._isUnavailable(aqi) ? 'Unavailable' : 'Common Air Quality Index';
     this._updateMetric(this._metrics.aqi, c.aqi_entity, c.aqi_label, aqiValue,
-      aqiStatus, 'neutral', 'mdi:air-filter');
+      aqiStatus, 'neutral', c.aqi_icon);
     this._updated.textContent = `Updated ${this._relativeTime(pm25 || pm10 || mode)}`;
   }
 
   _css() {
     return `
-      :host{display:block;width:100%;min-width:0;color:#f5f7fb;font-family:-apple-system,'Segoe UI',Helvetica,sans-serif}
-      .card{box-sizing:border-box;width:100%;overflow:hidden;padding:16px;background:#212c42;border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.16);container:status-card / inline-size}
+      :host{display:block;width:100%;min-width:0;color:var(--primary-text-color,#f5f7fb);font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;--status-surface:var(--card-background-color,var(--ha-card-background,#212c42));--status-card-radius:var(--home-status-card-border-radius,20px);--status-control:var(--secondary-background-color,#2b3850);--status-primary:var(--primary-text-color,#f5f7fb);--status-secondary:var(--secondary-text-color,#91a2bb);--status-accent:var(--primary-color,var(--accent-color,#ffb340));--status-divider:var(--divider-color,rgba(255,255,255,.1))}
+      .card{box-sizing:border-box;width:100%;overflow:hidden;padding:16px;background:var(--status-surface)!important;border:1px solid var(--status-divider)!important;border-radius:var(--status-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important;container:status-card / inline-size}
       .card.mode-menu-open{position:relative;z-index:20;overflow:visible}
       .header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;min-height:52px;margin-bottom:14px}
       .heading{display:flex;align-items:center;gap:10px;min-width:0}
-      .home-icon{flex:none;color:#ffb340;--mdc-icon-size:27px}
+      .home-icon{flex:none;color:var(--status-accent);--mdc-icon-size:27px}
       .heading-copy{min-width:0}
       .title{font-size:16px;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .subtitle{margin-top:3px;color:#91a2bb;font-size:11px}
+      .subtitle{margin-top:3px;color:var(--status-secondary);font-size:11px}
       .header-actions{display:flex;align-items:center;gap:8px;min-width:0}
       .details-toggle{display:grid;place-items:center;flex:none;width:32px;height:32px;padding:0;border:0;border-radius:9px;background:rgba(43,56,80,.58);color:#91a2bb}
       .details-toggle.clickable{cursor:pointer;-webkit-tap-highlight-color:transparent}

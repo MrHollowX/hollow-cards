@@ -14,11 +14,47 @@ class HomeClimateCard extends HTMLElement {
       this._clearPending();
       this._clearPowerPreview();
     }
+    const additionalSectionKey = JSON.stringify({
+      entities: config.additional_entities || [],
+      collapsible: config.additional_entities_collapsible !== false,
+      collapsed: config.additional_entities_collapsed !== false,
+      showTitle: config.show_additional_title !== false,
+    });
+    const additionalSectionChanged = this._additionalSectionKey !== additionalSectionKey;
     this._config = {
       ...config,
+      additional_entities: this._additionalEntities(config.additional_entities),
       show_power_toggle: config.show_power_toggle === true,
+      additional_entities_collapsible: config.additional_entities_collapsible !== false,
+      additional_entities_collapsed: config.additional_entities_collapsed !== false,
+      show_additional_title: config.show_additional_title !== false,
     };
+    if (additionalSectionChanged) {
+      this._additionalExpanded = !this._config.additional_entities_collapsed;
+      this._additionalSectionKey = additionalSectionKey;
+    }
     this._lastRenderSignature = null;
+  }
+
+  _additionalEntities(value) {
+    if (value == null) return [];
+    if (!Array.isArray(value)) throw new Error('additional_entities must be an array');
+    return value.map((entry, index) => {
+      const entity = typeof entry === 'string' ? entry : entry?.entity;
+      if (typeof entity !== 'string' || !entity.startsWith('climate.')) {
+        throw new Error(`additional_entities[${index}] requires a climate entity`);
+      }
+      const powerSwitch = typeof entry === 'object' ? entry.power_switch : null;
+      if (powerSwitch != null && (typeof powerSwitch !== 'string' || !powerSwitch.startsWith('switch.'))) {
+        throw new Error(`additional_entities[${index}].power_switch must be a switch entity`);
+      }
+      return {
+        entity,
+        name: typeof entry === 'object' && typeof entry.name === 'string' ? entry.name.trim() : '',
+        power_switch: powerSwitch || '',
+        show_power_toggle: typeof entry !== 'object' || entry.show_power_toggle !== false,
+      };
+    });
   }
 
   getCardSize() {
@@ -84,17 +120,26 @@ class HomeClimateCard extends HTMLElement {
     this._wired = false;
   }
 
-  _state() {
-    return this._hass && this._config ? this._hass.states[this._config.entity] : null;
+  _state(entity = this._config?.entity) {
+    return this._hass && entity ? this._hass.states[entity] || null : null;
   }
 
   _isUnavailableState(state) {
     return !state || ['unknown', 'unavailable'].includes(String(state.state).toLowerCase());
   }
 
-  _attrs() {
-    const state = this._state();
+  _attrs(entity = this._config?.entity) {
+    const state = this._state(entity);
     return state && state.attributes ? state.attributes : {};
+  }
+
+  _icon() {
+    const configured = this._config?.icon;
+    if (typeof configured === 'string' && configured.trim()) return configured.trim();
+    const entityIcon = this._attrs().icon;
+    return typeof entityIcon === 'string' && entityIcon.trim()
+      ? entityIcon.trim()
+      : 'mdi:thermostat';
   }
 
   _number(value) {
@@ -106,12 +151,12 @@ class HomeClimateCard extends HTMLElement {
     return Array.isArray(value) ? value.filter(item => typeof item === 'string' && item.length > 0) : [];
   }
 
-  _call(service, data) {
-    if (!this._hass || !this._config || this._isUnavailableState(this._state())) return null;
+  _call(service, data, entity = this._config?.entity) {
+    if (!this._hass || !entity || this._isUnavailableState(this._state(entity))) return null;
     return this._hass.callService(
       'climate',
       service,
-      Object.assign({ entity_id: this._config.entity }, data || {}),
+      Object.assign({ entity_id: entity }, data || {}),
     );
   }
 
@@ -538,7 +583,7 @@ class HomeClimateCard extends HTMLElement {
       element &&
       this.contains(element) &&
       typeof element.matches === 'function' &&
-      element.matches('button[data-step-field],button[data-power-switch]'),
+      element.matches('button[data-step-field],button[data-power-switch],button[data-additional-power-index]'),
     );
   }
 
@@ -565,17 +610,17 @@ class HomeClimateCard extends HTMLElement {
 
   _chooseMenuOption(option) {
     if (!option) return;
-    if (this._isUnavailableState(this._state())) return;
     const service = option.dataset.menuService;
     const key = option.dataset.menuKey;
     const value = option.dataset.menuValue;
     const menuKey = option.dataset.menuOption;
-    if (!service || !key || value == null || !menuKey) return;
-    this._setPending(key, value);
+    const entity = option.dataset.menuEntity || this._config.entity;
+    if (!service || !key || value == null || !menuKey || this._isUnavailableState(this._state(entity))) return;
+    if (entity === this._config.entity) this._setPending(key, value);
     this._closeMenu(true, menuKey);
     let result;
     try {
-      result = this._call(service, { [key]: value });
+      result = this._call(service, { [key]: value }, entity);
     } catch (error) {
       this._clearPending();
       return;
@@ -607,6 +652,25 @@ class HomeClimateCard extends HTMLElement {
         const currentIndex = Math.max(0, options.indexOf(trigger.dataset.menuCurrent));
         this._openMenuFor(key, currentIndex);
       }
+      return;
+    }
+    const additionalToggle = this._eventControl(event, 'button[data-additional-controls-toggle]');
+    if (additionalToggle) {
+      event.preventDefault();
+      event.stopPropagation();
+      this._additionalExpanded = !this._additionalExpanded;
+      this._render(true);
+      queueMicrotask(() => this.querySelector('button[data-additional-controls-toggle]')?.focus());
+      return;
+    }
+    const additionalPowerButton = this._eventControl(event, 'button[data-additional-power-index]');
+    if (additionalPowerButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const index = Number(additionalPowerButton.dataset.additionalPowerIndex);
+      if (!Number.isInteger(index)) return;
+      const result = this._toggleAdditionalPower(index);
+      if (result && typeof result.catch === 'function') result.catch(() => {});
       return;
     }
     const powerButton = this._eventControl(event, 'button[data-power-switch]');
@@ -721,16 +785,16 @@ class HomeClimateCard extends HTMLElement {
     }
   }
 
-  _menu(label, values, current, service, key) {
+  _menu(label, values, current, service, key, entity = this._config.entity, menuIdKey = key) {
     const options = this._array(values);
     if (!options.length) return '';
-    const open = this._openMenu === key;
-    const menuId = `${this._instanceId}-${key}-menu`;
-    const labelId = `${this._instanceId}-${key}-label`;
+    const open = this._openMenu === menuIdKey;
+    const menuId = `${this._instanceId}-${menuIdKey}-menu`;
+    const labelId = `${this._instanceId}-${menuIdKey}-label`;
     const currentIndex = Math.max(0, options.indexOf(current));
     return `<div class="control menu-control">
       <span class="control-label" id="${labelId}">${this._esc(label)}</span>
-      <button class="menu-trigger" type="button" data-menu-trigger="${this._esc(key)}"
+      <button class="menu-trigger" type="button" data-menu-trigger="${this._esc(menuIdKey)}"
         data-menu-current="${this._esc(current || '')}"
         data-menu-values="${this._esc(JSON.stringify(options))}"
         aria-haspopup="listbox" aria-expanded="${open}" aria-controls="${menuId}"
@@ -741,8 +805,9 @@ class HomeClimateCard extends HTMLElement {
       ${open ? `<div class="menu-options" id="${menuId}" role="listbox" tabindex="-1"
         aria-labelledby="${labelId}">
         ${options.map((value, index) => `<button class="menu-option${value === current ? ' selected' : ''}"
-          type="button" role="option" data-menu-option="${this._esc(key)}"
+          type="button" role="option" data-menu-option="${this._esc(menuIdKey)}"
           data-menu-key="${this._esc(key)}" data-menu-service="${this._esc(service)}"
+          data-menu-entity="${this._esc(entity)}"
           data-menu-value="${this._esc(value)}" aria-selected="${value === current}"
           tabindex="${index === currentIndex ? '0' : '-1'}">${this._esc(this._label(value))}</button>`).join('')}
       </div>` : ''}
@@ -756,18 +821,14 @@ class HomeClimateCard extends HTMLElement {
       config.precision == null ? 0 : this._precision(config.precision),
       this._precision(value),
     );
-    const powerControl = this._config.show_power_toggle ? this._powerControl() : null;
-    const powerOn = powerControl ? this._powerOn() : false;
+    const powerToggle = this._config.additional_entities.length
+      ? ''
+      : this._powerToggle(name);
     return `<div class="value-control">
       <div class="temperature-control-header">
         <span class="control-label">Target temperature</span>
         <div class="temperature-controls">
-          ${powerControl ? `<button class="power-toggle temperature-power ${powerOn ? 'on' : 'off'}" data-power-switch type="button"
-            aria-label="${powerOn ? 'Turn off' : 'Turn on'} A/C in ${this._esc(name)}"
-            aria-pressed="${powerOn}">
-            <ha-icon icon="mdi:power" aria-hidden="true" style="--mdc-icon-size:16px"></ha-icon>
-            <span class="power-label">A/C ${powerOn ? 'ON' : 'OFF'}</span>
-          </button>` : ''}
+          ${powerToggle}
           <div class="stepper temperature-stepper" role="group" aria-label="Target temperature controls">
             <button type="button" data-step-field="temperature" data-direction="-1" aria-label="Decrease target temperature">&minus;</button>
             <strong class="target-value">${this._formatTemperature(value, precision)}</strong>
@@ -776,6 +837,101 @@ class HomeClimateCard extends HTMLElement {
         </div>
       </div>
     </div>`;
+  }
+
+  _powerToggle(name) {
+    const powerControl = this._config.show_power_toggle ? this._powerControl() : null;
+    if (!powerControl) return '';
+    const powerOn = this._powerOn();
+    return `<button class="power-toggle temperature-power ${powerOn ? 'on' : 'off'}" data-power-switch type="button"
+      aria-label="${powerOn ? 'Turn off' : 'Turn on'} A/C in ${this._esc(name)}"
+      aria-pressed="${powerOn}">
+      <ha-icon icon="mdi:power" aria-hidden="true" style="--mdc-icon-size:16px"></ha-icon>
+      <span class="power-label">A/C ${powerOn ? 'ON' : 'OFF'}</span>
+    </button>`;
+  }
+
+  _additionalPowerControl(entry) {
+    if (!entry.show_power_toggle) return null;
+    if (entry.power_switch) return { type: 'switch', entity: entry.power_switch };
+    const supported = Number(this._attrs(entry.entity).supported_features) || 0;
+    return (supported & 256) !== 0 && (supported & 128) !== 0
+      ? { type: 'climate', entity: entry.entity }
+      : null;
+  }
+
+  _additionalPowerOn(control) {
+    const state = this._state(control.entity);
+    return control.type === 'switch'
+      ? Boolean(state && state.state === 'on')
+      : Boolean(state && !this._isUnavailableState(state) && state.state !== 'off');
+  }
+
+  _toggleAdditionalPower(index) {
+    const entry = this._config.additional_entities[index];
+    if (!entry || !this._hass || this._isUnavailableState(this._state(entry.entity))) return null;
+    const control = this._additionalPowerControl(entry);
+    if (!control) return null;
+    const nextOn = !this._additionalPowerOn(control);
+    const result = control.type === 'switch'
+      ? this._hass.callService('switch', nextOn ? 'turn_on' : 'turn_off', { entity_id: control.entity })
+      : this._call(nextOn ? 'turn_on' : 'turn_off', {}, entry.entity);
+    this._queueInteractionRender();
+    return result;
+  }
+
+  _additionalPowerToggle(entry, index, name) {
+    const control = this._additionalPowerControl(entry);
+    if (!control) return '';
+    const powerOn = this._additionalPowerOn(control);
+    return `<button class="power-toggle additional-power ${powerOn ? 'on' : 'off'}" data-additional-power-index="${index}" type="button"
+      aria-label="${powerOn ? 'Turn off' : 'Turn on'} ${this._esc(name)}"
+      aria-pressed="${powerOn}">
+      <ha-icon icon="mdi:power" aria-hidden="true" style="--mdc-icon-size:16px"></ha-icon>
+      <span class="power-label">A/C ${powerOn ? 'ON' : 'OFF'}</span>
+    </button>`;
+  }
+
+  _additionalEntityControls(entry, index) {
+    const state = this._state(entry.entity);
+    const attributes = state?.attributes || {};
+    const name = entry.name || attributes.friendly_name || entry.entity;
+    if (this._isUnavailableState(state)) {
+      return `<section class="additional-entity is-unavailable" aria-label="${this._esc(name)}">
+        <div class="additional-entity-heading"><ha-icon icon="${this._esc(attributes.icon || 'mdi:air-conditioner')}" aria-hidden="true"></ha-icon><span>${this._esc(name)}</span></div>
+        <span class="additional-unavailable">Unavailable</span>
+      </section>`;
+    }
+    const menus = [
+      this._menu('HVAC mode', this._array(attributes.hvac_modes), state.state, 'set_hvac_mode', 'hvac_mode', entry.entity, `additional-${index}-hvac_mode`),
+      this._menu('Fan mode', this._array(attributes.fan_modes), attributes.fan_mode, 'set_fan_mode', 'fan_mode', entry.entity, `additional-${index}-fan_mode`),
+      this._menu('Vertical swing', this._array(attributes.swing_modes), attributes.swing_mode, 'set_swing_mode', 'swing_mode', entry.entity, `additional-${index}-swing_mode`),
+      this._menu('Horizontal swing', this._array(attributes.swing_horizontal_modes), attributes.swing_horizontal_mode, 'set_swing_horizontal_mode', 'swing_horizontal_mode', entry.entity, `additional-${index}-swing_horizontal_mode`),
+    ].filter(Boolean).join('');
+    return `<section class="additional-entity" aria-label="${this._esc(name)}">
+      <div class="additional-entity-heading"><span class="additional-entity-name"><ha-icon icon="${this._esc(attributes.icon || 'mdi:air-conditioner')}" aria-hidden="true"></ha-icon><span>${this._esc(name)}</span></span>${this._additionalPowerToggle(entry, index, name)}</div>
+      ${menus ? `<div class="control-grid additional-control-grid">${menus}</div>` : '<span class="additional-unavailable">No compatible A/C controls are available.</span>'}
+    </section>`;
+  }
+
+  _additionalControls() {
+    const entities = this._config.additional_entities;
+    if (!entities.length) return '';
+    const collapsible = this._config.additional_entities_collapsible;
+    const expanded = !collapsible || this._additionalExpanded === true;
+    const showTitle = this._config.show_additional_title;
+    const toggle = collapsible
+      ? `<button class="additional-controls-heading" data-additional-controls-toggle type="button"
+          aria-label="${expanded ? 'Collapse' : 'Expand'} air conditioning controls"
+          aria-expanded="${expanded}">
+          ${showTitle ? '<span>Air conditioning</span>' : ''}
+          <ha-icon icon="mdi:chevron-${expanded ? 'up' : 'down'}" aria-hidden="true"></ha-icon>
+        </button>`
+      : (showTitle ? '<div class="additional-controls-heading"><span>Air conditioning</span></div>' : '');
+    return `<section class="additional-controls" aria-label="Air conditioning controls">
+      ${toggle}
+      ${expanded ? `<div class="additional-entities">${entities.map((entry, index) => this._additionalEntityControls(entry, index)).join('')}</div>` : ''}
+    </section>`;
   }
 
   _humidityControl(config, name, currentHumidity) {
@@ -847,6 +1003,27 @@ class HomeClimateCard extends HTMLElement {
       ? this._pending
       : null;
     const powerPreview = this._powerPreview;
+    const additionalEntities = this._config.additional_entities.map(entry => {
+      const extraState = this._state(entry.entity);
+      const extraAttributes = extraState?.attributes || {};
+      return [
+        entry.entity,
+        entry.name,
+        entry.power_switch,
+        entry.show_power_toggle,
+        this._state(entry.power_switch)?.state || '',
+        extraState?.state || 'unavailable',
+        extraAttributes.hvac_modes,
+        extraAttributes.fan_modes,
+        extraAttributes.fan_mode,
+        extraAttributes.swing_modes,
+        extraAttributes.swing_mode,
+        extraAttributes.swing_horizontal_modes,
+        extraAttributes.swing_horizontal_mode,
+        extraAttributes.icon,
+        extraAttributes.friendly_name,
+      ];
+    });
     const renderSignature = [
       this._config.entity,
       this._config.power_switch || '',
@@ -891,6 +1068,11 @@ class HomeClimateCard extends HTMLElement {
       powerPreview ? `${powerPreview.entity}:${powerPreview.type}:${powerPreview.on}` : '',
       pending ? `${pending.field}:${pending.value}` : '',
       this._openMenu || '',
+      JSON.stringify(additionalEntities),
+      this._config.additional_entities_collapsible,
+      this._config.additional_entities_collapsed,
+      this._config.show_additional_title,
+      this._additionalExpanded,
     ].join('|');
     if (!force && this._shell && renderSignature === this._lastRenderSignature) return;
     this._lastRenderSignature = renderSignature;
@@ -905,7 +1087,7 @@ class HomeClimateCard extends HTMLElement {
 
     const html = available ? `<div class="card-row">
       <div class="row-left" data-more role="button" tabindex="0" aria-label="Show details for ${this._esc(name)}">
-        <ha-icon icon="mdi:thermostat" class="climate-icon" style="--mdc-icon-size:26px"></ha-icon>
+        <ha-icon icon="${this._esc(this._icon())}" class="climate-icon" style="--mdc-icon-size:26px"></ha-icon>
         <div><div class="row-name">${this._esc(name)}</div>
           <div class="row-sub">${this._esc(this._label(currentMode))}${currentAction ? ` &middot; ${this._esc(this._label(currentAction))}` : ''}</div>
         </div>
@@ -922,11 +1104,12 @@ class HomeClimateCard extends HTMLElement {
     </div>
     ${menus ? `<div class="control-grid">${menus}</div>` : ''}
     ${targetConfig ? this._temperatureControl(targetConfig, name) : ''}
-    ${humidityConfig ? this._humidityControl(humidityConfig, name, currentHumidity) : ''}`
+    ${humidityConfig ? this._humidityControl(humidityConfig, name, currentHumidity) : ''}
+    ${this._additionalControls()}`
       : `<div class="unavailable">Climate entity ${this._esc(this._config.entity)} is unavailable.</div>`;
 
     if (!this._shell) {
-      this.innerHTML = `<style>${this._css()}</style><ha-card class="climate-card"></ha-card>`;
+      this.innerHTML = `<style>${this._css()}</style><ha-card class="climate-card" style="background:var(--climate-bg)!important;background-color:var(--climate-bg)!important;border:1px solid var(--climate-divider)!important;border-radius:var(--climate-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important"></ha-card>`;
       this._shell = true;
       this._card = this.querySelector('.climate-card');
     }
@@ -940,26 +1123,28 @@ class HomeClimateCard extends HTMLElement {
         width:100%;
         min-width:0;
         font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;
-        /* Keep the card-set palette stable; optional home-dark-* variables can be themed. */
-        --climate-bg:var(--home-dark-card-background,#212c42);
-        --climate-page-bg:var(--home-dark-page-background,#1a2433);
-        --climate-primary:var(--home-dark-primary-text,#f5f7fb);
-        --climate-secondary:var(--home-dark-secondary-text,#91a2bb);
-        --climate-accent:var(--home-dark-accent,var(--accent-color,#ffb340));
-        --climate-focus:var(--home-dark-focus,var(--primary-color,#3d8bfd));
-        --climate-control-bg:var(--home-dark-control-background,#2b3850);
-        --climate-muted:var(--home-dark-muted-text,#66758f);
+        --climate-bg:var(--card-background-color,var(--ha-card-background,#212c42));
+        --climate-card-radius:var(--home-climate-card-border-radius,20px);
+        --climate-page-bg:var(--primary-background-color,#1a2433);
+        --climate-primary:var(--primary-text-color,#f5f7fb);
+        --climate-secondary:var(--secondary-text-color,#91a2bb);
+        --climate-accent:var(--primary-color,var(--accent-color,#ffb340));
+        --climate-focus:var(--primary-color,#3d8bfd);
+        --climate-control-bg:var(--secondary-background-color,#2b3850);
+        --climate-muted:var(--disabled-text-color,#66758f);
+        --climate-divider:var(--divider-color,rgba(255,255,255,.14));
       }
-      .climate-card {
+      home-climate-card > ha-card.climate-card {
         box-sizing:border-box;
         width:100%;
         min-width:0;
-        background:var(--climate-bg);
+        background:var(--climate-bg) !important;
+        background-color:var(--climate-bg) !important;
         color:var(--climate-primary);
-        border-radius:var(--ha-card-border-radius,20px);
-        border:1px solid rgba(255,255,255,.1);
+        border-radius:var(--climate-card-radius) !important;
+        border:1px solid var(--climate-divider) !important;
+        box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16)) !important;
         padding:14px 16px;
-        color-scheme:dark;
       }
       .climate-card * { box-sizing:border-box; }
       .climate-card .card-row,.climate-card .row-left,.climate-card .value-control-header,.climate-card .temperature-control-header,.climate-card .value-reading,.climate-card .status-line {
@@ -979,7 +1164,7 @@ class HomeClimateCard extends HTMLElement {
       .climate-card .summary-actions { display:flex; align-items:center; justify-content:flex-end; flex:none; }
       .climate-card .power-toggle {
         all:unset; box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; gap:5px;
-        min-height:32px; min-width:78px; padding:5px 9px; border:1px solid rgba(255,255,255,.14);
+        min-height:32px; min-width:78px; padding:5px 9px; border:1px solid var(--climate-divider);
         border-radius:10px; background:var(--climate-control-bg); color:var(--climate-secondary);
         cursor:pointer; font-size:10px; font-weight:800; letter-spacing:.03em;
       }
@@ -988,13 +1173,28 @@ class HomeClimateCard extends HTMLElement {
       .climate-card .power-toggle:focus-visible { outline:3px solid var(--climate-focus); outline-offset:2px; }
       .climate-card .status-line { flex-wrap:wrap; gap:8px 16px; font-size:11.5px; margin-top:10px; }
       .climate-card .control-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(125px,1fr)); gap:8px; margin-top:12px; }
+      .climate-card .additional-controls { display:grid; gap:12px; margin-top:16px; padding-top:14px; border-top:1px solid var(--climate-divider); }
+      .climate-card .additional-controls-heading { all:unset; box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; min-width:0; color:var(--climate-secondary); font-size:10px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; }
+      .climate-card button.additional-controls-heading { cursor:pointer; min-height:28px; }
+      .climate-card .additional-controls-heading ha-icon { flex:none; --mdc-icon-size:18px; }
+      .climate-card button.additional-controls-heading:focus-visible { outline:3px solid var(--climate-focus); outline-offset:2px; border-radius:6px; }
+      .climate-card .additional-entities { display:grid; gap:12px; }
+      .climate-card .additional-entity { display:grid; gap:2px; min-width:0; }
+      .climate-card .additional-entity + .additional-entity { padding-top:12px; border-top:1px solid var(--climate-divider); }
+      .climate-card .additional-entity-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; color:var(--climate-primary); font-size:12px; font-weight:750; }
+      .climate-card .additional-entity-name { display:flex; align-items:center; gap:7px; min-width:0; }
+      .climate-card .additional-entity-name ha-icon { flex:none; color:var(--climate-accent); --mdc-icon-size:18px; }
+      .climate-card .additional-entity-name span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .climate-card .additional-power { flex:none; text-transform:none; }
+      .climate-card .additional-control-grid { margin-top:8px; }
+      .climate-card .additional-unavailable { color:var(--climate-secondary); font-size:11px; }
       .climate-card .control { display:flex; flex-direction:column; gap:4px; min-width:0; }
       .climate-card .control-label { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
       .climate-card .menu-control { position:relative; }
       .climate-card .menu-trigger {
         box-sizing:border-box; min-height:34px; width:100%; padding:5px 8px 5px 9px;
         display:flex; align-items:center; justify-content:space-between; gap:6px;
-        border:1px solid rgba(255,255,255,.16); border-radius:9px;
+        border:1px solid var(--climate-divider); border-radius:9px;
         background:var(--climate-control-bg); color:var(--climate-primary);
         font:inherit; font-size:12px; font-weight:750; text-align:left; cursor:pointer;
       }
@@ -1004,7 +1204,7 @@ class HomeClimateCard extends HTMLElement {
         position:absolute; z-index:20; top:calc(100% + 5px); left:0; right:0;
         max-height:min(220px,calc(100vh - 16px)); max-height:min(220px,calc(100dvh - 16px));
         overflow-y:auto; overscroll-behavior:contain; padding:4px;
-        border:1px solid rgba(255,255,255,.18); border-radius:10px;
+        border:1px solid var(--climate-divider); border-radius:10px;
         background:var(--climate-control-bg); box-shadow:0 12px 28px rgba(0,0,0,.35);
       }
       .climate-card .menu-options.above { top:auto; bottom:calc(100% + 5px); }

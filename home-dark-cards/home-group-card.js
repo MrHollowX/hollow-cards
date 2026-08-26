@@ -139,26 +139,29 @@ class HomeGroupCard extends HTMLElement {
 
     this.innerHTML = `
       <style>
-        :host {
+        home-group-card {
           display: block;
           width: 100%;
           min-width: 0;
           font-family: -apple-system, 'Segoe UI', Helvetica, sans-serif;
-          --group-card-bg: var(--home-dark-card-background, #212c42);
-          --group-primary: var(--home-dark-primary-text, #f5f7fb);
-          --group-secondary: var(--home-dark-secondary-text, #91a2bb);
-          --group-control: var(--home-dark-control-background, #2b3850);
-          --group-accent: var(--home-dark-accent, var(--accent-color, #ffb340));
-          --group-muted: var(--home-dark-muted-text, #66758f);
+          --group-card-bg: var(--card-background-color, var(--ha-card-background, #212c42));
+          --group-card-radius: var(--home-group-card-border-radius, 20px);
+          --group-primary: var(--primary-text-color, #f5f7fb);
+          --group-secondary: var(--secondary-text-color, #91a2bb);
+          --group-control: var(--secondary-background-color, #2b3850);
+          --group-accent: var(--primary-color, var(--accent-color, #ffb340));
+          --group-muted: var(--disabled-text-color, #66758f);
+          --group-divider: var(--divider-color, rgba(255, 255, 255, .1));
         }
-        .group-card {
+        home-group-card > .group-card {
           box-sizing: border-box;
           width: 100%;
           min-width: 0;
           overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: var(--ha-card-border-radius, 20px);
+          border: 1px solid var(--group-divider) !important;
+          border-radius: var(--group-card-radius) !important;
           background: var(--group-card-bg) !important;
+          box-shadow: var(--ha-card-box-shadow, 0 4px 14px rgba(0,0,0,.16)) !important;
           color: var(--group-primary);
         }
         .group-details { display: block; }

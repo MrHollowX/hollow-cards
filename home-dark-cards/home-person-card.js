@@ -21,6 +21,7 @@ class HomePersonCard extends HTMLElement {
       show_battery: config.show_battery === true,
       show_proximity: config.show_proximity === true,
       battery_entity: config.battery_entity || '',
+      icon: typeof config.icon === 'string' ? config.icon.trim() : '',
       comfortable_spacing: config.comfortable_spacing === true
     };
     this._lastRenderKey = null;
@@ -144,13 +145,15 @@ class HomePersonCard extends HTMLElement {
     const away = presence === 'away';
     const presenceClass = active ? 'active' : away ? 'away' : '';
     const spacingClass = this._config.comfortable_spacing ? 'comfortable' : 'compact';
-    const renderKey = JSON.stringify([name, picture, state, location, battery?.percent || '', proximity || '', active, away, spacingClass, this._config.show_name]);
+    const renderKey = JSON.stringify([name, picture, state, location, battery?.percent || '', proximity || '', active, away, spacingClass, this._config.show_name, this._config.icon]);
     if (renderKey === this._lastRenderKey) return;
     this._lastRenderKey = renderKey;
     const status = proximity || location;
     const statusIcon = proximity ? 'mdi:map-marker-distance' : 'mdi:map-marker';
     const ariaDetails = [status, battery ? battery.ariaLabel : ''].filter(Boolean);
-    const avatar = picture
+    const avatar = this._config.icon
+      ? `<span class="avatar fallback" role="img" aria-label="${this._text(name)} avatar icon"><ha-icon icon="${this._text(this._config.icon)}"></ha-icon></span>`
+      : picture
       ? `<img class="avatar" src="${this._text(picture)}" alt="${this._text(name)} avatar">`
       : `<span class="avatar fallback" role="img" aria-label="${this._text(name)} avatar unavailable"><ha-icon icon="mdi:account"></ha-icon></span>`;
     const label = `${name}${ariaDetails.length ? `, ${ariaDetails.join(', ')}` : ''}`;
@@ -165,11 +168,11 @@ class HomePersonCard extends HTMLElement {
 
   _css() {
     return `
-      :host { display: block; min-width: 0; width: 100%; height: 100%; color: var(--primary-text-color, #f5f7fb); }
-      .card { box-sizing: border-box; width: 100%; height: 100%; min-height: 66px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--divider-color, rgba(255,255,255,.10)); border-radius: var(--ha-card-border-radius, 20px); color: var(--primary-text-color, #f5f7fb); text-align: left; cursor: pointer; background: var(--home-dark-card-background, #212c42); box-shadow: 0 4px 14px rgba(0,0,0,.16); font: inherit; }
+      :host { display: block; min-width: 0; width: 100%; height: 100%; --person-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --person-card-radius:var(--home-person-card-border-radius,20px); color: var(--primary-text-color, #f5f7fb); }
+      .card { box-sizing: border-box; width: 100%; height: 100%; min-height: 66px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--divider-color, rgba(255,255,255,.10)) !important; border-radius: var(--person-card-radius) !important; color: var(--primary-text-color, #f5f7fb); text-align: left; cursor: pointer; background: var(--person-surface) !important; box-shadow:var(--ha-card-box-shadow, 0 4px 14px rgba(0,0,0,.16)) !important; font: inherit; }
       .card.comfortable { padding-block: 9px; }
       .card:focus-visible { outline: 3px solid var(--primary-color, #3d8bfd); outline-offset: 2px; }
-      .card.card[data-presence="home"] { background: var(--home-dark-card-background, #212c42) !important; background-color: var(--home-dark-card-background, #212c42) !important; color: var(--primary-text-color, #f5f7fb); }
+      .card.card[data-presence="home"] { background: var(--person-surface) !important; background-color: var(--person-surface) !important; color: var(--primary-text-color, #f5f7fb); }
       .card.card[data-presence="away"] { background: var(--person-away-background, #3d5270) !important; background-color: var(--person-away-background, #3d5270) !important; color: var(--person-away-color, #f5f7fb) !important; border-color: var(--person-away-border-color, rgba(255,255,255,.35)); }
       .card[data-presence="away"]:focus-visible { outline-color: var(--person-away-focus-color, #f5f7fb); }
       .avatar { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border-radius: 50%; object-fit: cover; background: var(--secondary-background-color, #3d4a66); color: var(--secondary-text-color, #aebbd0); }
@@ -179,7 +182,7 @@ class HomePersonCard extends HTMLElement {
       .copy { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 3px; overflow: hidden; }
       .header { min-width: 0; display: flex; align-items: center; gap: 6px; }
       .name { display: block; min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(13px, 2.2vw, 16px); font-weight: 750; }
-      .status { min-width: 0; max-width: 66%; flex: 0 1 auto; display: inline-flex; align-items: center; gap: 3px; min-height: 20px; padding: 1px 7px; border-radius: 999px; background: var(--home-person-status-background, #2b3850); color: var(--secondary-text-color, #91a2bb); font-size: clamp(10px, 1.8vw, 12px); font-weight: 650; line-height: 1.2; }
+      .status { min-width: 0; max-width: 66%; flex: 0 1 auto; display: inline-flex; align-items: center; gap: 3px; min-height: 20px; padding: 1px 7px; border-radius: 999px; background: var(--home-person-status-background,var(--secondary-background-color, #2b3850)); color: var(--secondary-text-color, #91a2bb); font-size: clamp(10px, 1.8vw, 12px); font-weight: 650; line-height: 1.2; }
       .status ha-icon { flex: 0 0 auto; --mdc-icon-size: 13px; }
       .status > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .details { min-width: 0; display: flex; align-items: center; gap: 6px; color: var(--secondary-text-color, #91a2bb); font-size: clamp(10px, 1.8vw, 12px); font-weight: 650; line-height: 1.2; }

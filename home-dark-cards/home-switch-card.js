@@ -447,29 +447,31 @@ class HomeSwitchCard extends HTMLElement {
 
   _css() {
     return `
-      :host {
+      home-switch-card {
         display: block;
         width: 100%;
         min-width: 0;
         font-family: -apple-system, 'Segoe UI', Helvetica, sans-serif;
-        --switch-card-bg: var(--home-dark-card-background, #212c42);
-        --switch-primary-text: var(--home-dark-primary-text, #f5f7fb);
-        --switch-secondary-text: var(--home-dark-secondary-text, #91a2bb);
-        --switch-accent: var(--home-dark-accent, var(--accent-color, #ffb340));
-        --switch-track: var(--home-dark-control-background, #2b3850);
-        --switch-muted: var(--home-dark-muted-text, #66758f);
-        --switch-page-bg: var(--home-dark-page-background, #1a2433);
+        --switch-card-bg: var(--card-background-color, var(--ha-card-background, #212c42));
+        --switch-card-radius: var(--home-switch-card-border-radius, 20px);
+        --switch-primary-text: var(--primary-text-color, #f5f7fb);
+        --switch-secondary-text: var(--secondary-text-color, #91a2bb);
+        --switch-accent: var(--primary-color, var(--accent-color, #ffb340));
+        --switch-track: var(--secondary-background-color, #2b3850);
+        --switch-muted: var(--disabled-text-color, #66758f);
+        --switch-page-bg: var(--primary-background-color, #1a2433);
+        --switch-divider: var(--divider-color, rgba(255, 255, 255, .1));
       }
-      .switch-card {
+      home-switch-card > ha-card.switch-card {
         box-sizing: border-box;
         width: 100%;
         min-width: 0;
         background: var(--switch-card-bg) !important;
         color: var(--switch-primary-text);
-        border-radius: var(--ha-card-border-radius, 20px);
-        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: var(--switch-card-radius) !important;
+        border: 1px solid var(--switch-divider) !important;
+        box-shadow: var(--ha-card-box-shadow, 0 4px 14px rgba(0,0,0,.16)) !important;
         padding: 14px 16px;
-        color-scheme: dark;
       }
       .switch-card.rows-tall {
         min-height: 108px;
@@ -492,7 +494,7 @@ class HomeSwitchCard extends HTMLElement {
       .switch-card.rows-tall .tall-copy {
         margin-top: 10px;
         padding-top: 10px;
-        border-top: 1px solid rgba(255, 255, 255, .08);
+        border-top: 1px solid var(--switch-divider);
         cursor: pointer;
       }
       .switch-card.rows-tall .tall-copy .row-name,

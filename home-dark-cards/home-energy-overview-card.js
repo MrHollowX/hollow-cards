@@ -154,14 +154,14 @@ class HomeEnergyOverviewCard extends HTMLElement {
 
   _css() {
     return `
-      :host { display:block; min-width:0; width:100%; container-type:inline-size; color:var(--primary-text-color,#f5f7fb); font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; }
-      .card { box-sizing:border-box; padding:14px; overflow:hidden; background:var(--home-dark-card-background,#212c42); color:var(--primary-text-color,#f5f7fb); border:0; border-radius:var(--ha-card-border-radius,20px); box-shadow:0 4px 14px rgba(0,0,0,.16); }
+      :host { display:block; min-width:0; width:100%; container-type:inline-size; --energy-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --energy-card-radius:var(--home-energy-overview-card-border-radius,20px); --energy-control:var(--secondary-background-color,#2b3850); color:var(--primary-text-color,#f5f7fb); font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; }
+      .card { box-sizing:border-box; padding:14px; overflow:hidden; background:var(--energy-surface)!important; color:var(--primary-text-color,#f5f7fb); border:1px solid var(--divider-color,rgba(255,255,255,.1))!important; border-radius:var(--energy-card-radius)!important; box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important; }
       .card *, .card *::before, .card *::after { box-sizing:border-box; }
       .header { display:flex; align-items:center; gap:8px; margin:0 2px 11px; min-width:0; color:var(--primary-text-color,#f5f7fb); font-size:15px; font-weight:750; line-height:1.2; }
       .header ha-icon { flex:0 0 auto; color:var(--primary-color,#ffb340); --mdc-icon-size:20px; }
       .header > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-      .item { min-width:0; min-height:94px; padding:11px 10px; overflow:hidden; border:0; border-radius:14px; background:var(--home-dark-control-background,#2b3850); color:inherit; cursor:pointer; font:inherit; text-align:left; }
+      .item { min-width:0; min-height:94px; padding:11px 10px; overflow:hidden; border:0; border-radius:14px; background:var(--energy-control); color:inherit; cursor:pointer; font:inherit; text-align:left; }
       .item:focus-visible { outline:3px solid var(--primary-color,#ffb340); outline-offset:2px; }
       .item-header { display:flex; align-items:center; gap:6px; min-width:0; color:var(--primary-text-color,#f5f7fb); font-size:12px; font-weight:750; line-height:1.2; }
       .item-header ha-icon { flex:0 0 auto; color:var(--primary-color,#ffb340); --mdc-icon-size:16px; }

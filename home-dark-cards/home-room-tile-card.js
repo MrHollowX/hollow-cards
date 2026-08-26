@@ -79,12 +79,12 @@ class HomeRoomTileCard extends HTMLElement {
   }
   _css(){
     return `
-    :host{ display:block; min-width:0; height:100%; font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; }
-    .tile{ background:#212c42; border:1px solid rgba(255,255,255,.1); border-radius:22px; padding:16px 12px 14px; min-height:120px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; text-align:center; color:#fff; }
+    home-room-tile-card{ display:block; min-width:0; height:100%; font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; --tile-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --tile-radius:var(--home-room-tile-card-border-radius,20px); --tile-primary:var(--primary-text-color,#fff); --tile-secondary:var(--secondary-text-color,#8fa0b8); --tile-muted:var(--disabled-text-color,#5f7091); --tile-accent:var(--primary-color,#ffb340); --tile-divider:var(--divider-color,rgba(255,255,255,.1)); }
+    home-room-tile-card > .tile{ background:var(--tile-surface)!important; background-color:var(--tile-surface)!important; border:1px solid var(--tile-divider)!important; border-radius:var(--tile-radius)!important; box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important; padding:16px 12px 14px; min-height:120px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; text-align:center; color:var(--tile-primary); }
     .name{ font-size:14px; font-weight:700; }
-    .sub{ min-height:14px; font-size:11.5px; color:#8fa0b8; }
-    .icons{ display:flex; gap:6px; color:#5f7091; align-items:center; margin-top:2px; min-height:13px; }
-    .tag{ font-size:10px; font-weight:700; color:#ffb340; background:rgba(255,179,64,.14); border-radius:999px; padding:2px 7px; }
+    .sub{ min-height:14px; font-size:11.5px; color:var(--tile-secondary); }
+    .icons{ display:flex; gap:6px; color:var(--tile-muted); align-items:center; margin-top:2px; min-height:13px; }
+    .tag{ font-size:10px; font-weight:700; color:var(--tile-accent); background:color-mix(in srgb,var(--tile-accent) 14%,transparent); border-radius:999px; padding:2px 7px; }
     `;
   }
 }

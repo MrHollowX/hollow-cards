@@ -89,6 +89,13 @@ class HomeHeaderCard extends HTMLElement {
     return icons[value] || 'mdi:weather-partly-cloudy';
   }
 
+  _weatherIcon(condition) {
+    const icon = this._c && this._c.icon;
+    return typeof icon === 'string' && icon.trim()
+      ? icon.trim()
+      : this._conditionIcon(condition);
+  }
+
   _dayKey(date = new Date()) {
     return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   }
@@ -223,7 +230,7 @@ class HomeHeaderCard extends HTMLElement {
     const temperature = this._formatTemperature(attributes.temperature, unit);
     const humidity = this._number(attributes.humidity);
 
-    this._el.icon.setAttribute('icon', this._conditionIcon(condition));
+    this._el.icon.setAttribute('icon', this._weatherIcon(condition));
     this._el.icon.setAttribute('aria-label', this._formatCondition(condition));
     this._el.temp.textContent = temperature;
     this._el.cond.textContent = this._formatCondition(condition);
@@ -409,17 +416,17 @@ class HomeHeaderCard extends HTMLElement {
 
   _css() {
     return `
-    :host{font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;display:block;min-width:0}
-    .hh{background:#212c42;color:#f5f7fb;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:16px 18px;box-sizing:border-box;min-width:0;overflow:hidden;container:hh-card / inline-size}
+    home-header-card{font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;display:block;min-width:0;--header-surface:var(--card-background-color,var(--ha-card-background,#212c42));--header-card-radius:var(--home-header-card-border-radius,20px);--header-primary:var(--primary-text-color,#f5f7fb);--header-secondary:var(--secondary-text-color,#9fb0c8);--header-accent:var(--primary-color,#8fb3ff);--header-divider:var(--divider-color,rgba(200,210,226,.18))}
+    home-header-card > .hh{background:var(--header-surface)!important;color:var(--header-primary);border:1px solid var(--header-divider)!important;border-radius:var(--header-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important;padding:16px 18px;box-sizing:border-box;min-width:0;overflow:hidden;container:hh-card / inline-size}
     .hh.clickable{cursor:pointer}
-    .hh.clickable:focus-visible{outline:2px solid #8fb3ff;outline-offset:3px}
+    .hh.clickable:focus-visible{outline:2px solid var(--header-accent);outline-offset:3px}
     .topbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto);align-items:start;gap:clamp(10px,2.5cqw,18px);min-width:0}
     .welcome-block{min-width:0;text-align:left}
-    .greeting{font-size:clamp(18px,3.5cqw,26px);font-weight:800;line-height:1.05;letter-spacing:-.02em;color:#c8d2e2;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .greeting{font-size:clamp(18px,3.5cqw,26px);font-weight:800;line-height:1.05;letter-spacing:-.02em;color:var(--header-primary);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .time-row{display:flex;align-items:baseline;gap:8px;min-width:0;white-space:nowrap}
     .clock{font-size:clamp(24px,5cqw,32px);font-weight:800;line-height:1;margin-top:6px;white-space:nowrap;flex:none}
     .time-separator{font-size:clamp(16px,3cqw,21px);font-weight:800;line-height:1;color:#8f9eb4;flex:none}
-    .date{font-size:clamp(17px,4.5cqw,28px);font-weight:700;color:#c8d2e2;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+    .date{font-size:clamp(17px,4.5cqw,28px);font-weight:700;color:var(--header-primary);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
     .forecast-section[hidden]{display:none}
     .weather-block{min-width:0;max-width:100%;display:flex;flex-direction:column;align-items:flex-end;text-align:right}
     .weather{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;min-width:0;max-width:100%;text-align:right}
@@ -427,11 +434,11 @@ class HomeHeaderCard extends HTMLElement {
     .weather-copy{min-width:0;max-width:100%;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
     .weather-metrics{display:flex;align-items:baseline;justify-content:flex-end;gap:clamp(5px,1.5cqw,8px);min-width:0;max-width:100%}
     .temp{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .cond{font-size:14px;color:#9fb0c8;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+    .cond{font-size:14px;color:var(--header-secondary);text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
     .humidity{display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:18px;color:#c8d2e2;font-weight:700;white-space:nowrap;flex:none}
     .humidity[hidden]{display:none}
-    .humidity-icon{--mdc-icon-size:18px;flex:none;color:#8fb3ff}
-    .forecast-section{border-top:1px solid rgba(200,210,226,.18);margin-top:14px;padding-top:12px}
+    .humidity-icon{--mdc-icon-size:18px;flex:none;color:var(--header-accent)}
+    .forecast-section{border-top:1px solid var(--header-divider);margin-top:14px;padding-top:12px}
     .forecast-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
     .forecast-title{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c8d2e2}
     .forecast-status{font-size:11px;color:#9fb0c8}

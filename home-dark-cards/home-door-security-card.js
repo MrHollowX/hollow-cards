@@ -4,18 +4,28 @@ class HomeDoorSecurityCard extends HTMLElement {
     if(!c||typeof c.camera_entity!=='string'||typeof c.lock_entity!=='string')throw new Error('camera_entity and lock_entity are required');
     const previousCameraEntity=this._c?.camera_entity;
     this._c={camera_entity:c.camera_entity,lock_entity:c.lock_entity,battery_entity:typeof c.battery_entity==='string'?c.battery_entity:'',front_sensor_entity:typeof c.front_sensor_entity==='string'?c.front_sensor_entity:'',silent_entity:typeof c.silent_entity==='string'?c.silent_entity:'',last_ring_entity:typeof c.last_ring_entity==='string'?c.last_ring_entity:'',name:typeof c.name==='string'?c.name:'Door Security',camera_label:typeof c.camera_label==='string'?c.camera_label:'Video doorbell',lock_label:typeof c.lock_label==='string'?c.lock_label:'Front door',sound_on_label:typeof c.sound_on_label==='string'?c.sound_on_label:'Sound on',dnd_label:typeof c.dnd_label==='string'?c.dnd_label:'DND',status_position:c.status_position==='bottom'?'bottom':'top',show_camera:c.show_camera!==false,show_lock:c.show_lock!==false,show_silent:c.show_silent!==false,show_last_ring:c.show_last_ring!==false,confirm_unlock:c.confirm_unlock===true,confirm_lock_actions:c.confirm_lock_actions===true};
+    this._c.icon=typeof c.icon==='string'?c.icon.trim():'';
+    this._c.icons=c.icons&&typeof c.icons==='object'?c.icons:{};
     this._key='';if(previousCameraEntity!==this._c.camera_entity)this._cameraPicture=null;
   }
   getCardSize(){return 5;}
   getGridOptions(){return {columns:12,rows:'auto',min_columns:6,min_rows:1};}
-  set hass(h){this._hass=h;this._render();}
+  set hass(h){this._hass=h;this._render();this._applyThemeStyles();}
   connectedCallback(){
     if(this._wired)return;this._wired=true;
     this.shadowRoot.addEventListener('click',e=>{const a=e.target.closest('[data-a]');if(!a)return;const action=a.dataset.a;if(action==='camera')this._more(this._c.camera_entity);else if(action==='more-info')this._more(a.dataset.e);else if(action==='lock')this._controlLock();else if(action==='silent')this._toggleSilent();else if(action==='confirm-lock')this._finishLock(true);else if(action==='cancel-lock'||action==='lock-backdrop')this._finishLock(false);});
     this.shadowRoot.addEventListener('keydown',e=>{const a=e.target.closest('[data-a]');if(a&&(a.dataset.a==='camera'||a.dataset.a==='more-info')&&(e.key==='Enter'||e.key===' ')){e.preventDefault();this._more(a.dataset.a==='camera'?this._c.camera_entity:a.dataset.e);}if(this._dialogOpen&&e.key==='Escape'){e.preventDefault();this._finishLock(false);}});
   }
+  _applyThemeStyles(){
+    if(this._themeStyle)return;
+    this._themeStyle=document.createElement('style');
+    this._themeStyle.textContent=`:host{--door-surface:var(--card-background-color,var(--ha-card-background,#212c42));--door-card-radius:var(--home-door-security-card-border-radius,20px);--door-control:var(--secondary-background-color,#2b3850);--door-primary:var(--primary-text-color,#f5f7fb);--door-secondary:var(--secondary-text-color,#91a2bb);--door-accent:var(--primary-color,#3d8bfd);--door-divider:var(--divider-color,rgba(255,255,255,.16));color:var(--door-primary)}.card{background:var(--door-surface)!important;border-color:var(--door-divider)!important;border-radius:var(--door-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important}.camera-wrap,.camera{background:var(--primary-background-color,#182337)}.camera:focus-visible,.ring:focus-visible,.door-inline:focus-visible,.silent:focus-visible,.lock:focus-visible,.dialog-confirm:focus-visible,.dialog-cancel:focus-visible{outline-color:var(--door-accent)}.fallback,.dialog-text{color:var(--door-secondary)}.silent.neutral,.lock.neutral,.dialog-cancel{background:var(--door-control);color:var(--door-primary)}.dialog-panel{background:var(--door-surface);border-color:var(--door-divider);color:var(--door-primary)}.dialog-actions button{border-color:var(--door-divider)}`;
+    this.shadowRoot.append(this._themeStyle);
+  }
   _state(e){return e&&this._hass&&this._hass.states[e]||null;}
   _attr(e,k,d=''){const s=this._state(e);return s&&s.attributes[k]!=null?s.attributes[k]:d;}
+  _icon(key,fallback){const configured=this._c?.icons?.[key]||(key==='camera'?this._c?.icon:'');return typeof configured==='string'&&configured.trim()?configured.trim():fallback;}
+  _applyIcons(){this._fallback?.querySelector('ha-icon')?.setAttribute('icon',this._icon('camera','mdi:video-outline'));const doorOpen=this._doorLabel?.textContent==='Open';this._doorIcon?.setAttribute('icon',this._icon(doorOpen?'door_open':'door_closed',doorOpen?'mdi:door-open':'mdi:door-closed'));this._silentIcon?.setAttribute('icon',this._icon(this._silent?.classList?.contains('sound-on')?'silent_on':'silent_off',this._silent?.classList?.contains('sound-on')?'mdi:bell':'mdi:bell-off'));const state=this._lockButton?.classList?.contains('locked')?'lock_locked':this._lockButton?.classList?.contains('unlocked')?'lock_unlocked':'lock_unavailable';this._lockIcon?.setAttribute('icon',this._icon(state,state==='lock_locked'?'mdi:lock':state==='lock_unlocked'?'mdi:lock-open-variant':'mdi:lock-question'));}
   _more(e){if(e)this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:e},bubbles:true,composed:true}));}
   _controlLock(){const s=this._state(this._c.lock_entity);if(!s||!['locked','unlocked'].includes(s.state))return;const service=s.state==='locked'?'unlock':'lock';if(this._c.confirm_lock_actions){this._openLockDialog(service);return;}this._callLock(service);}
   _callLock(service){this._hass.callService('lock',service,{entity_id:this._c.lock_entity});}
@@ -28,6 +38,7 @@ class HomeDoorSecurityCard extends HTMLElement {
   _updateCameraImage(pic,cam,pictureChanged){const hasPicture=Boolean(pic&&this._c.show_camera);if(pictureChanged)this._image.src=pic;this._image.alt=`${this._attr(this._c.camera_entity,'friendly_name',this._c.camera_label)} live preview`;this._image.style.display=hasPicture?'':'none';this._fallback.style.display=hasPicture?'none':'';this._fallback.lastElementChild.textContent=cam?'Tap to view camera':'Camera unavailable';}
   _render(){
     if(!this._hass||!this._c)return;
+    this._applyIcons();queueMicrotask(()=>this._applyIcons());
     const cam=this._state(this._c.camera_entity),lock=this._state(this._c.lock_entity),silent=this._state(this._c.silent_entity),door=this._state(this._c.front_sensor_entity),ring=this._state(this._c.last_ring_entity),ls=lock?lock.state:'unavailable',ss=silent?silent.state:'unavailable',locked=ls==='locked',unlocked=ls==='unlocked',soundOn=ss==='on',pic=this._attr(this._c.camera_entity,'entity_picture',''),pictureChanged=pic!==this._cameraPicture,battery=this._state(this._c.battery_entity),bt=battery&&!['unknown','unavailable'].includes(battery.state)?`${battery.state}${battery.attributes.unit_of_measurement||'%'} battery`:'',ds=this._getDoorStatus(door),activity=this._relative(door),ringText=this._ringText(ring),key=JSON.stringify([cam?.state||'unavailable',ls,ss,door?.state||'unavailable',activity,ring?.state||'unavailable',ringText,bt,this._c.name,this._c.sound_on_label,this._c.dnd_label,this._c.status_position]);
     this._cameraPicture=pic;
     if(key===this._key){if(pictureChanged&&this._image)this._updateCameraImage(pic,cam,true);return;}this._key=key;

@@ -75,6 +75,87 @@ tabs:
   `/config/www/home-dark-cards/` before loading the dashboard. Its resource is
   registered as `/local/home-dark-cards/home-floating-menu-card.js`.
 
+## Icon configuration
+
+All Home Dark cards use Material Design Icons (MDI) names. Configure
+`icon: mdi:...` to override the primary icon for `home-header-card`,
+`home-chip-card`, `home-room-tile-card`, `home-person-card`,
+`home-status-card`, `home-climate-card`, `home-cover-card`,
+`home-switch-card`, `home-entity-status-card`, `home-group-card`,
+`home-energy-overview-card`, `home-vacuum-card`, and
+`home-camera-grid-card`. Existing dynamic status and control icons remain
+state-driven unless their card exposes one of the options below.
+
+- `home-light-card` uses `icon_on` and `icon_off` for state-specific icons.
+- `home-floating-menu-card` uses `tabs[].icon`.
+- `home-status-card` additionally supports `pm25_icon`, `pm10_icon`, and
+  `aqi_icon`.
+- `home-cover-card` accepts a per-room `rooms[].icon`, which takes precedence
+  over the card-level icon.
+- `home-door-security-card` accepts `icons.camera`, `door_open`,
+  `door_closed`, `silent_on`, `silent_off`, `lock_locked`, `lock_unlocked`,
+  and `lock_unavailable`.
+- `home-vacuum-card` accepts `icons.battery`, `room`, `clean`, `pause`,
+  `dock`, `locate`, and `map_unavailable`.
+- `home-camera-grid-card` accepts `camera_icon` and `unavailable_icon`; a
+  camera group can use its own `icon`.
+
+```yaml
+type: custom:home-status-card
+icon: mdi:home-analytics
+pm25_icon: mdi:air-filter
+pm10_icon: mdi:blur-radial
+aqi_icon: mdi:weather-hazy
+```
+
+```yaml
+type: custom:home-cover-card
+rooms:
+  - name: Living Room
+    icon: mdi:blinds-horizontal
+    entities:
+      - cover.living_room
+```
+
+```yaml
+type: custom:home-door-security-card
+icon: mdi:doorbell-video
+icons:
+  camera: mdi:doorbell-video
+  door_open: mdi:door-open
+  door_closed: mdi:door-closed
+  silent_on: mdi:bell
+  silent_off: mdi:bell-off
+  lock_locked: mdi:lock
+  lock_unlocked: mdi:lock-open-variant
+  lock_unavailable: mdi:lock-question
+```
+
+```yaml
+type: custom:home-vacuum-card
+icon: mdi:robot-vacuum-variant
+icons:
+  battery: mdi:battery
+  room: mdi:map-marker-outline
+  clean: mdi:play
+  pause: mdi:pause
+  dock: mdi:home-map-marker
+  locate: mdi:crosshairs-gps
+  map_unavailable: mdi:map-marker-off-outline
+```
+
+```yaml
+type: custom:home-camera-grid-card
+icon: mdi:cctv
+camera_icon: mdi:video-outline
+unavailable_icon: mdi:camera-off-outline
+camera_groups:
+  - title: Doorbell
+    icon: mdi:doorbell-video
+    cameras:
+      - entity: camera.doorbell
+```
+
 ## Card usage
 
 Each example below uses the card type, source filename, and deployed resource URL.
@@ -183,8 +264,8 @@ popup_hash: '#living-room'
 
 - **Card type:** `custom:home-vacuum-card`
 - **Purpose:** Home Dark Roborock control card with current state, Clean/Pause/Dock/
-  Locate controls, a live map, icon-led cleaning and dock metrics, and collapsible
-  configuration sections.
+  Locate controls, a pinch-zoomable live map, icon-led cleaning and dock metrics,
+  and collapsible configuration sections.
 - **Resource:** `home-vacuum-card.js`
 - **Resource ID:** `3192edab42a1488192bc960c27807df7`
 - **URL:** `/local/home-dark-cards/home-vacuum-card.js?v=20260824-1637`
@@ -252,8 +333,10 @@ status_sections:
 - `entity` is required and is the vacuum controlled by the four action buttons.
 - `status_entity`, `battery_entity`, and `room_entity` are optional display entities.
   Missing or unavailable values render a readable fallback.
-- `map_image_entity` is optional. It must expose an `entity_picture` attribute; tapping
-  the rendered map opens that image entity's more-info dialog.
+- `map_image_entity` is optional. It must expose an `entity_picture` attribute;
+  tapping the rendered map opens a full-screen viewer with pinch-to-zoom,
+  drag-to-pan, Reset, backdrop-close, and Escape-key support. If no image is
+  available, the card opens the image entity's native more-info dialog instead.
 - `select_entities` configures themed, keyboard-accessible listboxes. Each entry needs
   an `entity` from the `select` domain; `name` is optional.
 - `status_sections` is optional. Each section has a `title` and an `entities` list.
@@ -350,7 +433,7 @@ half_open_position: 50
   that entity.
 - **Resource:** `home-climate-card.js`
 - **Resource ID:** `d3ddace99f314afbbbe9ad689d437161`
-- **URL:** `/local/home-dark-cards/home-climate-card.js?v=20260814-climate-render-skip`
+- **URL:** `/local/home-dark-cards/home-climate-card.js?v=20260826-additional-ac-power-controls`
 
 The current `home-dark` dashboard uses this card for all eight climate entities:
 `climate.living_room`, `climate.cinema`, `climate.office_ac`, `climate.erics_room`,
@@ -362,10 +445,37 @@ type: custom:home-climate-card
 entity: climate.cinema
 name: Cinema
 power_switch: switch.cinema_air_conditioning_knx_switch
+show_power_toggle: true
+additional_entities:
+  - entity: climate.office_ac
+    name: Office Air Conditioning
+    power_switch: switch.cinema_air_conditioning_knx_switch
+    show_power_toggle: true
+additional_entities_collapsed: true
+show_additional_title: true
 ```
 
 - `entity` is required and must be a climate entity. `name` is optional; the entity
   `friendly_name` is used when it is omitted.
+- `icon` overrides the primary icon. Without it, the card uses the primary
+  climate entity's configured icon, then `mdi:thermostat`.
+- `additional_entities` optionally adds named A/C controls below a separator.
+  Each entry requires `entity: climate.*`; `name`, `power_switch`, and
+  `show_power_toggle` are optional. The card renders compatible HVAC mode, fan
+  mode, vertical swing, and horizontal swing menus for each entry, excluding
+  duplicate temperature, humidity, and preset controls.
+- An additional entity's power control uses its native
+  `climate.turn_on`/`climate.turn_off` capability by default.
+  `additional_entities[].power_switch` explicitly routes that A/C's power
+  control through the named `switch.*` entity. The Cinema configuration above
+  intentionally uses its KNX switch to control the Office A/C.
+- `additional_entities[].show_power_toggle` defaults to `true`; set it to
+  `false` to hide that A/C's power control.
+- The additional A/C section is collapsible and starts collapsed by default.
+  Set `additional_entities_collapsed: false` to start it expanded, or
+  `additional_entities_collapsible: false` to keep it permanently expanded.
+  `show_additional_title: false` hides the visible “Air conditioning” title;
+  the icon-only toggle remains accessible through its expand/collapse label.
 - `power_switch` is optional and must be a confirmed `switch.*` entity for the
   room's A/C power circuit. When configured, the card displays a labeled A/C
   On/Off button on the left side of the bottom target-temperature stepper and
