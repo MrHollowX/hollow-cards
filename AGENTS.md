@@ -211,34 +211,18 @@ cards plus native Lovelace primitives, each a normal entry in a normal
 card list — addable, removable, reorderable, and editable straight from
 the dashboard editor, no JS reading required for day-to-day changes.
 
-- **Card set** (5 inline dashboard resources, each self-contained,
-  each individually swappable):
-  - `home-header-card` — clock/date/weather. Config: `weather_entity`.
-  - `home-chip-card` — one small pill per instance. Config: `kind`
-    (`person` / `lock` / `light-group` / generic `entity`), `entity`,
-    `label`. Tap → more-info.
-  - `home-room-tile-card` — one room-summary tile. Config: `name`,
-    `icon`, `light_group_entity`, `climate_entity`, `cover_entity`,
-    `media_entity`, `motion_entity` (all optional except `name`). Tap →
-    more-info on its light group (or climate if no lights). Domain
-    icons + an "on" tag render only for whichever fields are set.
-  - `home-navbar-card` — config-driven bottom tab bar (`tabs: [{id,
-    icon, path}]`, `current`). Built but **not used** in the shipped
-    config — see below.
-  - Resource IDs: header `f5ede969d4124ec89d4e76d2d2f4ecca`, chip
-    `e9296b183aed49a7ba6c3a7af8cfdd81`, room-tile
-    `02af4e539e264967a4c8b7079075876e`, navbar
-    `ca45e225cdc14d5c9913b421f5c33d58`. The old monolith resource
-    (`f93dd85117d34e15b016bdf8e44d571e`) is still registered but no
-    longer referenced by any dashboard — safe to delete if unused
-    elsewhere.
-- **Navigation**: dropped the old JS-driven screen/room-drill-down state
-  machine in favor of HA's **native multi-view tab strip** — `home-dark`
-  is now 6 real Lovelace views (`sections` type): Home, Lights, Climate,
-  Blinds, Media, Vacuum. Switching views is 100% native (add/remove/
-  reorder views from the dashboard editor); no custom navbar JS is
-  wired in, even though `home-navbar-card` exists if a bottom-tab look
-  is ever wanted instead of the top strip.
+- **Card set:** sixteen local sources compose the dashboard: header, room tile,
+  person, status, door security, light, switch, climate, cover, vacuum,
+  appliance, camera grid, entity status, energy overview, group, and
+  floating-menu cards. They are URL-mode module resources except for
+  `home-cover-card`, the retained inline-resource exception.
+  `home-navbar-card` is retired and has no local source. The card contracts and recorded resource IDs are
+  maintained in [`home-dark-cards/README.md`](home-dark-cards/README.md).
+- **Navigation**: `home-dark` is a six-view native Lovelace dashboard
+  (`sections` type): Home, Lights, Climate, Blinds, Media, and Vacuum.
+  Home Assistant owns view navigation and editor management. The
+  `home-floating-menu-card` provides the fixed bottom navigation presentation
+  for the configured views; the retired `home-navbar-card` is not used.
 - **Scope change from the old per-room drill-down screen**: tapping a
   room tile on Home no longer opens a dedicated room page (that required
   the SPA state machine). Room tiles are now overview-only (tap = more
@@ -248,11 +232,10 @@ the dashboard editor, no JS reading required for day-to-day changes.
   domain instead of by room. Revisit if per-room pages are wanted back
   (straightforward: one more view per room, still built from the same
   modular card architecture).
-- **Home view** sections: `home-header-card` → 4 `home-chip-card`s
-  (Andrei, Loredana, whole-house `light.house_all` group, front door
-  lock) → "Quick Devices" → "Rooms" (10 `home-room-tile-card`s, one per area) →
-  the `custom:tesla-style-energy-flow` HACS card (user's exact config,
-  unchanged) as a plain, independently removable card — no more DOM
+- **Home view** sections: `home-header-card` → house status, person cards,
+  door security, and "Quick Devices" → "Rooms" (10 `home-room-tile-card`s, one
+  per area) → the `custom:tesla-style-energy-flow` HACS card (user's exact
+  config, unchanged) as a plain, independently removable card — no more DOM
   -surgery/persistent-slot workaround, since native views don't
   innerHTML-wipe other cards on re-render the way the monolith's
   `_render()` did.
@@ -268,24 +251,20 @@ the dashboard editor, no JS reading required for day-to-day changes.
 - Reuses `vacuum.roborock`, `switch.storm_trooper_charge` +
   `sensor.storm_trooper_battery_level`, `lock.front_door`,
   `person.andrei` / `person.loredana`, `weather.openweathermap`,
-  `light.house_all` (whole-house light group, used for the Home chip) —
+  `light.house_all` (whole-house light group used on the Home view) —
   same entities as before plus this one new group lookup.
 - All prior fixes carried forward into the modular card set include
   HTML-entity-only text, capability-aware light dimmability, and touch-friendly
   slider interaction.
 - **Fix (2026-07-24, layout):** after the modular rebuild the Home view
-  looked broken — the individual dark cards (header/chips/tiles/rows)
   floated on HA's default theme background instead of one unified dark
-  screen like the old monolith, and the 4 top chips (Andrei/Loredana/
-  Lights/Front Door) had no grid wrapper so each stretched full-width
-  and stacked vertically instead of sitting inline. Fixed by adding
+  screen like the old monolith. This was fixed by adding
   `"background": {"color": "#1a2433", "opacity": 100}` to every section
-  in every view (2026.4 section-background feature), and wrapping the
-  chip row in a nested native `grid` card (`columns: 4`), matching the
-  pattern already used for Quick Devices/Rooms.
+  in every view (2026.4 section-background feature) and using nested native
+  `grid` cards for grouped Home-view content.
 - **Fix (2026-07-24, sections):** each view was still split across
   several `sections`-view "sections" (one per logical group — header,
-  chips, quick devices, rooms, energy flow, or one per room on the
+  status, people, quick devices, rooms, energy flow, or one per room on the
   Lights/Climate/Blinds/Media views). Each section renders as its own
   separate bordered/backgrounded box in HA's sections view, so the page
   looked like a stack of disconnected boxes rather than one continuous

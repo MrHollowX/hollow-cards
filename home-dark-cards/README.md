@@ -1,21 +1,29 @@
 # Home Dark Cards
 
-This folder contains the JavaScript custom-card sources available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. `home-light-card.js`, `home-switch-card.js`, and `home-climate-card.js` are separate, independently registered controls. `home-group-card.js` is a generic expandable container for Home Dark child cards. `home-cover-card.js`, `home-floating-menu-card.js`, `home-entity-status-card.js`, `home-energy-overview-card.js`, and `home-vacuum-card.js` are local sources for modular dashboard resources. The floating menu provides fixed bottom navigation across the dashboard views. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
+This folder contains the JavaScript custom-card sources available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. They provide the dashboard header, room summaries, person presence, status and security summaries, light, switch, climate, cover, vacuum, appliance, camera, energy, and entity-status controls, an expandable card container, and fixed bottom navigation. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
 
-**Hosting modes, verified against the live resource registry on 2026-08-24.** Local cards are registered as URL-mode module resources under `/local/home-dark-cards/` and require manual host copying. Media playback uses a separately registered external card resource. The unused legacy `HomeDashboardCard` inline resource was removed after a cross-dashboard search found no references.
+**Hosting modes, verified against the live resource registry on 2026-08-24.**
+Local cards are registered as URL-mode module resources under
+`/local/home-dark-cards/` and require manual host copying, except for
+`home-cover-card`. Its resource ID `264907031d174aae8eaf44caa4dab133` remains
+the separately managed inline-resource exception. Media playback uses a
+separately registered external card resource. The unused legacy
+`HomeDashboardCard` inline resource was removed after a cross-dashboard search
+found no references.
 
 ## Export metadata
 
 - **Source:** Home Assistant dashboard resource registry
 - **Home Assistant Core:** `2026.8.1`
 - **Exported:** `2026-08-19 17:34 (UTC+03:00)`
-- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), 13 `custom:home-entity-status-card` references (three Climate-view cards, three bathroom room-popup cards, five room-popup door/window groups, and Cinema/Garage occupancy groups), three `custom:home-switch-card` references for the bathroom fans, six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups. `home-chip-card` is registered but has no current card instance.
+- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), 13 `custom:home-entity-status-card` references (three Climate-view cards, three bathroom room-popup cards, five room-popup door/window groups, and Cinema/Garage occupancy groups), three `custom:home-switch-card` references for the bathroom fans, six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups.
 - **Deployment directory:** `/config/www/home-dark-cards/` for URL-mode resources
 - **Registered URL prefix:** `/local/home-dark-cards/`
 - **Resource type:** JavaScript modules; URL-mode resources require manual copying
   to `/config/www/home-dark-cards/` because MCP cannot upload those files
-- **Current resource sync:** all local cards use URL-mode resources with
-  cache-busting query suffixes
+- **Current resource sync:** local cards use URL-mode resources with
+  cache-busting query suffixes, except for the existing inline
+  `home-cover-card` resource
 - **Removed legacy resources:** the unused `HomeDashboardCard` and
   `home-navbar-card` registrations were removed after cross-dashboard searches
   found no usages
@@ -26,7 +34,6 @@ This folder contains the JavaScript custom-card sources available to the `home-d
 | File | Card name | Resource ID |
 |---|---|---|
 | `home-header-card.js` | `home-header-card` | `f5ede969d4124ec89d4e76d2d2f4ecca` |
-| `home-chip-card.js` | `home-chip-card` | `e9296b183aed49a7ba6c3a7af8cfdd81` |
 | `home-room-tile-card.js` | `home-room-tile-card` | `02af4e539e264967a4c8b7079075876e` |
 | `home-light-card.js` | `home-light-card` | `376b336445804f819b97c6b461f530cb` |
 | `home-person-card.js` | `home-person-card` | `d655ab1709e94df7be303b4504d5397c` |
@@ -40,6 +47,8 @@ This folder contains the JavaScript custom-card sources available to the `home-d
 | `home-group-card.js` | `home-group-card` | `e0a94f1cc4cc4b9b95f828176e7c0a57` |
 | `home-energy-overview-card.js` | `home-energy-overview-card` | `da52af5bbea0436d882c4261595b237e` |
 | `home-vacuum-card.js` | `home-vacuum-card` | `3192edab42a1488192bc960c27807df7` |
+| `home-appliance-card.js` | `home-appliance-card` | [Not recorded in this repository] |
+| `home-camera-grid-card.js` | `home-camera-grid-card` | [Not recorded in this repository] |
 
 ### Home floating menu card
 
@@ -66,11 +75,20 @@ tabs:
     path: /home-dark/lights
 ```
 
-- `tabs` is required only when overriding the six built-in `home-dark` tabs.
-- `view_path` is the current view slug (`home`, `lights`, `climate`, `blinds`,
-  `media`, or `vacuum`) for instances repeated across views.
+- Omit `tabs` to use the six source-defined defaults: Home, Lights, Climate,
+  Cameras, Media, and Vacuum. Configure `tabs` to replace those defaults; each
+  entry requires a unique `id` and a `path`, while `icon` and `label` default
+  to `mdi:circle-outline` and the tab ID.
+- `current` optionally forces the active tab by ID. Without it, the card
+  resolves the active tab from the browser path.
+- `view_path` identifies the current view for instances repeated across
+  dashboard views. When the active tab has a matching `view_path`, that
+  instance remains visible and the inactive instances hide themselves.
 - `show_labels` defaults to `false`; labels remain available through button
   tooltips and accessible names.
+- `getCardSize()` returns `0` because the navigation is fixed rather than
+  consuming normal card-flow height. The card requests a full-width,
+  auto-height sections-grid placement.
 - **Deployment:** Copy `home-floating-menu-card.js` to
   `/config/www/home-dark-cards/` before loading the dashboard. Its resource is
   registered as `/local/home-dark-cards/home-floating-menu-card.js`.
@@ -79,7 +97,7 @@ tabs:
 
 All Home Dark cards use Material Design Icons (MDI) names. Configure
 `icon: mdi:...` to override the primary icon for `home-header-card`,
-`home-chip-card`, `home-room-tile-card`, `home-person-card`,
+`home-room-tile-card`, `home-person-card`,
 `home-status-card`, `home-climate-card`, `home-cover-card`,
 `home-switch-card`, `home-entity-status-card`, `home-group-card`,
 `home-energy-overview-card`, `home-vacuum-card`, and
@@ -87,6 +105,7 @@ All Home Dark cards use Material Design Icons (MDI) names. Configure
 state-driven unless their card exposes one of the options below.
 
 - `home-light-card` uses `icon_on` and `icon_off` for state-specific icons.
+  Its `icon` is the fallback when a state-specific icon is not configured.
 - `home-floating-menu-card` uses `tabs[].icon`.
 - `home-status-card` additionally supports `pm25_icon`, `pm10_icon`, and
   `aqi_icon`.
@@ -164,6 +183,10 @@ were verified in Home Assistant's entity registry. `[Needs configuration]` means
 card supports the option, but this repository does not confirm an installation-specific
 value.
 
+Cards with required fields validate their configuration when Home Assistant
+loads the card. The individual card sections identify required entries and any
+source-enforced entity-domain or value constraints.
+
 ### Home header card
 
 - **Card type:** `custom:home-header-card`
@@ -185,6 +208,11 @@ show_forecast: false
   `3`. The current dashboard sets it to `5`.
 - `show_forecast` defaults to `true`. Set it to `false` to hide forecast UI and disable
   forecast requests and refresh timers. The current dashboard sets it to `false`.
+- `clickable` defaults to `false`. Set it to `true` to make the card keyboard
+  and pointer accessible as a forecast show/hide toggle. This changes only the
+  card instance's current display; it does not persist a dashboard setting.
+- The greeting is `Welcome, <Home Assistant user name> 👋`. When the frontend
+  user name is unavailable, it is `Welcome, there 👋`.
 - Current humidity comes from the weather entity's `humidity` attribute.
 - The feels-like value comes from `apparent_temperature` and is displayed with the
   entity's `temperature_unit`. The metrics row is hidden when both values are missing.
@@ -196,33 +224,6 @@ show_forecast: false
   vertical growth and page-level horizontal overflow.
 - Enabled daily forecasts use Home Assistant's `weather.get_forecasts` service with
   `type: daily`. Results are cached and refreshed at most every 30 minutes.
-
-### Home chip card
-
-- **Card type:** `custom:home-chip-card`
-- **Purpose:** Compact, tappable status chip for a person, lock, light group, or generic
-  entity. Tapping opens the entity's Home Assistant more-info dialog.
-- **Resource:** `home-chip-card.js`
-- **URL:** `/local/home-dark-cards/home-chip-card.js?v=20260812-1531-source-sync`
-
-The current `home-dark` configuration does not contain a `home-chip-card` instance. The
-following example uses the verified `person.andrei` entity:
-
-```yaml
-type: custom:home-chip-card
-kind: person
-entity: person.andrei
-label: Andrei
-```
-
-- `entity` is required.
-- `kind` supports `person`, `lock`, `light-group`, and `entity`; the default is `entity`.
-- `label` supplies the displayed text. For a generic `entity`, `icon` optionally sets
-  the icon; otherwise it defaults to `mdi:circle`.
-- `person` uses the `home` state and an `entity_picture` attribute when available.
-- `lock` uses `locked` as the active state.
-- `light-group` counts member entities from the group's `entity_id` attribute. Its
-  installation-specific group entity is `[Needs configuration]`.
 
 ### Home room tile card
 
@@ -331,6 +332,9 @@ status_sections:
 ```
 
 - `entity` is required and is the vacuum controlled by the four action buttons.
+- The Clean, Pause, Dock, and Locate buttons call `vacuum.start`,
+  `vacuum.pause`, `vacuum.return_to_base`, and `vacuum.locate`,
+  respectively.
 - `status_entity`, `battery_entity`, and `room_entity` are optional display entities.
   Missing or unavailable values render a readable fallback.
 - `map_image_entity` is optional. It must expose an `entity_picture` attribute;
@@ -390,6 +394,120 @@ items:
 - Missing, unavailable, or non-numeric usage, cost, or price values render
   `Unavailable` rather than a calculated value.
 
+### Home appliance card
+
+- **Card type:** `custom:home-appliance-card`
+- **Purpose:** Compact Home Connect appliance summary with online state,
+  operation and program status, optional progress and timing, and expandable
+  controls for appliance power, program selection, stop, and switch-like
+  options.
+- **Resource:** `home-appliance-card.js`
+- **Resource ID / deployed URL / dashboard usage:** [Not recorded in this
+  repository].
+
+```yaml
+type: custom:home-appliance-card
+name: Washing Machine
+location: Laundry
+icon: mdi:washing-machine
+connectivity_entity: binary_sensor.washing_machine_connected
+state_entity: sensor.washing_machine_operation_state
+program_entity: select.washing_machine_program
+progress_entity: sensor.washing_machine_program_progress
+remaining_entity: sensor.washing_machine_remaining_program_time
+finish_time_entity: sensor.washing_machine_program_finish_time
+power_entity: switch.washing_machine_power
+stop_button_entity: button.washing_machine_stop
+metric:
+  entity: sensor.washing_machine_energy
+  label: Energy
+  unit: ' kWh'
+status_entities:
+  - entity: binary_sensor.washing_machine_door
+    label: Door
+options:
+  - entity: switch.washing_machine_remote_start
+    name: Remote start
+    icon: mdi:remote
+```
+
+- `name` and `connectivity_entity` are required. The summary is offline unless
+  the connectivity entity state is exactly `on`.
+- `location`, `icon`, and `accent` are optional. Their defaults are an empty
+  location, `mdi:home-outline`, and `#3d8bfd`.
+- `state_entity`, `progress_entity`, `finish_time_entity`, `remaining_entity`,
+  `program_entity`, `power_entity`, and `stop_button_entity` are optional.
+  Missing or unavailable optional values do not render a corresponding control
+  or metric.
+- The built-in operation labels map Home Connect state values: `inactive`
+  (Standby), `ready` (Ready to start), `delayedstart` (Programmed), `run`
+  (Running), `pause` (Paused), `actionrequired` (Action required), `finished`
+  (Finished), `error` (Attention needed), and `aborting` (Stopping). Other
+  state values are converted from separators and camel case into title-cased
+  text.
+- `progress_entity` is displayed as a progress bar only for a numeric value;
+  values are clamped from `0` to `100`. Remaining time is displayed only for
+  active states (`run`, `pause`, `delayedstart`, or `actionrequired`).
+- `metric` accepts `entity` and optional `label` and `unit`. When present and
+  available, it is displayed in preference to remaining time.
+- `status_entities` accepts objects with `entity` and optional `label`. The
+  card shows up to three status items: operation, configured status entities,
+  and finish time.
+- `options` accepts objects with `entity`, `name`, and `icon`. Each available
+  option is rendered as a switch-like button.
+- Expanding the card reveals available controls. A configured `power_entity`
+  and every configured option call `switch.turn_on` or `switch.turn_off`;
+  `program_entity` calls `select.select_option`; and an active configured
+  `stop_button_entity` calls `button.press` after a browser confirmation.
+- The program picker is an in-card keyboard-accessible listbox. It closes on
+  Escape or outside pointer interaction and adjusts above or below its trigger
+  according to the available viewport space.
+
+### Home camera grid card
+
+- **Card type:** `custom:home-camera-grid-card`
+- **Purpose:** Responsive grouped camera-snapshot grid. Each camera tile shows
+  a snapshot and normalized availability status, then opens the camera's native
+  Home Assistant more-info dialog when selected.
+- **Resource:** `home-camera-grid-card.js`
+- **Resource ID / deployed URL / dashboard usage:** [Not recorded in this
+  repository].
+
+```yaml
+type: custom:home-camera-grid-card
+title: Home cameras
+subtitle: Camera snapshots
+icon: mdi:cctv
+camera_icon: mdi:video-outline
+unavailable_icon: mdi:camera-off-outline
+camera_groups:
+  - title: Entrance
+    icon: mdi:doorbell-video
+    cameras:
+      - entity: camera.doorbell
+        name: Doorbell
+```
+
+- `camera_groups` is required and must contain at least one group. Every group
+  requires a non-empty `cameras` list, and each camera item requires an entity
+  ID beginning with `camera.`.
+- A group accepts `title` and `icon`; a camera accepts `entity` and an optional
+  `name`. When `name` is omitted, the card uses the camera entity's
+  `friendly_name`, then its entity ID.
+- `title`, `subtitle`, `icon`, `camera_icon`, and `unavailable_icon` are
+  optional. Defaults are `Cameras`, `Camera snapshots`, `mdi:cctv`,
+  `mdi:video-outline`, and `mdi:camera-off-outline`.
+- Available cameras load a lazy snapshot from Home Assistant's
+  `/api/camera_proxy/<entity_id>` endpoint. When the entity exposes an
+  `access_token` attribute, the card supplies it as the endpoint's `token`
+  query parameter.
+- A camera state of `idle` is labeled `Online`; `recording` is labeled
+  `Recording`; and missing, `unknown`, or `unavailable` cameras display an
+  unavailable tile rather than a snapshot.
+- The card requests full-width sections-grid placement through
+  `getGridOptions()` and displays camera tiles in a two-column responsive
+  grid.
+
 ### Home cover card
 
 - **Card type:** `custom:home-cover-card`
@@ -398,7 +516,9 @@ items:
   light-position controls.
 - **Resource:** `home-cover-card.js`
 - **Resource ID:** `264907031d174aae8eaf44caa4dab133`
-- **URL:** `/local/home-dark-cards/home-cover-card.js?v=20260819-1214-cover-url`
+- **Hosting:** Existing inline module resource. Keep the local source as the
+  behavioral reference; do not replace this resource with a URL-mode resource
+  as part of the generic deployment workflow.
 
 ```yaml
 type: custom:home-cover-card
@@ -409,21 +529,38 @@ name: Blinds
 half_open_position: 50
 ```
 
-- `kind` is required and accepts `blinds` or `shutters`.
-- `entity` or `entities` is required. Values must be `cover.*` entity IDs.
-- `name` is optional. For multiple entities, each entity's `friendly_name` is used.
+- `kind` is required and accepts `blinds` or `shutters`; `blind` and `shutter`
+  are normalized to those values. In flat configuration, `entity` or `entities`
+  is required and every value must be a `cover.*` entity ID.
+- `rooms` is an alternative grouped configuration. Each room needs `entity` or
+  `entities` containing `cover.*` IDs and accepts `name`, `names`, `kind`,
+  `half_open_position`, and `icon`. `names` supplies display names in the same
+  order as `entities`; otherwise the card uses a one-entity room name or the
+  cover entity's `friendly_name`.
+- `name` is optional. For a flat configuration with multiple entities, each
+  entity's `friendly_name` is used. A flat configuration with one entity uses
+  the direct single-cover layout; grouped and multi-entity configurations use
+  card containers per room and cover.
 - `half_open_position` is clamped to `0`–`100` and is used for the shutters
-  light-position action.
+  light-position action. A room-level value overrides the card-level value.
+- A configured room `icon` overrides the card icon; otherwise the card uses
+  `mdi:blinds-horizontal` for blinds and `mdi:window-shutter` for shutters.
 - `show_tilt_buttons` is optional and defaults to `true` for backward
   compatibility. When enabled, covers that expose live tilt-position support
   show four discrete `set_cover_tilt_position` actions at exactly `0%`, `25%`,
   `75%`, and `100%`, labelled `Fully closed`, `Slightly open`, `Mostly open`,
   and `Fully open`. Set it to `false` to hide the tilt controls and related
   unavailable notice for every room/entity in the card.
-- The card's editor exposes `kind`, a multi-select cover entity selector, `name`,
-  `half_open_position`, and `show_tilt_buttons`. The main Open/Stop/Close
-  commands and the continuous cover-position slider remain available; the old
-  position presets and tilt slider are not rendered.
+- In flat configuration, the card editor exposes `kind`, a multi-select cover
+  entity selector, `name`, `icon`, `half_open_position`, and
+  `show_tilt_buttons`. For `rooms` configuration, it exposes
+  `show_tilt_buttons` plus a `rooms_json` text field containing the room array.
+  Invalid JSON or a non-array value is ignored by the editor.
+- The main Open/Stop/Close commands and the continuous cover-position slider
+  remain available; the old position presets and tilt slider are not rendered.
+  Failed cover-service calls render an in-card error message. When the
+  configured blinds/shutters kind conflicts with a cover's `device_class`, the
+  card renders an informational mismatch notice.
 
 ### Home climate card
 
@@ -476,20 +613,29 @@ show_additional_title: true
   `additional_entities_collapsible: false` to keep it permanently expanded.
   `show_additional_title: false` hides the visible “Air conditioning” title;
   the icon-only toggle remains accessible through its expand/collapse label.
+- `show_power_toggle` defaults to `false` for the primary climate entity. Set
+  it to `true` together with `power_switch`, or with native climate power
+  capability, to render a labeled A/C On/Off button beside the target-
+  temperature stepper. The current Living Room popup example configures
+  `power_switch` but does not enable this option, so the primary power button
+  is not rendered by the current source.
 - `power_switch` is optional and must be a confirmed `switch.*` entity for the
-  room's A/C power circuit. When configured, the card displays a labeled A/C
-  On/Off button on the left side of the bottom target-temperature stepper and
-  explicitly calls `switch.turn_on` or `switch.turn_off` for that switch. The
-  displayed state uses a local optimistic preview until Home Assistant confirms
-  the switch state; failed calls and a five-second timeout fall back to the latest
-  Home Assistant state.
-- When `power_switch` is omitted, the card uses a native climate fallback only
-  when the live entity exposes both `climate.turn_on` and `climate.turn_off`
-  capability bits (`supported_features` 256 and 128). It derives native power
-  from the climate state (`off` means off) and calls the matching native
-  climate service. It does not guess a switch entity or show a power control
-  for entities without that capability. The current Office entity is the
-  verified native-capability case.
+  room's A/C power circuit. When the primary power toggle is enabled, it calls
+  `switch.turn_on` or `switch.turn_off` for that switch. The displayed state
+  uses a local optimistic preview until Home Assistant confirms the switch
+  state; failed calls and a five-second timeout fall back to the latest Home
+  Assistant state.
+- When `power_switch` is omitted, an enabled primary power toggle uses a native
+  climate fallback only when the live entity exposes both
+  `climate.turn_on` and `climate.turn_off` capability bits
+  (`supported_features` 256 and 128). It derives native power from the climate
+  state (`off` means off) and calls the matching native climate service. It
+  does not guess a switch entity or show a power control for entities without
+  that capability. The current Office entity is the verified
+  native-capability case.
+- When `additional_entities` is non-empty, the primary entity's power button is
+  not rendered beside the temperature stepper. Each additional entity manages
+  its own optional power button in the additional A/C section.
 - Entities whose state is `unknown` or `unavailable` show an unavailable message
   and render no climate controls or service actions.
 - HVAC mode options come from `hvac_modes` and call `climate.set_hvac_mode`.
@@ -589,10 +735,14 @@ entities:
   for lux metrics where the configured minimum represents detectable light.
 - `dot_color_mode: low-to-high` colors filled dots progressively from amber
   through yellow to green, while preserving the proportional dot count.
+- `color_direction: high-to-low` inverses the proportional numeric fill so
+  lower values activate more dots. Any other value uses the default low-to-high
+  fill direction.
 - `dot_ranges` evaluates in order. Each range supports `min`, `max`,
   `min_exclusive`, `max_exclusive`, `tone` (`blue`, `light-blue`, `green`,
   `yellow`, `orange`, or `red`), and optional `dots` for an explicit fill count.
-- `entity_layout` controls whether metrics are grouped horizontally or vertically.
+- `entity_layout` controls whether metrics are grouped horizontally or
+  vertically and defaults to `vertical`.
   `metric_layout: vertical` puts the entity label above bottom-to-top dots and its
   state below; up to six horizontal vertical metrics use equal-width columns.
   `metric_layout: row` is the default compact row presentation.
@@ -621,6 +771,13 @@ name: Couch
 
 - `entity` is required and `name` is optional. When `name` is omitted, the entity's
   `friendly_name` is used.
+- `icon` provides the fallback icon. `icon_on` and `icon_off` override it for
+  the respective states.
+- `tap_action`, `hold_action`, and `double_tap_action` default to
+  `{ action: none }`. They support `toggle`, `more-info`, `perform-action`,
+  `call-service`, `navigate`, `url`, `fire-dom-event`, and `none`, using the
+  normal Home Assistant action fields. Configured actions apply to the left
+  content area; the right-side control always toggles the configured light.
 - The card uses the existing `--home-dark-*` theme tokens used by the climate
   card, with the Home Dark palette as fallbacks. It does not inherit the generic
   `--ha-card-background` surface from a surrounding popup.
@@ -662,8 +819,11 @@ cards:
   `title` or `name` is configured, and its state is shown below the title.
 - Without an `entity`, configure `title` or `name`; the card renders the same
   expandable header without entity state.
-- `open` defaults to `false`. `show_entity_state: false` hides the optional entity
-  state while retaining the entity details button.
+- `icon` overrides the entity icon; otherwise the header uses the entity icon
+  or `mdi:folder-outline`.
+- `open` defaults to `false`. `show_entity_state: false` hides the optional
+  entity state. Selecting the group header only expands or collapses its child
+  cards; it does not open entity more-info.
 - `grid_options` is passed through to the sections-view layout. The default is a
   full-width, auto-height card.
 
@@ -823,11 +983,13 @@ Master Bedroom, Kitchen, Master Bathroom, Eric's Bathroom, Studio Bathroom, and
 Garage — contain no media card.
 
 The popup child-card list, titles, icon, hash, background, and explicit
-`close_on_click: false` behavior live in Home Assistant dashboard configuration and
-can be edited there without changing this repository's card code. All local card
-sources use URL-mode resources under `/local/home-dark-cards/` and require copying
-their files to `/config/www/home-dark-cards/`; resource registration alone does not
-upload those files. A browser hard refresh is required after updating a resource.
+`close_on_click: false` behavior live in Home Assistant dashboard configuration
+and can be edited there without changing this repository's card code. All local
+card sources except `home-cover-card` use URL-mode resources under
+`/local/home-dark-cards/` and require copying their files to
+`/config/www/home-dark-cards/`; resource registration alone does not upload
+those files. `home-cover-card` is the existing inline-resource exception. A
+browser hard refresh is required after updating a resource.
 
 ### Home person card
 
@@ -862,6 +1024,7 @@ battery_entity: sensor.andrei_battery_level
 - `comfortable_spacing` defaults to compact spacing. Set it to `true` for the
   two-row/taller grid sizing and additional vertical padding; omit it or set it to
   `false` for compact spacing.
+- `icon` replaces the avatar image with the configured MDI icon.
 - A `home` person receives the explicit navy `#212c42` surface and normal readable
   theme text without a presence-specific border highlight.
 - Only the literal `home` person state receives the explicit navy `#212c42` surface
@@ -873,8 +1036,12 @@ battery_entity: sensor.andrei_battery_level
   keep the card readable when those properties are absent or invalid.
 - `kind` and `label` are present in the current dashboard configuration for consistency
   with other cards, but this source reads `entity`, `name`, and the options listed above.
-- The proximity calculation requires valid coordinates on the person and `zone.home`;
-  the installation-specific zone entity is `[Needs configuration]`.
+- The card resolves a named person state against zone friendly names and also
+  checks whether person coordinates fall inside a configured zone radius. It
+  displays distance from `zone.home` only when `show_proximity` is enabled and
+  the person is not in a known zone. The calculation requires valid coordinates
+  on the person and `zone.home`; the installation-specific zone entity is
+  `[Needs configuration]`.
 
 ### Home door security card
 
@@ -963,19 +1130,24 @@ grid_options:
 - `house_mode_entity`, `pm25_entity`, and `pm10_entity` are required.
 - `aqi_entity` is optional. `show_aqi` defaults to `true`; set it to `false` to hide
   the AQI metric.
-- `name`, `mode_label`, `pm25_label`, `pm10_label`, and `aqi_label` customize displayed
-  text.
+- `name` defaults to `House Status`. `name`, `mode_label`, `pm25_label`,
+  `pm10_label`, and `aqi_label` customize displayed text.
+- `show_metrics` defaults to `false`; set it to `true` to show the PM2.5, PM10,
+  and configured AQI metrics when the card loads.
+- `clickable` defaults to `false`. Set it to `true` to show a chevron button
+  that toggles the metric row. It does not make the entire card clickable.
 - `pm25_good_max`, `pm25_moderate_max`, `pm10_good_max`, and `pm10_moderate_max`
   override the display-only thresholds; each value must be a non-negative number.
 - PM2.5 display thresholds default to Good `<= 15`, Moderate `<= 35`, High `> 35`.
   PM10 defaults to Good `<= 45`, Moderate `<= 100`, High `> 100`. These are display
   bands only and do not replace the sensor's native classification.
-- The house-mode selector and configured metrics share a compact responsive status row.
-  House mode, PM2.5, PM10, and optional AQI are readable icon-led one-line
-  controls/items without individual borders. The card surface is explicitly dark navy
-  (`#212c42` fallback), distinct from the `#1a2433` page/popup background; compact
-  typography, zero-width-safe flex children, and narrow-screen wrapping keep controls
-  readable without page-level horizontal overflow in the Companion app.
+- The house-mode selector and configured metrics share a compact responsive
+  status row when metrics are visible. House mode, PM2.5, PM10, and optional
+  AQI are readable icon-led one-line controls/items without individual borders.
+  The card surface is explicitly dark navy (`#212c42` fallback), distinct from
+  the `#1a2433` page/popup background; compact typography, zero-width-safe flex
+  children, and narrow-screen wrapping keep controls readable without page-level
+  horizontal overflow in the Companion app.
 - `house_mode_entity` options are read from the entity. The selector calls
   `input_select.select_option` only when the chosen option is currently exposed by the
   entity. The verified current entity is `input_select.house_mode`; its current
@@ -985,11 +1157,13 @@ grid_options:
 
 ## Adding a card to `home-dark`
 
-1. Copy the card JavaScript file to Home Assistant:
+1. For a URL-mode card, copy the card JavaScript file to Home Assistant:
    `/config/www/home-dark-cards/<card-file>.js`.
 2. Register or update the matching URL-mode module resource at
    `/local/home-dark-cards/<card-file>.js` with a cache-busting query suffix.
-   Never create or update an inline resource for a local card.
+   Do not create an inline resource for a new local card. `home-cover-card` is
+   the existing inline-resource exception and must not be replaced by this
+   workflow.
 3. Open the `home-dark` dashboard editor, choose the target view, add a card, select
    **Manual**, and paste the relevant YAML example.
 4. Save the dashboard and hard-refresh the browser if the resource was newly copied or
@@ -1006,6 +1180,8 @@ the new module.
 Local files are deployed under `/config/www/home-dark-cards/` and registered in
 Home Assistant as `/local/home-dark-cards/*.js` module resources. Future custom
 cards belonging to `home-dark` must use this URL-mode workflow.
+`home-cover-card` is the retained inline-resource exception and is not covered
+by these URL-resource update steps.
 
 To register or update a live resource, use the Home Assistant dashboard resource API or
 the corresponding `user-hass` MCP tool:

@@ -1,7 +1,7 @@
 ## Project Overview
 
 - **Project Name:** Home Dark Cards
-- **Description:** This repository contains ten standalone JavaScript custom cards
+- **Description:** This repository contains sixteen standalone JavaScript custom cards
   for a Home Assistant Lovelace dashboard named `home-dark`. The cards execute in
   the Home Assistant browser frontend, read entity state from the frontend `hass`
   object, render responsive dashboard controls, dispatch Home Assistant
@@ -29,12 +29,20 @@
   - `home-door-security-card`: Doorbell camera preview, ring and door status,
     silent-mode switch, lock control, lock battery text, and optional lock
     confirmation.
-  - `home-chip-card`: Compact person, lock, light-group, or generic entity chip.
-    The README records it as registered but without a current `home-dark` card
-    instance.
   - `home-cover-card`: Capability-aware dark controls for blinds and shutters,
     including open, stop, close, position, discrete slat-tilt actions at 0%, 25%,
     75%, and 100%, and shutter light-position actions.
+  - `home-entity-status-card`: Configurable numeric and binary entity metrics
+    with proportional status dots and more-info actions.
+  - `home-energy-overview-card`: Daily energy-use and cost summary.
+  - `home-switch-card`: Switch-like entity control with configurable actions
+    and compact or tall layouts.
+  - `home-group-card`: Expandable container for nested Lovelace cards.
+  - `home-floating-menu-card`: Fixed bottom navigation for dashboard views.
+  - `home-appliance-card`: Expandable Home Connect appliance state, program,
+    progress, power, and option controls.
+  - `home-camera-grid-card`: Grouped camera snapshots with native camera
+    more-info actions.
 
 ---
 
@@ -78,13 +86,13 @@ flowchart LR
 
     subgraph Host["Home Assistant host"]
         Static["/config/www/home-dark-cards/*.js"]
-        Resources["Dashboard resource registry<br/>/local resources plus inline modules"]
+        Resources["Dashboard resource registry<br/>/local URL-mode modules<br/>and the cover-card inline exception"]
         DashConfig["Storage-mode Lovelace dashboard configuration"]
     end
 
     subgraph Browser["Home Assistant browser frontend"]
         Views["home-dark views and room popups"]
-        Cards["Custom elements<br/>header, status, person, room, light,<br/>climate, row, cover, security, chip"]
+        Cards["Custom elements<br/>header, status, person, room, light, switch,<br/>climate, cover, vacuum, appliance, camera,<br/>energy, entity status, group, navigation, security"]
         MoreInfo["hass-more-info event"]
     end
 
@@ -120,9 +128,9 @@ flowchart LR
     `/config/www/home-dark-cards/` on the Home Assistant host.
   - The matching `/local/home-dark-cards/*.js` URL is registered as an external
     JavaScript module resource in Home Assistant.
-  - The `home-cover-card` resource is an inline module rather than a `/local/` URL;
-    `home-dark-cards/home-cover-card.js` is the exact local source copy and the
-    remote inline resource remains preserved.
+  - Local Home Dark card sources are deployed as URL-mode modules under
+    `/local/home-dark-cards/`, except `home-cover-card`, which remains the
+    separately managed inline-resource exception.
   - The `home-dark` dashboard references the registered resources with
     `custom:<card-type>` cards. The README records six dashboard views and ten
     room popups for the current dashboard configuration.
@@ -197,7 +205,19 @@ flowchart LR
     slider, discrete slat-tilt actions, editor form, and error feedback.
   - `home-door-security-card.js`: Shadow DOM camera and lock UI, camera fallback,
     lock and silent-mode service calls, and optional confirmation dialog.
-  - `home-chip-card.js`: Compact status variants and entity more-info action.
+  - `home-entity-status-card.js`: Numeric and binary metric formatting,
+    proportional status dots, and metric more-info actions.
+  - `home-energy-overview-card.js`: Daily energy and cost item calculation.
+  - `home-switch-card.js`: Switch-like controls, configurable actions, state
+    content, and grid-aware layouts.
+  - `home-group-card.js`: Expandable child-card creation through Home
+    Assistant card helpers.
+  - `home-floating-menu-card.js`: Fixed navigation, active-path resolution,
+    and safe-area-aware positioning.
+  - `home-appliance-card.js`: Appliance operation, progress, program,
+    power, stop, and option controls.
+  - `home-camera-grid-card.js`: Grouped camera snapshots, availability state,
+    and camera more-info actions.
 
 ---
 
@@ -347,7 +367,13 @@ ha_custom_cards_set/
 │   ├── home-vacuum-card.js         # Roborock controls, map, and status
 │   ├── home-cover-card.js          # Blinds and shutters control card
 │   ├── home-door-security-card.js  # Doorbell and lock card
-│   ├── home-chip-card.js            # Compact status chip
+│   ├── home-entity-status-card.js   # Numeric and binary status metrics
+│   ├── home-energy-overview-card.js # Daily energy and cost summary
+│   ├── home-switch-card.js          # Switch-like entity control
+│   ├── home-group-card.js           # Expandable nested-card container
+│   ├── home-floating-menu-card.js   # Fixed dashboard navigation
+│   ├── home-appliance-card.js       # Home Connect appliance control
+│   ├── home-camera-grid-card.js     # Grouped camera snapshots
 │   └── README.md                   # Card contracts and deployment notes
 ├── .cursor/
 │   └── rules/
@@ -372,7 +398,6 @@ The README records these local card resource IDs:
 | Source file | Card type | Resource ID |
 |---|---|---|
 | `home-header-card.js` | `home-header-card` | `f5ede969d4124ec89d4e76d2d2f4ecca` |
-| `home-chip-card.js` | `home-chip-card` | `e9296b183aed49a7ba6c3a7af8cfdd81` |
 | `home-room-tile-card.js` | `home-room-tile-card` | `02af4e539e264967a4c8b7079075876e` |
 | `home-vacuum-card.js` | `home-vacuum-card` | `3192edab42a1488192bc960c27807df7` |
 | `home-light-card.js` | `home-light-card` | `376b336445804f819b97c6b461f530cb` |
@@ -381,6 +406,13 @@ The README records these local card resource IDs:
 | `home-status-card.js` | `home-status-card` | `aa8e713224b14feab81eb6aa0586560d` |
 | `home-climate-card.js` | `home-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
 | `home-cover-card.js` | `home-cover-card` | `264907031d174aae8eaf44caa4dab133` |
+| `home-entity-status-card.js` | `home-entity-status-card` | `72bcc61a0f334c23912a28e272f5a6ef` |
+| `home-floating-menu-card.js` | `home-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
+| `home-switch-card.js` | `home-switch-card` | `257d462671f14a0fba4d422931a99f2b` |
+| `home-group-card.js` | `home-group-card` | `e0a94f1cc4cc4b9b95f828176e7c0a57` |
+| `home-energy-overview-card.js` | `home-energy-overview-card` | `da52af5bbea0436d882c4261595b237e` |
+| `home-appliance-card.js` | `home-appliance-card` | [Not recorded in this repository] |
+| `home-camera-grid-card.js` | `home-camera-grid-card` | [Not recorded in this repository] |
 
 ---
 
@@ -395,7 +427,8 @@ The README records these local card resource IDs:
   - Card instance configuration is stored in the remote Home Assistant
     dashboard.
   - JavaScript resource URLs are stored in Home Assistant's dashboard resource
-    registry; `home-cover-card` is stored there as inline module content.
+    registry as URL-mode modules. `home-cover-card` is the existing separately
+    managed inline-resource exception.
   - The repository contains no `.env`, `.env.example`, environment loader, or
     application configuration schema.
   - Project context records the target Lovelace configuration as storage mode.
@@ -405,14 +438,12 @@ The README records these local card resource IDs:
 
 - **Setup Instructions for local development:**
   1. No package installation or build step is defined in the repository.
-  2. For URL-based resources, copy the required JavaScript file to
+  2. For a URL-mode resource, copy the required JavaScript file to
      `/config/www/home-dark-cards/<card-file>.js` on the Home Assistant host.
-     Preserve `home-cover-card.js` as the local source of truth for its existing
-     inline resource.
-  3. Register or update the matching module resource at
-     `/local/home-dark-cards/<card-file>.js`, or preserve the exact inline
-     `home-cover-card` content under resource ID
-     `264907031d174aae8eaf44caa4dab133`.
+  3. Register or update the matching URL-mode module resource at
+     `/local/home-dark-cards/<card-file>.js`. `home-cover-card` is the
+     separately managed inline-resource exception and must not be replaced by
+     this workflow.
   4. Add or edit a manual `custom:<card-type>` card in the Home Assistant
      dashboard editor.
   5. Save the dashboard and hard-refresh the browser after copying or updating a
@@ -579,9 +610,8 @@ this.dispatchEvent(new CustomEvent('hass-more-info', {
   climate control behavior lives in the dedicated climate card.
 - `home-climate-card.js` suppresses controls and service actions when the climate
   entity is `unknown` or `unavailable`.
-- `home-cover-card.js` is the local source for deployed inline resource
-  `264907031d174aae8eaf44caa4dab133`; the resource and all six `home-dark`
-  dashboard usages were updated through the Home Assistant configuration API.
+- `home-cover-card.js` is the local source for separately managed inline
+  resource `264907031d174aae8eaf44caa4dab133`.
 - `show_tilt_buttons` defaults to `true` and is explicitly set on all six live
   cover-card configurations. The option applies to every room/entity in a card;
   setting it to `false` removes the tilt controls and unavailable notice.
