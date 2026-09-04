@@ -1,23 +1,42 @@
 class HomeHeaderCard extends HTMLElement {
   static FORECAST_REFRESH_MS = 30 * 60 * 1000;
 
+  constructor() {
+    super();
+    this._timer = null;
+    this._shell = false;
+    this._forecastCache = null;
+    this._forecastPromise = null;
+    this._forecastSignature = '';
+    this._forecastGeneration = 0;
+  }
+
   setConfig(c) {
     const previous = this._c || {};
-    this._c = c || {};
+    const previousForecastDays = this._forecastDays;
+    const previousShowForecast = this._showForecast;
+    this._c = c && typeof c === 'object' ? { ...c } : {};
     this._clickable = this._c.clickable === true;
     this._forecastDays = this._clampForecastDays(this._c.forecast_days);
     this._showForecast = this._c.show_forecast !== false;
-    if (previous.weather_entity && previous.weather_entity !== this._c.weather_entity) {
+    if (previous.weather_entity !== this._c.weather_entity ||
+        previousForecastDays !== this._forecastDays ||
+        previousShowForecast !== this._showForecast) {
+      this._invalidateForecastRequest();
+    }
+    if (previous.weather_entity !== this._c.weather_entity) {
       this._forecastCache = null;
     }
     this._forecastSignature = '';
     if (this._el) {
       this._renderGreeting();
       this._updateHeaderInteraction();
+      if (this._hass) this._renderCurrentWeather();
       this._renderForecast(
         this._forecastCache ? this._forecastCache.items : [],
         this._showForecast ? 'Loading forecast…' : ''
       );
+      this._ensureForecast();
     }
   }
 
@@ -29,11 +48,13 @@ class HomeHeaderCard extends HTMLElement {
     this._ensureForecast();
   }
 
+  connectedCallback() {
+    this._render();
+    this._ensureForecast();
+  }
+
   disconnectedCallback() {
-    if (this._timer) {
-      clearInterval(this._timer);
-      this._timer = null;
-    }
+    this._stopTimer();
   }
 
   _clampForecastDays(value) {
@@ -65,10 +86,15 @@ class HomeHeaderCard extends HTMLElement {
   }
 
   _formatCondition(value) {
-    return String(value || 'Unavailable').replace(/[-_]/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+    const condition = String(value || '').toLowerCase();
+    if (['', 'unknown', 'unavailable', 'none'].includes(condition)) {
+      return 'Weather unavailable';
+    }
+    return condition.replace(/[-_]/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
   }
 
   _conditionIcon(value) {
+    const condition = String(value || '').toLowerCase();
     const icons = {
       clear: 'mdi:weather-sunny',
       'clear-night': 'mdi:weather-night',
@@ -84,9 +110,12 @@ class HomeHeaderCard extends HTMLElement {
       windy: 'mdi:weather-windy',
       'windy-variant': 'mdi:weather-windy-variant',
       fog: 'mdi:weather-fog',
-      hail: 'mdi:weather-hail'
+      hail: 'mdi:weather-hail',
+      unknown: 'mdi:weather-cloudy-alert',
+      unavailable: 'mdi:weather-cloudy-alert',
+      none: 'mdi:weather-cloudy-alert'
     };
-    return icons[value] || 'mdi:weather-partly-cloudy';
+    return icons[condition] || 'mdi:weather-partly-cloudy';
   }
 
   _weatherIcon(condition) {
@@ -103,6 +132,17 @@ class HomeHeaderCard extends HTMLElement {
   _forecastKey() {
     const entity = this._c.weather_entity || '';
     return `${entity}|${this._dayKey()}|${this._forecastDays}|${this._showForecast}`;
+  }
+
+  _invalidateForecastRequest() {
+    this._forecastGeneration += 1;
+    this._forecastPromise = null;
+  }
+
+  _isCurrentForecastRequest(request) {
+    return this._forecastPromise === request &&
+      request.generation === this._forecastGeneration &&
+      this._forecastKey() === request.key;
   }
 
   _createShell() {
@@ -159,10 +199,15 @@ class HomeHeaderCard extends HTMLElement {
       forecastList: this.querySelector('.forecast-list')
     };
     this._card = this.querySelector('.hh');
-    this._card.addEventListener('click', () => this._toggleForecast());
+    this._card.addEventListener('pointerdown', event => event.stopPropagation());
+    this._card.addEventListener('click', event => {
+      event.stopPropagation();
+      this._toggleForecast();
+    });
     this._card.addEventListener('keydown', event => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
+      event.stopPropagation();
       this._toggleForecast();
     });
     this._forecastNodes = new Map();
@@ -197,6 +242,7 @@ class HomeHeaderCard extends HTMLElement {
 
   _toggleForecast() {
     if (!this._clickable) return;
+    this._invalidateForecastRequest();
     this._showForecast = !this._showForecast;
     this._forecastSignature = '';
     this._updateHeaderInteraction();
@@ -224,9 +270,11 @@ class HomeHeaderCard extends HTMLElement {
   _renderCurrentWeather() {
     const entity = this._c.weather_entity;
     const state = entity && this._hass.states[entity];
-    const attributes = state ? state.attributes : {};
+    const unavailable = !state ||
+      ['unknown', 'unavailable', 'none'].includes(String(state.state).toLowerCase());
+    const attributes = unavailable ? {} : state.attributes || {};
     const unit = attributes.temperature_unit || '';
-    const condition = state ? state.state : 'unavailable';
+    const condition = unavailable ? 'unavailable' : state.state;
     const temperature = this._formatTemperature(attributes.temperature, unit);
     const humidity = this._number(attributes.humidity);
 
@@ -314,7 +362,8 @@ class HomeHeaderCard extends HTMLElement {
     this._el.forecastSection.hidden = false;
     this._el.forecastTitle.textContent = `Forecast · ${this._forecastDays} day${this._forecastDays === 1 ? '' : 's'}`;
     const visible = Array.isArray(items) ? items.slice(0, this._forecastDays) : [];
-    const signature = JSON.stringify(visible);
+    const unit = this._attr(this._c.weather_entity, 'temperature_unit', '');
+    const signature = JSON.stringify([unit, visible]);
     if (signature !== this._forecastSignature) {
       this._updateForecast(items);
       this._forecastSignature = signature;
@@ -375,21 +424,21 @@ class HomeHeaderCard extends HTMLElement {
     }
     if (this._forecastPromise && this._forecastPromise.key === key) return;
 
-    const promise = this._requestForecast(entity);
-    this._forecastPromise = {key, promise};
+    const request = {
+      key,
+      entity,
+      generation: ++this._forecastGeneration,
+      promise: this._requestForecast(entity)
+    };
+    this._forecastPromise = request;
+    const promise = request.promise;
     promise.then(items => {
-      if (this._forecastKey() !== key) {
-        if (this._forecastPromise && this._forecastPromise.key === key) this._forecastPromise = null;
-        return;
-      }
+      if (!this._isCurrentForecastRequest(request)) return;
       this._forecastCache = {key, entity, items, fetchedAt: Date.now()};
       this._forecastPromise = null;
       this._renderForecast(items);
     }).catch(() => {
-      if (this._forecastKey() !== key) {
-        if (this._forecastPromise && this._forecastPromise.key === key) this._forecastPromise = null;
-        return;
-      }
+      if (!this._isCurrentForecastRequest(request)) return;
       this._forecastPromise = null;
       if (!this._forecastCache || this._forecastCache.entity !== entity) {
         this._renderForecast([], 'Forecast unavailable');
@@ -405,13 +454,22 @@ class HomeHeaderCard extends HTMLElement {
     this._updateClock();
     this._renderCurrentWeather();
     this._renderForecast(this._forecastCache ? this._forecastCache.items : [], 'Loading forecast…');
-    if (!this._timer) {
-      this._timer = setInterval(() => {
-        if (!this._hass) return;
-        this._updateClock();
-        this._ensureForecast();
-      }, 30000);
-    }
+    this._startTimer();
+  }
+
+  _startTimer() {
+    if (this._timer || !this.isConnected) return;
+    this._timer = setInterval(() => {
+      if (!this._hass) return;
+      this._updateClock();
+      this._ensureForecast();
+    }, 30000);
+  }
+
+  _stopTimer() {
+    if (!this._timer) return;
+    clearInterval(this._timer);
+    this._timer = null;
   }
 
   _css() {
@@ -501,6 +559,14 @@ class HomeHeaderCard extends HTMLElement {
     `;
   }
 }
-customElements.define('home-header-card', HomeHeaderCard);
+if (!customElements.get('home-header-card')) {
+  customElements.define('home-header-card', HomeHeaderCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({type:'home-header-card', name:'Home Header', description:'Clock, date, current weather, and cached daily forecast'});
+if (!window.customCards.some((card) => card.type === 'home-header-card')) {
+  window.customCards.push({
+    type: 'home-header-card',
+    name: 'Home Header',
+    description: 'Clock, date, current weather, and cached daily forecast'
+  });
+}

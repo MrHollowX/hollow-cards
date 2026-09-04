@@ -1,4 +1,13 @@
 class HomeApplianceCard extends HTMLElement {
+  constructor() {
+    super();
+    this._onClick = this._onClick.bind(this);
+    this._onKeydown = this._onKeydown.bind(this);
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onOutsidePointerDown = this._onOutsidePointerDown.bind(this);
+    this._onViewportChange = this._onViewportChange.bind(this);
+  }
+
   setConfig(config) {
     if (!config?.name || !config?.connectivity_entity) {
       throw new Error('name and connectivity_entity are required');
@@ -23,6 +32,8 @@ class HomeApplianceCard extends HTMLElement {
     this._expanded = false;
     this._programMenuOpen = false;
     this._programMenuAbove = false;
+    this._programMenuRenderAllowed = false;
+    this._deferredRender = false;
     this._renderKey = '';
   }
 
@@ -38,22 +49,24 @@ class HomeApplianceCard extends HTMLElement {
   connectedCallback() {
     if (this._wired) return;
     this._wired = true;
-    this._onClick = this._onClick.bind(this);
-    this._onKeydown = this._onKeydown.bind(this);
-    this._onPointerDown = this._onPointerDown.bind(this);
-    this._onOutsidePointerDown = this._onOutsidePointerDown.bind(this);
-    this._onViewportChange = this._onViewportChange.bind(this);
     this.addEventListener('click', this._onClick);
     this.addEventListener('keydown', this._onKeydown);
     this.addEventListener('pointerdown', this._onPointerDown, true);
     document.addEventListener('pointerdown', this._onOutsidePointerDown, true);
     window.addEventListener('resize', this._onViewportChange);
     document.addEventListener('scroll', this._onViewportChange, true);
+    if (this._hass && this._config) this._render(true);
   }
 
   disconnectedCallback() {
     if (!this._wired) return;
     clearTimeout(this._pendingTimer);
+    this._pendingTimer = null;
+    this._pending = '';
+    this._programMenuOpen = false;
+    this._programMenuRenderAllowed = false;
+    this._deferredRender = false;
+    this._renderKey = '';
     this.removeEventListener('click', this._onClick);
     this.removeEventListener('keydown', this._onKeydown);
     this.removeEventListener('pointerdown', this._onPointerDown, true);
@@ -69,10 +82,10 @@ class HomeApplianceCard extends HTMLElement {
 
   _available(entity) {
     const state = this._state(entity);
-    return Boolean(state && (
-      String(entity).startsWith('button.') ||
-      !['unknown', 'unavailable'].includes(String(state.state).toLowerCase())
-    ));
+    if (!state) return false;
+    const value = String(state.state).toLowerCase();
+    if (value === 'unavailable') return false;
+    return String(entity).startsWith('button.') || value !== 'unknown';
   }
 
   _isOn(entity) {
@@ -140,8 +153,17 @@ class HomeApplianceCard extends HTMLElement {
 
   _remaining() {
     if (!this._isActive()) return '';
-    const seconds = Number(this._state(this._config.remaining_entity)?.state);
+    const remainingState = this._state(this._config.remaining_entity)?.state;
+    const seconds = Number(remainingState);
     if (Number.isFinite(seconds) && seconds >= 0) return this._duration(seconds);
+    const normalized = String(remainingState == null ? '' : remainingState).toLowerCase();
+    if (remainingState && !Number.isFinite(seconds) &&
+      !['unknown', 'unavailable'].includes(normalized)) {
+      const remainingAt = new Date(remainingState).getTime();
+      if (Number.isFinite(remainingAt) && remainingAt > Date.now()) {
+        return this._duration((remainingAt - Date.now()) / 1000);
+      }
+    }
     const finish = new Date(this._state(this._config.finish_time_entity)?.state).getTime();
     return Number.isFinite(finish) && finish > Date.now() ? this._duration((finish - Date.now()) / 1000) : '';
   }
@@ -161,6 +183,126 @@ class HomeApplianceCard extends HTMLElement {
       value: `${state.state}${this._config.metric.unit || state.attributes.unit_of_measurement || ''}`,
       label: this._config.metric.label || state.attributes.friendly_name || '',
     };
+  }
+
+  _viewModel() {
+    const online = this._isOn(this._config.connectivity_entity);
+    const operation = this._operation();
+    const program = this._program();
+    const progress = this._progress();
+    const finish = this._finishTime();
+    const remaining = this._remaining();
+    const metric = this._metric();
+    const subtitle = [this._config.location, program].filter(Boolean).join(' · ') || operation;
+    const primary = metric || (remaining ? { value: remaining, label: 'remaining' } : null);
+    return {
+      online,
+      operation,
+      program,
+      progress,
+      finish,
+      remaining,
+      metric,
+      subtitle,
+      primary,
+    };
+  }
+
+  _patchOpenMenuState() {
+    const card = this.querySelector('ha-card.appliance-card');
+    if (!card) return;
+    const view = this._viewModel();
+    card.classList.toggle('offline', !view.online);
+
+    const subtitle = card.querySelector('.copy small');
+    if (subtitle) subtitle.textContent = view.subtitle;
+
+    const primary = card.querySelector('[data-primary]');
+    if (primary) {
+      primary.hidden = !view.primary;
+      const value = primary.querySelector('[data-primary-value]');
+      const label = primary.querySelector('[data-primary-label]');
+      if (value) value.textContent = view.primary?.value || '';
+      if (label) label.textContent = view.primary?.label || '';
+    }
+
+    const track = card.querySelector('[data-progress]');
+    if (track) {
+      track.hidden = view.progress == null;
+      if (view.progress == null) {
+        track.removeAttribute('aria-valuenow');
+      } else {
+        track.setAttribute('aria-valuenow', String(view.progress));
+      }
+      const fill = track.querySelector('[data-progress-fill]');
+      if (fill) fill.style.width = `${view.progress == null ? 0 : view.progress}%`;
+    }
+
+    const status = card.querySelector('.status-row');
+    if (status) status.innerHTML = this._statusItems(view.operation, view.finish);
+
+    const programState = this._state(this._config.program_entity);
+    const programOptions = Array.isArray(programState?.attributes?.options)
+      ? programState.attributes.options
+      : [];
+    const programEnabled = view.online &&
+      this._available(this._config.program_entity) &&
+      programOptions.length > 0;
+    const programTrigger = card.querySelector('[data-program-trigger]');
+    if (programTrigger) {
+      programTrigger.disabled = !programEnabled;
+      const value = programTrigger.querySelector('span');
+      if (value) value.textContent = view.program;
+    }
+    card.querySelectorAll('[data-program-option]').forEach(option => {
+      const selected = option.dataset.programOption === programState?.state;
+      option.classList.toggle('selected', selected);
+      option.setAttribute('aria-selected', String(selected));
+    });
+
+    const power = card.querySelector('[data-power]');
+    if (power) {
+      const on = this._isOn(this._config.power_entity);
+      power.disabled = !(view.online && this._available(this._config.power_entity));
+      power.classList.toggle('on', on);
+      power.setAttribute('aria-pressed', String(on));
+    }
+    card.querySelectorAll('[data-option]').forEach(option => {
+      const on = this._isOn(option.dataset.option);
+      option.disabled = !(view.online && this._available(option.dataset.option));
+      option.classList.toggle('on', on);
+      option.setAttribute('aria-pressed', String(on));
+    });
+
+    const stop = card.querySelector('[data-stop]');
+    if (stop) {
+      stop.disabled = !(view.online && this._isActive() &&
+        this._available(this._config.stop_button_entity));
+    }
+
+    const pending = card.querySelector('[data-pending]');
+    if (pending) {
+      pending.hidden = !this._pending;
+      const text = pending.querySelector('[data-pending-text]');
+      if (text) text.textContent = this._pending || '';
+    }
+    const offlineNote = card.querySelector('[data-offline-note]');
+    if (offlineNote) offlineNote.hidden = view.online;
+  }
+
+  _renderProgramMenuStructure() {
+    this._programMenuRenderAllowed = true;
+    try {
+      this._render(true);
+    } finally {
+      this._programMenuRenderAllowed = false;
+    }
+  }
+
+  _flushDeferredRender(force = false) {
+    if (this._programMenuOpen || (!force && !this._deferredRender)) return;
+    this._deferredRender = false;
+    this._render(true);
   }
 
   _setPending(text) {
@@ -203,7 +345,14 @@ class HomeApplianceCard extends HTMLElement {
   }
 
   _chooseProgram(value) {
-    if (!value || !this._available(this._config.program_entity)) return;
+    if (!value) return;
+    const state = this._state(this._config.program_entity);
+    const options = Array.isArray(state?.attributes?.options) ? state.attributes.options : [];
+    if (!this._available(this._config.program_entity) || !options.includes(value)) {
+      this._programMenuOpen = false;
+      this._flushDeferredRender(true);
+      return;
+    }
     this._programMenuOpen = false;
     this._setPending('Updating program…');
     this._call('select', 'select_option', this._config.program_entity, { option: value });
@@ -231,7 +380,7 @@ class HomeApplianceCard extends HTMLElement {
     const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
     if (!path.includes(this) && !this.contains(event.target)) {
       this._programMenuOpen = false;
-      this._render(true);
+      this._flushDeferredRender(true);
     }
   }
 
@@ -267,7 +416,11 @@ class HomeApplianceCard extends HTMLElement {
       event.preventDefault();
       event.stopPropagation();
       this._programMenuOpen = !this._programMenuOpen;
-      this._render(true);
+      if (this._programMenuOpen) {
+        this._renderProgramMenuStructure();
+      } else {
+        this._flushDeferredRender(true);
+      }
       if (this._programMenuOpen) requestAnimationFrame(() => {
         this._positionProgramMenu();
         this.querySelector('[data-program-option][aria-selected="true"], [data-program-option]')?.focus();
@@ -280,7 +433,7 @@ class HomeApplianceCard extends HTMLElement {
       event.stopPropagation();
       this._expanded = !this._expanded;
       this._programMenuOpen = false;
-      this._render(true);
+      this._flushDeferredRender(true);
       return;
     }
     const power = this._eventControl(event, '[data-power]');
@@ -309,7 +462,7 @@ class HomeApplianceCard extends HTMLElement {
     if (event.key === 'Escape' && this._programMenuOpen) {
       event.preventDefault();
       this._programMenuOpen = false;
-      this._render(true);
+      this._flushDeferredRender(true);
       requestAnimationFrame(() => this.querySelector('[data-program-trigger]')?.focus());
       return;
     }
@@ -356,24 +509,33 @@ class HomeApplianceCard extends HTMLElement {
 
   _render(force = false) {
     if (!this._hass || !this._config) return;
-    if (this._programMenuOpen && !force) return;
-    const online = this._isOn(this._config.connectivity_entity);
-    const operation = this._operation();
-    const program = this._program();
-    const progress = this._progress();
-    const finish = this._finishTime();
-    const remaining = this._remaining();
-    const metric = this._metric();
+    if (this._programMenuOpen && !this._programMenuRenderAllowed) {
+      this._deferredRender = true;
+      this._patchOpenMenuState();
+      return;
+    }
+    this._deferredRender = false;
+    const {
+      online,
+      operation,
+      program,
+      progress,
+      finish,
+      remaining,
+      metric,
+      subtitle,
+      primary,
+    } = this._viewModel();
+    const programOptions = this._state(this._config.program_entity)?.attributes?.options;
     const signature = JSON.stringify({
       online, operation, program, progress, finish, remaining, metric,
+      programOptions: Array.isArray(programOptions) ? programOptions : [],
       expanded: this._expanded, menu: this._programMenuOpen, pending: this._pending,
       states: [this._config.power_entity, this._config.stop_button_entity, ...this._config.options.map(item => item.entity), ...this._config.status_entities.map(item => item.entity)].map(entity => this._state(entity)?.state),
     });
     if (!force && signature === this._renderKey) return;
     this._renderKey = signature;
 
-    const subtitle = [this._config.location, program].filter(Boolean).join(' · ') || operation;
-    const primary = metric || (remaining ? { value: remaining, label: 'remaining' } : null);
     const options = this._config.options.filter(item => this._state(item.entity)).map(item => {
       const on = this._isOn(item.entity);
       return `<button type="button" class="option${on ? ' on' : ''}" data-option="${this._escape(item.entity)}"
@@ -388,10 +550,10 @@ class HomeApplianceCard extends HTMLElement {
           <span class="identity"><span class="icon-shell"><ha-icon icon="${this._escape(this._config.icon)}" aria-hidden="true"></ha-icon></span>
             <span class="copy"><strong>${this._escape(this._config.name)}</strong><small>${this._escape(subtitle)}</small></span>
           </span>
-          ${primary ? `<span class="primary-value"><strong>${this._escape(primary.value)}</strong><small>${this._escape(primary.label)}</small></span>` : ''}
+          <span class="primary-value" data-primary ${primary ? '' : 'hidden'}><strong data-primary-value>${this._escape(primary?.value || '')}</strong><small data-primary-label>${this._escape(primary?.label || '')}</small></span>
         </span>
-        ${progress != null ? `<span class="track" role="progressbar" aria-label="${this._escape(this._config.name)} program progress"
-          aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><span style="width:${progress}%"></span></span>` : ''}
+        <span class="track" data-progress role="progressbar" aria-label="${this._escape(this._config.name)} program progress"
+          aria-valuemin="0" aria-valuemax="100" ${progress != null ? `aria-valuenow="${progress}"` : 'hidden'}><span data-progress-fill style="width:${progress == null ? 0 : progress}%"></span></span>
         <span class="status-row">${this._statusItems(operation, finish)}</span>
       </button>
       ${this._expanded ? `<section class="controls" aria-label="${this._escape(this._config.name)} controls">
@@ -401,9 +563,9 @@ class HomeApplianceCard extends HTMLElement {
           ${canStop ? `<button type="button" class="stop" data-stop><ha-icon icon="mdi:stop" aria-hidden="true"></ha-icon><span>Stop</span></button>` : ''}
         </div>
         ${options ? `<div class="options">${options}</div>` : ''}
-        ${this._pending ? `<p class="pending" role="status"><ha-icon icon="mdi:progress-clock" aria-hidden="true"></ha-icon>${this._escape(this._pending)}</p>` : ''}
+        <p class="pending" data-pending role="status" ${this._pending ? '' : 'hidden'}><ha-icon icon="mdi:progress-clock" aria-hidden="true"></ha-icon><span data-pending-text>${this._escape(this._pending || '')}</span></p>
       </section>` : ''}
-      ${!online ? '<p class="offline-note">Home Connect is not currently reporting from this appliance.</p>' : ''}
+      <p class="offline-note" data-offline-note ${online ? 'hidden' : ''}>Home Connect is not currently reporting from this appliance.</p>
     </ha-card>`;
     this.innerHTML = `<style>${this._css()}</style>${html}`;
   }
@@ -412,28 +574,33 @@ class HomeApplianceCard extends HTMLElement {
     return `
       home-appliance-card { display:block; min-width:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; --appliance-page:var(--primary-background-color,#1a2433); --appliance-bg:var(--card-background-color,var(--ha-card-background,#212c42)); --appliance-card-radius:var(--home-appliance-card-border-radius,20px); --appliance-primary:var(--primary-text-color,#f5f7fb); --appliance-secondary:var(--secondary-text-color,#91a2bb); --appliance-muted:var(--disabled-text-color,#66758f); --appliance-control:var(--secondary-background-color,#2b3850); --appliance-focus:var(--primary-color,#3d8bfd); --appliance-divider:var(--divider-color,rgba(145,162,187,.22)); }
       home-appliance-card > ha-card.appliance-card { min-width:0; padding:14px 16px; color:var(--appliance-primary); background:var(--appliance-bg)!important; border:1px solid var(--appliance-divider)!important; border-radius:var(--appliance-card-radius)!important; box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important; }
-      .appliance-card * { box-sizing:border-box; } button { font:inherit; } button:not(:disabled) { cursor:pointer; } button:focus-visible { outline:3px solid var(--appliance-focus); outline-offset:2px; } button:disabled { cursor:not-allowed; opacity:.45; }
-      .summary { all:unset; box-sizing:border-box; display:block; width:100%; min-width:0; border-radius:10px; } .top-row,.identity,.copy,.primary-value,.status-row,.control-row,.options,.pending { display:flex; align-items:center; }
-      .top-row { justify-content:space-between; gap:12px; } .identity { min-width:0; gap:11px; } .icon-shell { width:42px; height:42px; display:grid; place-items:center; flex:none; border-radius:50%; background:rgba(145,162,187,.13); color:var(--appliance-accent); } .icon-shell ha-icon { --mdc-icon-size:22px; }
-      .copy,.primary-value { min-width:0; flex-direction:column; align-items:flex-start; } .copy strong { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:15px; line-height:1.2; font-weight:780; } .copy small,.primary-value small { margin-top:3px; color:var(--appliance-secondary); font-size:11px; line-height:1.2; }
-      .primary-value { flex:none; align-items:flex-end; text-align:right; } .primary-value strong { color:var(--appliance-accent); font-size:18px; line-height:1; font-weight:800; } .primary-value small { white-space:nowrap; }
-      .track { display:block; height:6px; overflow:hidden; margin-top:13px; border-radius:999px; background:rgba(145,162,187,.15); } .track > span { display:block; height:100%; min-width:0; border-radius:inherit; background:var(--appliance-accent); transition:width .2s ease; }
-      .status-row { flex-wrap:wrap; gap:0; margin-top:11px; color:var(--appliance-secondary); font-size:11px; line-height:1.2; } .status-row span + span::before { content:'·'; margin:0 8px; color:rgba(145,162,187,.58); }
-      .controls { position:relative; margin-top:13px; padding-top:13px; border-top:1px solid var(--appliance-divider); } .control-row { align-items:stretch; gap:8px; } .power,.stop,.program-trigger,.option { border:1px solid var(--appliance-divider); border-radius:9px; color:var(--appliance-primary); background:var(--appliance-control); }
-      .power,.stop { display:flex; align-items:center; justify-content:center; gap:5px; min-width:62px; padding:0 9px; color:var(--appliance-secondary); font-size:11px; font-weight:750; } .power ha-icon,.stop ha-icon { --mdc-icon-size:16px; } .power.on { color:var(--appliance-page); border-color:transparent; background:var(--appliance-accent); } .stop { color:#ffb4a8; }
-      .program-control { position:relative; flex:1 1 auto; min-width:0; } .control-label { display:block; margin-bottom:4px; color:var(--appliance-secondary); font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; } .program-trigger { display:flex; align-items:center; justify-content:space-between; gap:6px; width:100%; min-height:36px; padding:5px 8px 5px 10px; font-size:12px; font-weight:750; text-align:left; } .program-trigger span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .program-trigger ha-icon { --mdc-icon-size:18px; color:var(--appliance-secondary); }
-      .program-menu { position:absolute; z-index:30; top:calc(100% + 5px); right:0; left:0; max-height:min(240px,50dvh); overflow:auto; overscroll-behavior:contain; padding:4px; border:1px solid rgba(145,162,187,.24); border-radius:10px; background:var(--appliance-control); box-shadow:0 14px 28px rgba(0,0,0,.42); } .program-menu.above { top:auto; bottom:calc(100% + 5px); } .program-menu button { display:block; width:100%; padding:8px 9px; border:0; border-radius:7px; color:var(--appliance-primary); background:transparent; text-align:left; font-size:12px; font-weight:650; line-height:1.25; } .program-menu button:hover,.program-menu button:focus-visible,.program-menu button.selected { background:rgba(255,255,255,.09); } .program-menu button.selected { color:var(--appliance-accent); }
-      .options { flex-wrap:wrap; gap:7px; margin-top:10px; } .option { display:inline-flex; align-items:center; gap:5px; min-height:30px; padding:4px 7px; color:var(--appliance-secondary); font-size:10.5px; font-weight:700; } .option ha-icon { --mdc-icon-size:14px; } .option.on { border-color:transparent; color:var(--appliance-accent); background:color-mix(in srgb,var(--appliance-accent) 17%,transparent); }
-      .pending { gap:5px; margin:10px 0 0; color:var(--appliance-secondary); font-size:11px; } .pending ha-icon { --mdc-icon-size:14px; color:var(--appliance-accent); } .offline-note { margin:10px 0 0; color:var(--appliance-secondary); font-size:10.5px; line-height:1.35; } .offline { border:1px solid rgba(145,162,187,.12); }
-      @media(max-width:380px) { .appliance-card { padding:13px; } .control-row { flex-wrap:wrap; } .program-control { flex-basis:100%; } .power,.stop { min-height:36px; } }
+      home-appliance-card [hidden] { display:none!important; }
+      home-appliance-card .appliance-card * { box-sizing:border-box; } home-appliance-card button { font:inherit; } home-appliance-card button:not(:disabled) { cursor:pointer; } home-appliance-card button:focus-visible { outline:3px solid var(--appliance-focus); outline-offset:2px; } home-appliance-card button:disabled { cursor:not-allowed; opacity:.45; }
+      home-appliance-card .summary { all:unset; box-sizing:border-box; display:block; width:100%; min-width:0; border-radius:10px; } home-appliance-card .top-row,home-appliance-card .identity,home-appliance-card .copy,home-appliance-card .primary-value,home-appliance-card .status-row,home-appliance-card .control-row,home-appliance-card .options,home-appliance-card .pending { display:flex; align-items:center; }
+      home-appliance-card .top-row { justify-content:space-between; gap:12px; } home-appliance-card .identity { min-width:0; gap:11px; } home-appliance-card .icon-shell { width:42px; height:42px; display:grid; place-items:center; flex:none; border-radius:50%; background:rgba(145,162,187,.13); color:var(--appliance-accent); } home-appliance-card .icon-shell ha-icon { --mdc-icon-size:22px; }
+      home-appliance-card .copy,home-appliance-card .primary-value { min-width:0; flex-direction:column; align-items:flex-start; } home-appliance-card .copy strong { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:15px; line-height:1.2; font-weight:780; } home-appliance-card .copy small,home-appliance-card .primary-value small { margin-top:3px; color:var(--appliance-secondary); font-size:11px; line-height:1.2; }
+      home-appliance-card .primary-value { flex:none; align-items:flex-end; text-align:right; } home-appliance-card .primary-value strong { color:var(--appliance-accent); font-size:18px; line-height:1; font-weight:800; } home-appliance-card .primary-value small { white-space:nowrap; }
+      home-appliance-card .track { display:block; height:6px; overflow:hidden; margin-top:13px; border-radius:999px; background:rgba(145,162,187,.15); } home-appliance-card .track > span { display:block; height:100%; min-width:0; border-radius:inherit; background:var(--appliance-accent); transition:width .2s ease; }
+      home-appliance-card .status-row { flex-wrap:wrap; gap:0; margin-top:11px; color:var(--appliance-secondary); font-size:11px; line-height:1.2; } home-appliance-card .status-row span + span::before { content:'·'; margin:0 8px; color:rgba(145,162,187,.58); }
+      home-appliance-card .controls { position:relative; margin-top:13px; padding-top:13px; border-top:1px solid var(--appliance-divider); } home-appliance-card .control-row { align-items:stretch; gap:8px; } home-appliance-card .power,home-appliance-card .stop,home-appliance-card .program-trigger,home-appliance-card .option { border:1px solid var(--appliance-divider); border-radius:9px; color:var(--appliance-primary); background:var(--appliance-control); }
+      home-appliance-card .power,home-appliance-card .stop { display:flex; align-items:center; justify-content:center; gap:5px; min-width:62px; padding:0 9px; color:var(--appliance-secondary); font-size:11px; font-weight:750; } home-appliance-card .power ha-icon,home-appliance-card .stop ha-icon { --mdc-icon-size:16px; } home-appliance-card .power.on { color:var(--appliance-page); border-color:transparent; background:var(--appliance-accent); } home-appliance-card .stop { color:#ffb4a8; }
+      home-appliance-card .program-control { position:relative; flex:1 1 auto; min-width:0; } home-appliance-card .control-label { display:block; margin-bottom:4px; color:var(--appliance-secondary); font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; } home-appliance-card .program-trigger { display:flex; align-items:center; justify-content:space-between; gap:6px; width:100%; min-height:36px; padding:5px 8px 5px 10px; font-size:12px; font-weight:750; text-align:left; } home-appliance-card .program-trigger span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } home-appliance-card .program-trigger ha-icon { --mdc-icon-size:18px; color:var(--appliance-secondary); }
+      home-appliance-card .program-menu { position:absolute; z-index:30; top:calc(100% + 5px); right:0; left:0; max-height:min(240px,50dvh); overflow:auto; overscroll-behavior:contain; padding:4px; border:1px solid rgba(145,162,187,.24); border-radius:10px; background:var(--appliance-control); box-shadow:0 14px 28px rgba(0,0,0,.42); } home-appliance-card .program-menu.above { top:auto; bottom:calc(100% + 5px); } home-appliance-card .program-menu button { display:block; width:100%; padding:8px 9px; border:0; border-radius:7px; color:var(--appliance-primary); background:transparent; text-align:left; font-size:12px; font-weight:650; line-height:1.25; } home-appliance-card .program-menu button:hover,home-appliance-card .program-menu button:focus-visible,home-appliance-card .program-menu button.selected { background:rgba(255,255,255,.09); } home-appliance-card .program-menu button.selected { color:var(--appliance-accent); }
+      home-appliance-card .options { flex-wrap:wrap; gap:7px; margin-top:10px; } home-appliance-card .option { display:inline-flex; align-items:center; gap:5px; min-height:30px; padding:4px 7px; color:var(--appliance-secondary); font-size:10.5px; font-weight:700; } home-appliance-card .option ha-icon { --mdc-icon-size:14px; } home-appliance-card .option.on { border-color:transparent; color:var(--appliance-accent); background:color-mix(in srgb,var(--appliance-accent) 17%,transparent); }
+      home-appliance-card .pending { gap:5px; margin:10px 0 0; color:var(--appliance-secondary); font-size:11px; } home-appliance-card .pending ha-icon { --mdc-icon-size:14px; color:var(--appliance-accent); } home-appliance-card .offline-note { margin:10px 0 0; color:var(--appliance-secondary); font-size:10.5px; line-height:1.35; } home-appliance-card .offline { border:1px solid rgba(145,162,187,.12); }
+      @media(max-width:380px) { home-appliance-card .appliance-card { padding:13px; } home-appliance-card .control-row { flex-wrap:wrap; } home-appliance-card .program-control { flex-basis:100%; } home-appliance-card .power,home-appliance-card .stop { min-height:36px; } }
     `;
   }
 }
 
-customElements.define('home-appliance-card', HomeApplianceCard);
+if (!customElements.get('home-appliance-card')) {
+  customElements.define('home-appliance-card', HomeApplianceCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'home-appliance-card',
-  name: 'Home Appliance',
-  description: 'Compact Bosch Home Connect appliance status and controls',
-});
+if (!window.customCards.some(card => card.type === 'home-appliance-card')) {
+  window.customCards.push({
+    type: 'home-appliance-card',
+    name: 'Home Appliance',
+    description: 'Compact Bosch Home Connect appliance status and controls',
+  });
+}

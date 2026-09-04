@@ -3,7 +3,9 @@ class HomeGroupCard extends HTMLElement {
     super();
     this._open = false;
     this._childrenReady = false;
+    this._childrenCommitted = false;
     this._childCards = [];
+    this._childrenPromise = null;
     this._renderToken = 0;
   }
 
@@ -32,12 +34,14 @@ class HomeGroupCard extends HTMLElement {
     };
     this._open = this._config.open;
     this._childrenReady = false;
+    this._childrenCommitted = false;
     this._childCards = [];
+    this._childrenPromise = null;
     this._renderToken += 1;
     this._shell = false;
     this.innerHTML = '';
     this._render();
-    if (this._open) this._ensureChildren();
+    if (this._open && this.isConnected) this._ensureChildren();
   }
 
   set hass(hass) {
@@ -46,6 +50,7 @@ class HomeGroupCard extends HTMLElement {
     this._childCards.forEach((card) => {
       card.hass = hass;
     });
+    if (this._open && !this._childrenReady) this._ensureChildren();
   }
 
   connectedCallback() {
@@ -55,6 +60,10 @@ class HomeGroupCard extends HTMLElement {
 
   disconnectedCallback() {
     this._renderToken += 1;
+    this._childrenPromise = null;
+    this._childrenReady = this._childrenCommitted;
+    const body = this.querySelector('.group-body');
+    if (body) body.removeAttribute('aria-busy');
   }
 
   getCardSize() {
@@ -66,37 +75,65 @@ class HomeGroupCard extends HTMLElement {
   }
 
   async _ensureChildren() {
-    if (this._childrenReady || !this._config) return;
+    if (this._childrenReady || !this._config || !this.isConnected) return;
+    if (this._childrenPromise) return this._childrenPromise;
     const body = this.querySelector('.group-body');
     if (!body) return;
     const token = this._renderToken;
-    this._childrenReady = true;
     body.setAttribute('aria-busy', 'true');
 
-    try {
-      if (typeof window.loadCardHelpers !== 'function') {
-        throw new Error('Home Assistant card helpers are unavailable');
+    const creation = (async () => {
+      try {
+        if (typeof window.loadCardHelpers !== 'function') {
+          throw new Error('Home Assistant card helpers are unavailable');
+        }
+        const helpers = await window.loadCardHelpers();
+        if (token !== this._renderToken || !this.isConnected) return;
+
+        const configs = this._config.cards;
+        const children = await Promise.all(
+          configs.map((config) => Promise.resolve(helpers.createCardElement(config)))
+        );
+        if (token !== this._renderToken || !this.isConnected ||
+            body !== this.querySelector('.group-body')) {
+          return;
+        }
+
+        children.forEach((card) => {
+          if (!(card instanceof Node)) {
+            throw new Error('Home Assistant returned an invalid child card');
+          }
+          if (this._hass) card.hass = this._hass;
+        });
+        body.replaceChildren(...children);
+        this._childCards = children;
+        this._childrenCommitted = true;
+        this._childrenReady = true;
+      } catch (error) {
+        if (token !== this._renderToken || !this.isConnected ||
+            body !== this.querySelector('.group-body')) {
+          return;
+        }
+        this._childrenReady = false;
+        this._childrenCommitted = false;
+        this._childCards = [];
+        const message = document.createElement('div');
+        message.className = 'group-error';
+        message.textContent = 'Unable to load grouped cards.';
+        body.replaceChildren(message);
+        console.error('home-group-card:', error);
+      } finally {
+        if (token === this._renderToken && body === this.querySelector('.group-body')) {
+          body.removeAttribute('aria-busy');
+        }
       }
-      const helpers = await window.loadCardHelpers();
-      if (token !== this._renderToken || !this.isConnected) return;
-
-      const children = await Promise.all(this._config.cards.map(async (config) => {
-        const card = await helpers.createCardElement(config);
-        if (this._hass) card.hass = this._hass;
-        return card;
-      }));
-      if (token !== this._renderToken || !this.isConnected) return;
-
-      this._childCards = children;
-      body.replaceChildren(...children);
-    } catch (error) {
-      this._childrenReady = false;
-      if (token !== this._renderToken || !this.isConnected) return;
-      body.innerHTML = `<div class="group-error">Unable to load grouped cards.</div>`;
-      console.error('home-group-card:', error);
+    })();
+    this._childrenPromise = creation;
+    try {
+      return await creation;
     } finally {
-      if (token === this._renderToken) {
-        body.removeAttribute('aria-busy');
+      if (this._childrenPromise === creation) {
+        this._childrenPromise = null;
       }
     }
   }
@@ -251,7 +288,16 @@ class HomeGroupCard extends HTMLElement {
     `;
     this._shell = true;
     this.querySelector('.group-icon').setAttribute('icon', this._icon());
-    this.querySelector('.group-details').addEventListener('toggle', (event) => {
+    const details = this.querySelector('.group-details');
+    const header = this.querySelector('.group-header');
+    const body = this.querySelector('.group-body');
+    ['pointerdown', 'click'].forEach((type) => {
+      header.addEventListener(type, (event) => event.stopPropagation());
+    });
+    ['pointerdown', 'click', 'input', 'change'].forEach((type) => {
+      body.addEventListener(type, (event) => event.stopPropagation());
+    });
+    details.addEventListener('toggle', (event) => {
       this._open = event.currentTarget.open;
       this._updateHeader();
       if (this._open) this._ensureChildren();
@@ -260,10 +306,14 @@ class HomeGroupCard extends HTMLElement {
   }
 }
 
-customElements.define('home-group-card', HomeGroupCard);
+if (!customElements.get('home-group-card')) {
+  customElements.define('home-group-card', HomeGroupCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'home-group-card',
-  name: 'Home Group',
-  description: 'Expandable Home Dark card group with an optional entity header',
-});
+if (!window.customCards.some((card) => card.type === 'home-group-card')) {
+  window.customCards.push({
+    type: 'home-group-card',
+    name: 'Home Group',
+    description: 'Expandable Home Dark card group with an optional entity header',
+  });
+}

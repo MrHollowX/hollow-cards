@@ -1,4 +1,21 @@
+const BRIGHTNESS_MIN = 1;
+
 class HomeLightCard extends HTMLElement {
+  constructor() {
+    super();
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onPointerMove = this._onPointerMove.bind(this);
+    this._onPointerUp = this._onPointerUp.bind(this);
+    this._onPointerCancel = this._onPointerCancel.bind(this);
+    this._onLostPointerCapture = this._onLostPointerCapture.bind(this);
+    this._onSliderInput = this._onSliderInput.bind(this);
+    this._onSliderChange = this._onSliderChange.bind(this);
+    this._onClick = this._onClick.bind(this);
+    this._onKeydown = this._onKeydown.bind(this);
+    this._onWindowBlur = this._onWindowBlur.bind(this);
+    this._onWindowHoldEnd = this._onWindowHoldEnd.bind(this);
+  }
+
   setConfig(c) {
     if (!c.entity) throw new Error('entity required');
     if (this._c && this._c.entity !== c.entity) {
@@ -8,7 +25,7 @@ class HomeLightCard extends HTMLElement {
     }
     this._c = {
       ...c,
-      tap_action: c.tap_action || { action: 'none' },
+      tap_action: c.tap_action || { action: 'more-info' },
       hold_action: c.hold_action || { action: 'none' },
       double_tap_action: c.double_tap_action || { action: 'none' },
     };
@@ -25,18 +42,24 @@ class HomeLightCard extends HTMLElement {
   }
 
   _st(e) {
-    if (!e) return 'unavailable';
+    if (!e || !this._hass) return 'unavailable';
     const s = this._hass.states[e];
     return s ? s.state : 'unavailable';
   }
 
   _attr(e, a, d) {
-    if (!e) return d;
+    if (!e || !this._hass) return d;
     const s = this._hass.states[e];
     return s && s.attributes[a] != null ? s.attributes[a] : d;
   }
 
+  _available(entity) {
+    const state = this._st(entity);
+    return state !== 'unknown' && state !== 'unavailable';
+  }
+
   _call(domain, service, entity, data) {
+    if (!this._hass) return;
     return this._hass.callService(domain, service, Object.assign({ entity_id: entity }, data || {}));
   }
 
@@ -56,49 +79,50 @@ class HomeLightCard extends HTMLElement {
   }
 
   _toggleLight(entity) {
-    if (!entity || this._st(entity) === 'unavailable') return;
+    if (!entity || !this._available(entity)) return false;
     if (entity === this._c.entity && this._st(entity) !== 'on' && this._dimmable()) {
       this._clearToggleAnimation();
       this._toggleAnimationEntity = entity;
       this._toggleAnimationTimer = setTimeout(() => this._clearToggleAnimation(), 5000);
     }
     this._call(entity.split('.')[0], 'toggle', entity);
+    return true;
   }
 
   _runAction(kind) {
     const actionConfig = this._actionConfig(kind);
     const action = actionConfig.action || 'none';
     const entity = actionConfig.entity || this._c.entity;
-    if (action === 'none') return;
+    if (action === 'none') return false;
     if (action === 'toggle') {
-      this._toggleLight(entity);
-      return;
+      return this._toggleLight(entity);
     }
     if (action === 'more-info') {
+      if (!entity) return false;
       this._more(entity);
-      return;
+      return true;
     }
     if (action === 'perform-action' || action === 'call-service') {
       const serviceName = actionConfig.perform_action || actionConfig.service;
-      if (!serviceName || !this._hass) return;
+      if (!serviceName || !this._hass) return false;
       const [domain, service] = serviceName.split('.', 2);
-      if (!domain || !service) return;
+      if (!domain || !service) return false;
       this._hass.callService(
         domain,
         service,
         actionConfig.data || actionConfig.service_data || {},
         actionConfig.target,
       );
-      return;
+      return true;
     }
     if (action === 'navigate' && actionConfig.navigation_path) {
       window.history.pushState({}, '', actionConfig.navigation_path);
       window.dispatchEvent(new Event('location-changed'));
-      return;
+      return true;
     }
     if (action === 'url' && actionConfig.url_path) {
       window.open(actionConfig.url_path, '_blank', 'noopener');
-      return;
+      return true;
     }
     if (action === 'fire-dom-event') {
       this.dispatchEvent(new CustomEvent('ll-custom', {
@@ -106,12 +130,22 @@ class HomeLightCard extends HTMLElement {
         bubbles: true,
         composed: true,
       }));
+      return true;
     }
+    return false;
   }
 
   _dimmable() {
     const modes = this._attr(this._c.entity, 'supported_color_modes', []);
-    return Array.isArray(modes) && modes.some(m => m !== 'onoff');
+    if (Array.isArray(modes) && modes.length) {
+      return modes.some(mode => mode !== 'onoff' && mode !== 'unknown');
+    }
+    const brightness = this._attr(this._c.entity, 'brightness', null);
+    if (brightness != null && brightness !== '' && Number.isFinite(Number(brightness))) {
+      return true;
+    }
+    const supportedFeatures = Number(this._attr(this._c.entity, 'supported_features', 0));
+    return Number.isFinite(supportedFeatures) && Boolean(supportedFeatures & 1);
   }
 
   _lightIcon(on) {
@@ -124,17 +158,6 @@ class HomeLightCard extends HTMLElement {
   connectedCallback() {
     if (this._wired) return;
     this._wired = true;
-
-    this._onPointerDown = this._onPointerDown.bind(this);
-    this._onPointerMove = this._onPointerMove.bind(this);
-    this._onPointerUp = this._onPointerUp.bind(this);
-    this._onPointerCancel = this._onPointerCancel.bind(this);
-    this._onLostPointerCapture = this._onLostPointerCapture.bind(this);
-    this._onSliderInput = this._onSliderInput.bind(this);
-    this._onSliderChange = this._onSliderChange.bind(this);
-    this._onClick = this._onClick.bind(this);
-    this._onKeydown = this._onKeydown.bind(this);
-    this._onWindowBlur = this._onWindowBlur.bind(this);
 
     this.addEventListener('pointerdown', this._onPointerDown);
     this.addEventListener('pointermove', this._onPointerMove);
@@ -183,7 +206,7 @@ class HomeLightCard extends HTMLElement {
   _onPointerDown(ev) {
     const slider = this._sliderFromEvent(ev);
     if (slider) {
-      if (this._dragging) return;
+      if (slider.disabled || this._dragging || ev.button !== 0 || ev.isPrimary === false) return;
       ev.stopPropagation();
       ev.preventDefault();
       this._dragging = true;
@@ -200,13 +223,36 @@ class HomeLightCard extends HTMLElement {
     }
 
     const actionTarget = this._actionTarget(ev);
-    if (!actionTarget || ev.target.closest('[data-toggle]')) return;
+    if (!actionTarget || ev.target.closest('[data-toggle]') ||
+        ev.button !== 0 || ev.isPrimary === false) return;
     ev.stopPropagation();
-    if (this._holdTimer) clearTimeout(this._holdTimer);
+    this._clearHoldGesture();
+    this._holdPointerId = ev.pointerId;
+    this._holdPointerTarget = actionTarget;
+    this._holdActionRan = false;
+    const gestureToken = {};
+    const pointerId = ev.pointerId;
+    this._holdGestureToken = gestureToken;
+    window.addEventListener('pointerup', this._onWindowHoldEnd, true);
+    window.addEventListener('pointercancel', this._onWindowHoldEnd, true);
+    try {
+      actionTarget.setPointerCapture(ev.pointerId);
+    } catch (err) {
+      // Pointer capture is best-effort; normal in-card pointer paths still clean up.
+    }
     this._holdTimer = setTimeout(() => {
+      if (!this._isCurrentHoldGesture(gestureToken, pointerId, actionTarget)) {
+        if (this._holdGestureToken === gestureToken) this._clearHoldGesture();
+        return;
+      }
       this._holdTimer = null;
-      this._suppressNextClick = true;
-      this._runAction('hold');
+      const actionRan = this._runAction('hold');
+      if (!this._isCurrentHoldGesture(gestureToken, pointerId, actionTarget)) {
+        if (this._holdGestureToken === gestureToken) this._clearHoldGesture();
+        return;
+      }
+      this._holdActionRan = actionRan;
+      if (actionRan) this._suppressNextClick = true;
     }, 550);
   }
 
@@ -224,13 +270,9 @@ class HomeLightCard extends HTMLElement {
       this._finishSlider(true);
       return;
     }
-    const actionTarget = this._actionTarget(ev);
-    if (!actionTarget || ev.target.closest('[data-toggle]')) return;
+    if (ev.pointerId !== this._holdPointerId) return;
     ev.stopPropagation();
-    if (this._holdTimer) {
-      clearTimeout(this._holdTimer);
-      this._holdTimer = null;
-    }
+    this._finishHoldGesture(false);
   }
 
   _onPointerCancel(ev) {
@@ -239,14 +281,18 @@ class HomeLightCard extends HTMLElement {
       this._finishSlider(false);
       return;
     }
-    if (this._holdTimer) {
-      clearTimeout(this._holdTimer);
-      this._holdTimer = null;
+    if (ev.pointerId === this._holdPointerId) {
+      ev.stopPropagation();
+      this._finishHoldGesture(true);
     }
   }
 
   _onLostPointerCapture(ev) {
-    if (this._dragging && ev.pointerId === this._pointerId) this._finishSlider(false);
+    if (this._dragging && ev.pointerId === this._pointerId) {
+      this._finishSlider(false);
+      return;
+    }
+    if (ev.pointerId === this._holdPointerId) this._finishHoldGesture(true);
   }
 
   _onWindowBlur() {
@@ -254,9 +300,17 @@ class HomeLightCard extends HTMLElement {
     this._clearGestureTimers();
   }
 
+  _onWindowHoldEnd(ev) {
+    if (ev.pointerId !== this._holdPointerId) return;
+    Promise.resolve().then(() => {
+      if (ev.pointerId === this._holdPointerId) this._finishHoldGesture(true);
+    });
+  }
+
   _onSliderInput(ev) {
     const slider = this._sliderFromEvent(ev);
-    if (!slider) return;
+    if (!slider || slider.disabled) return;
+    ev.stopPropagation();
     const value = this._sliderValue(slider);
     this._setSliderVisual(slider, value);
     this._sliderPreview = { entity: slider.dataset.e, value };
@@ -264,7 +318,7 @@ class HomeLightCard extends HTMLElement {
 
   _onSliderChange(ev) {
     const slider = this._sliderFromEvent(ev);
-    if (!slider) return;
+    if (!slider || slider.disabled) return;
     ev.stopPropagation();
     if (this._ignoreSliderChange === slider) {
       this._ignoreSliderChange = null;
@@ -292,7 +346,7 @@ class HomeLightCard extends HTMLElement {
     if (!this._actionTarget(ev)) return;
     ev.stopPropagation();
     if (this._suppressNextClick) {
-      this._suppressNextClick = false;
+      this._clearSuppressNextClick();
       return;
     }
     this._queueTap();
@@ -304,19 +358,71 @@ class HomeLightCard extends HTMLElement {
       ev.preventDefault();
       ev.stopPropagation();
       this._clearGestureTimers();
-      this._suppressNextClick = true;
-      this._runAction('tap');
-      setTimeout(() => {
-        this._suppressNextClick = false;
-      }, 0);
+      if (this._runAction('tap')) {
+        this._suppressNextClick = true;
+        this._scheduleSuppressNextClickReset();
+      }
     }
+  }
+
+  _isCurrentHoldGesture(token, pointerId, target) {
+    return this._holdGestureToken === token
+      && this._holdPointerId === pointerId
+      && this._holdPointerTarget === target
+      && this.isConnected
+      && this.contains(target);
+  }
+
+  _clearHoldGesture() {
+    if (this._holdTimer) clearTimeout(this._holdTimer);
+    this._holdTimer = null;
+    const target = this._holdPointerTarget;
+    const pointerId = this._holdPointerId;
+    this._holdPointerTarget = null;
+    this._holdPointerId = null;
+    this._holdActionRan = false;
+    this._holdGestureToken = null;
+    window.removeEventListener('pointerup', this._onWindowHoldEnd, true);
+    window.removeEventListener('pointercancel', this._onWindowHoldEnd, true);
+    if (target && pointerId != null) {
+      try {
+        if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+      } catch (err) {
+        // Capture can already be gone after cancellation or DOM replacement.
+      }
+    }
+  }
+
+  _finishHoldGesture(cancelled) {
+    const actionRan = this._holdActionRan;
+    this._clearHoldGesture();
+    if (!actionRan) return;
+    if (cancelled) {
+      this._clearSuppressNextClick();
+      return;
+    }
+    this._scheduleSuppressNextClickReset();
+  }
+
+  _scheduleSuppressNextClickReset() {
+    if (this._suppressNextClickTimer) clearTimeout(this._suppressNextClickTimer);
+    this._suppressNextClickTimer = setTimeout(() => {
+      this._suppressNextClick = false;
+      this._suppressNextClickTimer = null;
+    }, 0);
+  }
+
+  _clearSuppressNextClick() {
+    if (this._suppressNextClickTimer) clearTimeout(this._suppressNextClickTimer);
+    this._suppressNextClickTimer = null;
+    this._suppressNextClick = false;
   }
 
   _clearGestureTimers() {
     if (this._tapTimer) clearTimeout(this._tapTimer);
-    if (this._holdTimer) clearTimeout(this._holdTimer);
     this._tapTimer = null;
-    this._holdTimer = null;
+    this._clearHoldGesture();
+    this._clearSuppressNextClick();
   }
 
   _queueTap() {
@@ -410,6 +516,7 @@ class HomeLightCard extends HTMLElement {
 
   _commitSlider(el, value) {
     const entity = el.dataset.e;
+    if (!this._available(entity) || !this._dimmable()) return;
     const brightness = this._sliderValue({ min: el.min, max: el.max, value });
     this._clearPendingSlider();
     this._pendingSlider = {
@@ -467,28 +574,41 @@ class HomeLightCard extends HTMLElement {
   _pendingSliderReachedState(pending) {
     const state = this._hass && this._hass.states[pending.entity];
     if (!state) return false;
-    if (pending.value === 0 && state.state === 'off') return true;
     if (state.state !== 'on') return false;
     const brightness = Number(state.attributes && state.attributes.brightness);
     return Number.isFinite(brightness) && Math.round((brightness / 255) * 100) === pending.value;
   }
 
+  _escape(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   _ic(icon, cls) {
-    return `<ha-icon icon="${icon}" class="${cls || ''}" style="--mdc-icon-size:20px"></ha-icon>`;
+    return `<ha-icon icon="${this._escape(icon)}" class="${this._escape(cls || '')}" style="--mdc-icon-size:20px"></ha-icon>`;
   }
 
   _render() {
-    if (!this._hass || this._dragging) return;
+    if (!this._hass || !this._c || this._dragging) return;
     const entity = this._c.entity;
+    const state = this._st(entity);
+    const available = this._available(entity);
     const dimmable = this._dimmable();
-    const authoritativeOn = this._st(entity) === 'on';
+    const authoritativeOn = available && state === 'on';
+    const rawBrightness = Number(this._attr(entity, 'brightness', Number.NaN));
     const authoritativeBrightness = dimmable
-      ? Math.round((this._attr(entity, 'brightness', 0) / 255) * 100)
+      ? Number.isFinite(rawBrightness)
+        ? Math.max(BRIGHTNESS_MIN, Math.round(Math.max(0, Math.min(255, rawBrightness)) / 255 * 100))
+        : authoritativeOn ? 100 : BRIGHTNESS_MIN
       : null;
     const pending = this._pendingSlider && this._pendingSlider.entity === entity
       ? this._pendingSlider
       : null;
-    if (pending && this._pendingSliderReachedState(pending)) {
+    if (pending && (!available || this._pendingSliderReachedState(pending))) {
       this._clearPendingSlider();
     }
     const activePending = this._pendingSlider && this._pendingSlider.entity === entity
@@ -498,11 +618,12 @@ class HomeLightCard extends HTMLElement {
       ? this._sliderPreview
       : null;
     const localValue = activePending ? activePending.value : preview ? preview.value : null;
-    const on = localValue == null ? authoritativeOn : authoritativeOn || localValue > 0;
+    const on = available && (localValue == null ? authoritativeOn : authoritativeOn || localValue > 0);
     const brightness = dimmable
       ? localValue == null ? authoritativeBrightness : localValue
       : null;
-    const animateBrightness = dimmable
+    const animateBrightness = available
+      && dimmable
       && authoritativeOn
       && !activePending
       && this._toggleAnimationEntity === entity;
@@ -511,6 +632,7 @@ class HomeLightCard extends HTMLElement {
     const renderSignature = [
       entity,
       name,
+      state,
       this._c.icon || '',
       this._c.icon_on || '',
       this._c.icon_off || '',
@@ -522,27 +644,33 @@ class HomeLightCard extends HTMLElement {
     ].join('|');
     if (this._shell && renderSignature === this._lastRenderSignature) return;
     this._lastRenderSignature = renderSignature;
+    const safeName = this._escape(name);
+    const safeEntity = this._escape(entity);
+    const stateText = !available
+      ? state === 'unknown' ? 'Unknown' : 'Unavailable'
+      : on ? (brightness != null ? `On &middot; ${brightness}%` : 'On') : 'Off';
 
     const html = `
       <div class="row-top">
-        <div class="row-left" data-action role="button" tabindex="0" aria-label="Light actions for ${name}">
+        <div class="row-left" data-action role="button" tabindex="0" aria-label="Light actions for ${safeName}">
           ${this._ic(this._lightIcon(on), on ? 'ic-amber' : 'ic-mute')}
           <div>
-            <div class="row-name">${name}</div>
-            <div class="row-sub">${on ? (brightness != null ? `On &middot; ${brightness}%` : 'On') : 'Off'}</div>
+            <div class="row-name">${safeName}</div>
+            <div class="row-sub">${stateText}</div>
           </div>
         </div>
         <button class="toggle ${on ? 'on' : ''}" data-toggle type="button"
-          aria-label="${on ? 'Turn off' : 'Turn on'} ${name}"
-          aria-pressed="${on}">
+          aria-label="${on ? 'Turn off' : 'Turn on'} ${safeName}"
+          aria-pressed="${on}"${available ? '' : ' disabled'}>
           <span class="knob"></span>
         </button>
       </div>
       ${dimmable ? `
         <div class="slider-wrap">
           <div class="bar"><div class="bar-fill amber" style="width:${animateBrightness ? 0 : on ? brightness : 0}%"></div></div>
-          <input type="range" class="sl amber" min="0" max="100" value="${on ? brightness : 0}"
-            aria-label="Brightness for ${name}" data-e="${entity}">
+          <input type="range" class="sl amber" min="${BRIGHTNESS_MIN}" max="100" value="${on ? brightness : BRIGHTNESS_MIN}"
+            aria-label="Brightness for ${safeName}" aria-valuetext="${on ? brightness : BRIGHTNESS_MIN} percent"
+            data-e="${safeEntity}"${available ? '' : ' disabled'}>
         </div>
       ` : ''}
     `;
@@ -611,6 +739,7 @@ class HomeLightCard extends HTMLElement {
         width:100%; height:28px; margin:0; background:transparent;
         touch-action:none; cursor:pointer;
       }
+      .sl:disabled { cursor:not-allowed; opacity:.55; }
       .sl::-webkit-slider-runnable-track { background:transparent; height:28px; }
       .sl::-moz-range-track { background:transparent; height:28px; }
       .sl::-webkit-slider-thumb {
@@ -626,6 +755,7 @@ class HomeLightCard extends HTMLElement {
         background:var(--light-track); position:relative; flex:none;
       }
       .toggle.on { background:var(--light-accent); }
+      .toggle:disabled { cursor:not-allowed; opacity:.55; }
       .toggle:focus-visible { outline:2px solid var(--light-accent); outline-offset:3px; }
       .toggle .knob {
         position:absolute; left:3px; top:3px; width:20px; height:20px;
@@ -641,10 +771,14 @@ class HomeLightCard extends HTMLElement {
   }
 }
 
-customElements.define('home-light-card', HomeLightCard);
+if (!customElements.get('home-light-card')) {
+  customElements.define('home-light-card', HomeLightCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'home-light-card',
-  name: 'Home Light',
-  description: 'Theme-aware light control row with optional brightness slider',
-});
+if (!window.customCards.some(card => card.type === 'home-light-card')) {
+  window.customCards.push({
+    type: 'home-light-card',
+    name: 'Home Light',
+    description: 'Theme-aware light control row with optional brightness slider',
+  });
+}

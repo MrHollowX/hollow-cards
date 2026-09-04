@@ -1,4 +1,7 @@
 class HomeStatusCard extends HTMLElement {
+  static MODE_REQUEST_TIMEOUT_MS = 8000;
+  static RELATIVE_AGE_REFRESH_MS = 30000;
+
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -7,6 +10,11 @@ class HomeStatusCard extends HTMLElement {
     this._renderKey = '';
     this._optionKey = '';
     this._pendingMode = '';
+    this._pendingModeOrigin = '';
+    this._modeRequestToken = 0;
+    this._pendingModeTimer = null;
+    this._ageTimer = null;
+    this._ageState = null;
     this._clickable = false;
     this._showMetrics = true;
     this._modeMenuOpen = false;
@@ -21,16 +29,18 @@ class HomeStatusCard extends HTMLElement {
         typeof config.pm10_entity !== 'string') {
       throw new Error('house_mode_entity, pm25_entity, and pm10_entity are required');
     }
+    this._closeModeMenu(true);
+    this._invalidateModeRequest();
     this._config = {
       house_mode_entity: config.house_mode_entity,
       pm25_entity: config.pm25_entity,
       pm10_entity: config.pm10_entity,
       aqi_entity: typeof config.aqi_entity === 'string' ? config.aqi_entity : '',
       name: typeof config.name === 'string' ? config.name : 'House Status',
-      icon: typeof config.icon === 'string' && config.icon ? config.icon : 'mdi:home-heart',
-      pm25_icon: typeof config.pm25_icon === 'string' && config.pm25_icon ? config.pm25_icon : 'mdi:blur',
-      pm10_icon: typeof config.pm10_icon === 'string' && config.pm10_icon ? config.pm10_icon : 'mdi:blur-radial',
-      aqi_icon: typeof config.aqi_icon === 'string' && config.aqi_icon ? config.aqi_icon : 'mdi:air-filter',
+      icon: this._configuredIcon(config.icon, 'mdi:home-heart'),
+      pm25_icon: this._configuredIcon(config.pm25_icon, 'mdi:blur'),
+      pm10_icon: this._configuredIcon(config.pm10_icon, 'mdi:blur-radial'),
+      aqi_icon: this._configuredIcon(config.aqi_icon, 'mdi:air-filter'),
       mode_label: typeof config.mode_label === 'string' ? config.mode_label : 'House Mode',
       pm25_label: typeof config.pm25_label === 'string' ? config.pm25_label : 'PM2.5',
       pm10_label: typeof config.pm10_label === 'string' ? config.pm10_label : 'PM10',
@@ -41,15 +51,20 @@ class HomeStatusCard extends HTMLElement {
       pm10_moderate_max: this._threshold(config.pm10_moderate_max, 100),
       show_aqi: config.show_aqi !== false,
       clickable: config.clickable === true,
-      show_metrics: config.show_metrics === true
+      show_metrics: config.show_metrics === true,
+      grid_options: config.grid_options && typeof config.grid_options === 'object'
+        ? { ...config.grid_options }
+        : null
     };
     this._clickable = this._config.clickable;
     this._showMetrics = this._config.show_metrics;
     this._renderKey = '';
     this._optionKey = '';
-    this._pendingMode = '';
-    this._modeMenuOpen = false;
     this._render();
+  }
+
+  _configuredIcon(value, fallback) {
+    return typeof value === 'string' && value.trim() ? value.trim() : fallback;
   }
 
   _threshold(value, fallback) {
@@ -62,7 +77,8 @@ class HomeStatusCard extends HTMLElement {
   }
 
   getGridOptions() {
-    return { columns: 12, rows: 'auto', min_columns: 6, min_rows: 1 };
+    return this._config?.grid_options ||
+      { columns: 12, rows: 'auto', min_columns: 6, min_rows: 1 };
   }
 
   set hass(hass) {
@@ -74,9 +90,10 @@ class HomeStatusCard extends HTMLElement {
     if (!this._wired) {
       this._wired = true;
       this.shadowRoot.addEventListener('pointerdown', event => {
-        if (event.target.closest('.mode-control')) event.stopPropagation();
+        if (event.target.closest('button,.mode-control')) event.stopPropagation();
       });
       this.shadowRoot.addEventListener('click', event => {
+        if (event.target.closest('button')) event.stopPropagation();
         const trigger = event.target.closest('.mode-trigger');
         if (trigger) {
           event.preventDefault();
@@ -104,6 +121,7 @@ class HomeStatusCard extends HTMLElement {
         const metric = event.target.closest('[data-entity]');
         if (metric && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
+          event.stopPropagation();
           this._moreInfo(metric.dataset.entity);
           return;
         }
@@ -125,14 +143,23 @@ class HomeStatusCard extends HTMLElement {
       window.addEventListener('blur', this._onWindowBlur);
       window.addEventListener('resize', this._onViewportChange);
     }
+    this._startAgeTimer();
+    this._render();
+    this._updateRelativeAge();
   }
 
   disconnectedCallback() {
-    if (!this._globalEventsWired) return;
-    this._globalEventsWired = false;
-    document.removeEventListener('pointerdown', this._onDocumentPointerDown);
-    window.removeEventListener('blur', this._onWindowBlur);
-    window.removeEventListener('resize', this._onViewportChange);
+    this._closeModeMenu();
+    this._invalidateModeRequest();
+    this._renderKey = '';
+    this._restoreAuthoritativeModeDisplay();
+    this._stopAgeTimer();
+    if (this._globalEventsWired) {
+      this._globalEventsWired = false;
+      document.removeEventListener('pointerdown', this._onDocumentPointerDown);
+      window.removeEventListener('blur', this._onWindowBlur);
+      window.removeEventListener('resize', this._onViewportChange);
+    }
   }
 
   _state(entity) {
@@ -161,17 +188,92 @@ class HomeStatusCard extends HTMLElement {
       this._render();
       return;
     }
-    this._closeModeMenu();
+    this._closeModeMenu(true);
+    this._invalidateModeRequest();
+    const token = this._modeRequestToken;
+    const hass = this._hass;
+    const entityId = this._config.house_mode_entity;
     this._pendingMode = option;
-    this._setModeDisplay(option);
-    Promise.resolve(this._hass.callService('input_select', 'select_option', {
-      entity_id: this._config.house_mode_entity,
-      option
-    })).catch(() => {
-      this._pendingMode = '';
+    this._pendingModeOrigin = state.state;
+    this._pendingModeTimer = setTimeout(() => {
+      if (token !== this._modeRequestToken) return;
+      this._invalidateModeRequest();
       this._renderKey = '';
       this._render();
-    });
+    }, HomeStatusCard.MODE_REQUEST_TIMEOUT_MS);
+    this._setModeDisplay(option);
+    Promise.resolve()
+      .then(() => {
+        if (token !== this._modeRequestToken || !this.isConnected) return;
+        return hass.callService('input_select', 'select_option', {
+          entity_id: entityId,
+          option
+        });
+      })
+      .then(() => {
+        if (token !== this._modeRequestToken) return;
+        const authoritative = this._state(entityId);
+        if (this._reconcilePendingMode(authoritative)) {
+          this._renderKey = '';
+          this._render();
+        }
+      })
+      .catch(() => {
+        if (token !== this._modeRequestToken) return;
+        this._invalidateModeRequest();
+        this._renderKey = '';
+        this._render();
+      });
+  }
+
+  _invalidateModeRequest() {
+    this._modeRequestToken += 1;
+    if (this._pendingModeTimer) clearTimeout(this._pendingModeTimer);
+    this._pendingModeTimer = null;
+    this._pendingMode = '';
+    this._pendingModeOrigin = '';
+  }
+
+  _reconcilePendingMode(state) {
+    if (!this._pendingMode) return false;
+    const authoritative = this._isUnavailable(state) ? '' : String(state.state);
+    const accepted = authoritative === this._pendingMode;
+    const diverged = authoritative && authoritative !== this._pendingModeOrigin;
+    if (!accepted && !diverged) return false;
+    this._invalidateModeRequest();
+    return true;
+  }
+
+  _restoreAuthoritativeModeDisplay() {
+    if (!this._config || !this._hass) return;
+    const state = this._state(this._config.house_mode_entity);
+    const options = this._attribute(state, 'options', []);
+    const authoritative = !this._isUnavailable(state) &&
+      Array.isArray(options) && options.includes(state.state)
+      ? state.state
+      : '';
+    this._modeCurrent = authoritative;
+    this._setModeDisplay(authoritative || 'Unavailable');
+  }
+
+  _startAgeTimer() {
+    if (this._ageTimer) return;
+    this._ageTimer = setInterval(
+      () => this._updateRelativeAge(),
+      HomeStatusCard.RELATIVE_AGE_REFRESH_MS
+    );
+  }
+
+  _stopAgeTimer() {
+    if (!this._ageTimer) return;
+    clearInterval(this._ageTimer);
+    this._ageTimer = null;
+  }
+
+  _updateRelativeAge() {
+    if (this._updated) {
+      this._updated.textContent = `Updated ${this._relativeTime(this._ageState)}`;
+    }
   }
 
   _onDocumentPointerDown = event => {
@@ -237,7 +339,7 @@ class HomeStatusCard extends HTMLElement {
       <ha-card class="card">
         <div class="header">
           <div class="heading">
-            <ha-icon class="home-icon" icon="${this._config.icon}"></ha-icon>
+            <ha-icon class="home-icon"></ha-icon>
             <div class="heading-copy">
               <div class="title"></div>
               <div class="subtitle">Live home overview</div>
@@ -262,7 +364,7 @@ class HomeStatusCard extends HTMLElement {
         <div class="details">
           <div class="metrics">
             <button class="metric" type="button" data-kind="pm25">
-              <ha-icon class="metric-icon" icon="${this._config.pm25_icon}"></ha-icon>
+              <ha-icon class="metric-icon"></ha-icon>
               <span class="metric-copy">
                 <span class="metric-label"></span>
                 <strong class="metric-value"></strong>
@@ -270,7 +372,7 @@ class HomeStatusCard extends HTMLElement {
               </span>
             </button>
             <button class="metric" type="button" data-kind="pm10">
-              <ha-icon class="metric-icon" icon="${this._config.pm10_icon}"></ha-icon>
+              <ha-icon class="metric-icon"></ha-icon>
               <span class="metric-copy">
                 <span class="metric-label"></span>
                 <strong class="metric-value"></strong>
@@ -278,7 +380,7 @@ class HomeStatusCard extends HTMLElement {
               </span>
             </button>
             <button class="metric aqi" type="button" data-kind="aqi">
-              <ha-icon class="metric-icon" icon="${this._config.aqi_icon}"></ha-icon>
+              <ha-icon class="metric-icon"></ha-icon>
               <span class="metric-copy">
                 <span class="metric-label"></span>
                 <strong class="metric-value"></strong>
@@ -294,6 +396,7 @@ class HomeStatusCard extends HTMLElement {
       </ha-card>`;
     this._shell = true;
     this._card = this.shadowRoot.querySelector('.card');
+    this._homeIcon = this.shadowRoot.querySelector('.home-icon');
     this._title = this.shadowRoot.querySelector('.title');
     this._modeLabel = this.shadowRoot.querySelector('.mode-label');
     this._modeTrigger = this.shadowRoot.querySelector('.mode-trigger');
@@ -302,7 +405,11 @@ class HomeStatusCard extends HTMLElement {
     this._detailsToggle = this.shadowRoot.querySelector('.details-toggle');
     this._detailsIcon = this.shadowRoot.querySelector('.details-icon');
     this._details = this.shadowRoot.querySelector('.details');
-    this._detailsToggle.addEventListener('click', () => this._toggleMetrics());
+    this._detailsToggle.addEventListener('click', event => {
+      event.stopPropagation();
+      this._toggleMetrics();
+    });
+    this._metricsContainer = this.shadowRoot.querySelector('.metrics');
     this._metrics = {
       pm25: this._metric(this.shadowRoot.querySelector('[data-kind="pm25"]')),
       pm10: this._metric(this.shadowRoot.querySelector('[data-kind="pm10"]')),
@@ -323,7 +430,7 @@ class HomeStatusCard extends HTMLElement {
 
   _updateMetric(metric, entity, label, value, status, tone, icon) {
     metric.element.dataset.entity = entity || '';
-    metric.element.style.display = entity ? '' : 'none';
+    metric.element.hidden = !entity;
     metric.element.setAttribute('aria-label', `${label}: ${value}. ${status}`);
     metric.label.textContent = label;
     metric.value.textContent = value;
@@ -350,7 +457,7 @@ class HomeStatusCard extends HTMLElement {
       });
       this._optionKey = optionKey;
     }
-    if (this._pendingMode && modeState === this._pendingMode) this._pendingMode = '';
+    this._reconcilePendingMode(this._state(this._config.house_mode_entity));
     const selected = this._pendingMode && safeOptions.includes(this._pendingMode)
       ? this._pendingMode
       : safeOptions.includes(modeState) ? modeState : '';
@@ -496,6 +603,7 @@ class HomeStatusCard extends HTMLElement {
     const pm10 = this._state(c.pm10_entity);
     const aqi = c.show_aqi && c.aqi_entity ? this._state(c.aqi_entity) : null;
     const options = this._attribute(mode, 'options', []);
+    this._ageState = pm25 || pm10 || mode;
     const key = JSON.stringify([
       mode?.state, options, pm25?.state, pm25?.attributes?.unit_of_measurement,
       pm10?.state, pm10?.attributes?.unit_of_measurement, aqi?.state,
@@ -504,10 +612,14 @@ class HomeStatusCard extends HTMLElement {
       c.pm25_moderate_max, c.pm10_good_max, c.pm10_moderate_max,
       this._clickable, this._showMetrics
     ]);
-    if (key === this._renderKey) return;
+    if (key === this._renderKey) {
+      this._updateRelativeAge();
+      return;
+    }
     this._renderKey = key;
 
     this._title.textContent = c.name;
+    this._homeIcon.setAttribute('icon', c.icon);
     this._modeLabel.textContent = c.mode_label;
     this._updateDetailsToggle();
     this._updateOptions(options, mode?.state || '');
@@ -518,11 +630,14 @@ class HomeStatusCard extends HTMLElement {
       this._formatValue(pm25, 'ug/m3'), pm25Quality.label, pm25Quality.tone, c.pm25_icon);
     this._updateMetric(this._metrics.pm10, c.pm10_entity, c.pm10_label,
       this._formatValue(pm10, 'ug/m3'), pm10Quality.label, pm10Quality.tone, c.pm10_icon);
+    const aqiEntity = c.show_aqi ? c.aqi_entity : '';
     const aqiValue = this._formatValue(aqi, 'CAQI');
     const aqiStatus = !aqi ? 'Not configured' : this._isUnavailable(aqi) ? 'Unavailable' : 'Common Air Quality Index';
-    this._updateMetric(this._metrics.aqi, c.aqi_entity, c.aqi_label, aqiValue,
+    this._updateMetric(this._metrics.aqi, aqiEntity, c.aqi_label, aqiValue,
       aqiStatus, 'neutral', c.aqi_icon);
-    this._updated.textContent = `Updated ${this._relativeTime(pm25 || pm10 || mode)}`;
+    this._metricsContainer.style.gridTemplateColumns =
+      `repeat(${aqiEntity ? 3 : 2},minmax(0,1fr))`;
+    this._updateRelativeAge();
   }
 
   _css() {
@@ -560,6 +675,7 @@ class HomeStatusCard extends HTMLElement {
       .mode-option.selected{color:#ffb340}
       .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
       .metric{display:flex;align-items:center;gap:9px;min-width:0;padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:#26334b;color:#f5f7fb;text-align:left;cursor:pointer}
+      .metric[hidden]{display:none}
       .metric:focus-visible{outline:3px solid #3d8bfd;outline-offset:2px}
       .metric-icon{flex:none;color:#91a2bb;--mdc-icon-size:22px}
       .metric.good .metric-icon,.metric.good .metric-status{color:#53d38a}
@@ -580,10 +696,14 @@ class HomeStatusCard extends HTMLElement {
   }
 }
 
-customElements.define('home-status-card', HomeStatusCard);
+if (!customElements.get('home-status-card')) {
+  customElements.define('home-status-card', HomeStatusCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'home-status-card',
-  name: 'Home Status',
-  description: 'House mode selector with PM2.5, PM10, and optional CAQI status'
-});
+if (!window.customCards.some((card) => card.type === 'home-status-card')) {
+  window.customCards.push({
+    type: 'home-status-card',
+    name: 'Home Status',
+    description: 'House mode selector with PM2.5, PM10, and optional CAQI status'
+  });
+}

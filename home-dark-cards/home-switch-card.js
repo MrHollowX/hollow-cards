@@ -1,4 +1,16 @@
 class HomeSwitchCard extends HTMLElement {
+  constructor() {
+    super();
+    this._onClick = this._onClick.bind(this);
+    this._onKeydown = this._onKeydown.bind(this);
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onPointerUp = this._onPointerUp.bind(this);
+    this._onPointerCancel = this._onPointerCancel.bind(this);
+    this._onLostPointerCapture = this._onLostPointerCapture.bind(this);
+    this._onWindowBlur = this._onWindowBlur.bind(this);
+    this._onWindowHoldEnd = this._onWindowHoldEnd.bind(this);
+  }
+
   setConfig(config) {
     if (!config || !config.entity) throw new Error('entity required');
     this._c = {
@@ -27,24 +39,18 @@ class HomeSwitchCard extends HTMLElement {
   connectedCallback() {
     if (this._wired) return;
     this._wired = true;
-    this._onClick = this._onClick.bind(this);
-    this._onKeydown = this._onKeydown.bind(this);
-    this._onPointerDown = this._onPointerDown.bind(this);
-    this._onPointerUp = this._onPointerUp.bind(this);
-    this._onPointerCancel = this._onPointerCancel.bind(this);
-    this._onWindowBlur = this._onWindowBlur.bind(this);
     this.addEventListener('click', this._onClick);
     this.addEventListener('keydown', this._onKeydown);
     this.addEventListener('pointerdown', this._onPointerDown);
     this.addEventListener('pointerup', this._onPointerUp);
     this.addEventListener('pointercancel', this._onPointerCancel);
+    this.addEventListener('lostpointercapture', this._onLostPointerCapture);
     window.addEventListener('blur', this._onWindowBlur);
     this._durationTimer = setInterval(() => {
       if (!this._hass || !this._c) return;
       const items = this._detailItems();
       if (!this._hasRelativeDetail(items)) return;
-      this._lastRenderSignature = null;
-      this._render();
+      this._patchRelativeDetails();
     }, 30000);
   }
 
@@ -56,6 +62,7 @@ class HomeSwitchCard extends HTMLElement {
     this.removeEventListener('pointerdown', this._onPointerDown);
     this.removeEventListener('pointerup', this._onPointerUp);
     this.removeEventListener('pointercancel', this._onPointerCancel);
+    this.removeEventListener('lostpointercapture', this._onLostPointerCapture);
     window.removeEventListener('blur', this._onWindowBlur);
     if (this._durationTimer) clearInterval(this._durationTimer);
     this._durationTimer = null;
@@ -66,6 +73,11 @@ class HomeSwitchCard extends HTMLElement {
     if (!entity || !this._hass) return 'unavailable';
     const state = this._hass.states[entity];
     return state ? state.state : 'unavailable';
+  }
+
+  _available(entity) {
+    const state = this._state(entity);
+    return state !== 'unknown' && state !== 'unavailable';
   }
 
   _attr(entity, attribute, fallback) {
@@ -208,10 +220,25 @@ class HomeSwitchCard extends HTMLElement {
     }).filter(Boolean).join(' \u00b7 ');
   }
 
+  _patchRelativeDetails() {
+    if (!this._card || !this._hass || !this._c) return;
+    const state = this._state(this._c.entity);
+    const unavailable = state === 'unavailable' || state === 'unknown';
+    const stateLabel = unavailable ? this._titleCase(state) : state === 'on' ? 'On' : 'Off';
+    const stateObject = this._stateObject(this._c.entity);
+    const detailItems = this._detailItems();
+    const detailSummary = this._renderDetails(stateObject, detailItems);
+    const summary = detailSummary || (this._showState() ? stateLabel : '');
+    this._card.querySelectorAll('[data-detail-summary]').forEach((node) => {
+      if (node.textContent !== summary) node.textContent = summary;
+    });
+  }
+
   _callToggle(entity) {
-    if (!this._hass || !entity) return;
+    if (!this._hass || !entity || !this._available(entity)) return false;
     const domain = entity.split('.')[0];
     this._hass.callService(domain, 'toggle', { entity_id: entity });
+    return true;
   }
 
   _moreInfo(entity) {
@@ -233,36 +260,36 @@ class HomeSwitchCard extends HTMLElement {
     const actionConfig = this._actionConfig(kind);
     const action = actionConfig.action || 'none';
     const entity = actionConfig.entity || this._c.entity;
-    if (action === 'none') return;
+    if (action === 'none') return false;
     if (action === 'toggle') {
-      if (this._state(entity) !== 'unavailable') this._callToggle(entity);
-      return;
+      return this._callToggle(entity);
     }
     if (action === 'more-info') {
+      if (!entity) return false;
       this._moreInfo(entity);
-      return;
+      return true;
     }
     if (action === 'perform-action' || action === 'call-service') {
       const serviceName = actionConfig.perform_action || actionConfig.service;
-      if (!this._hass || !serviceName) return;
+      if (!this._hass || !serviceName) return false;
       const [domain, service] = serviceName.split('.', 2);
-      if (!domain || !service) return;
+      if (!domain || !service) return false;
       this._hass.callService(
         domain,
         service,
         actionConfig.data || actionConfig.service_data || {},
         actionConfig.target,
       );
-      return;
+      return true;
     }
     if (action === 'navigate' && actionConfig.navigation_path) {
       window.history.pushState({}, '', actionConfig.navigation_path);
       window.dispatchEvent(new Event('location-changed'));
-      return;
+      return true;
     }
     if (action === 'url' && actionConfig.url_path) {
       window.open(actionConfig.url_path, '_blank', 'noopener');
-      return;
+      return true;
     }
     if (action === 'fire-dom-event') {
       this.dispatchEvent(new CustomEvent('ll-custom', {
@@ -270,14 +297,61 @@ class HomeSwitchCard extends HTMLElement {
         bubbles: true,
         composed: true,
       }));
+      return true;
     }
+    return false;
+  }
+
+  _clearHoldGesture() {
+    if (this._holdTimer) clearTimeout(this._holdTimer);
+    this._holdTimer = null;
+    const target = this._holdPointerTarget;
+    const pointerId = this._holdPointerId;
+    this._holdPointerTarget = null;
+    this._holdPointerId = null;
+    this._holdActionRan = false;
+    this._holdGestureToken = null;
+    window.removeEventListener('pointerup', this._onWindowHoldEnd, true);
+    window.removeEventListener('pointercancel', this._onWindowHoldEnd, true);
+    if (target && pointerId != null) {
+      try {
+        if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+      } catch (error) {
+        // Capture can already be gone after cancellation or DOM replacement.
+      }
+    }
+  }
+
+  _finishHoldGesture(cancelled) {
+    const actionRan = this._holdActionRan;
+    this._clearHoldGesture();
+    if (!actionRan) return;
+    if (cancelled) {
+      this._clearSuppressNextClick();
+      return;
+    }
+    this._scheduleSuppressNextClickReset();
+  }
+
+  _scheduleSuppressNextClickReset() {
+    if (this._suppressNextClickTimer) clearTimeout(this._suppressNextClickTimer);
+    this._suppressNextClickTimer = setTimeout(() => {
+      this._suppressNextClick = false;
+      this._suppressNextClickTimer = null;
+    }, 0);
+  }
+
+  _clearSuppressNextClick() {
+    if (this._suppressNextClickTimer) clearTimeout(this._suppressNextClickTimer);
+    this._suppressNextClickTimer = null;
+    this._suppressNextClick = false;
   }
 
   _clearGestureTimers() {
     if (this._tapTimer) clearTimeout(this._tapTimer);
-    if (this._holdTimer) clearTimeout(this._holdTimer);
     this._tapTimer = null;
-    this._holdTimer = null;
+    this._clearHoldGesture();
+    this._clearSuppressNextClick();
   }
 
   _queueTap() {
@@ -295,36 +369,72 @@ class HomeSwitchCard extends HTMLElement {
 
   _onPointerDown(event) {
     const more = event.target.closest && event.target.closest('[data-more]');
-    if (!more || event.target.closest('[data-toggle]')) return;
+    if (!more || event.target.closest('[data-toggle]') ||
+        event.button !== 0 || event.isPrimary === false) return;
     event.stopPropagation();
-    if (this._holdTimer) clearTimeout(this._holdTimer);
-    this._holdTimer = null;
+    this._clearHoldGesture();
+    this._holdPointerId = event.pointerId;
+    this._holdPointerTarget = more;
+    this._holdActionRan = false;
+    const gestureToken = {};
+    const pointerId = event.pointerId;
+    this._holdGestureToken = gestureToken;
+    window.addEventListener('pointerup', this._onWindowHoldEnd, true);
+    window.addEventListener('pointercancel', this._onWindowHoldEnd, true);
+    try {
+      more.setPointerCapture(event.pointerId);
+    } catch (error) {
+      // Pointer capture is best-effort; normal in-card pointer paths still clean up.
+    }
     this._holdTimer = setTimeout(() => {
+      if (!this._isCurrentHoldGesture(gestureToken, pointerId, more)) {
+        if (this._holdGestureToken === gestureToken) this._clearHoldGesture();
+        return;
+      }
       this._holdTimer = null;
-      this._suppressNextClick = true;
-      this._runAction('hold');
+      const actionRan = this._runAction('hold');
+      if (!this._isCurrentHoldGesture(gestureToken, pointerId, more)) {
+        if (this._holdGestureToken === gestureToken) this._clearHoldGesture();
+        return;
+      }
+      this._holdActionRan = actionRan;
+      if (actionRan) this._suppressNextClick = true;
     }, 550);
   }
 
-  _onPointerUp(event) {
-    const more = event.target.closest && event.target.closest('[data-more]');
-    if (!more || event.target.closest('[data-toggle]')) return;
-    event.stopPropagation();
-    if (this._holdTimer) {
-      clearTimeout(this._holdTimer);
-      this._holdTimer = null;
-    }
+  _isCurrentHoldGesture(token, pointerId, target) {
+    return this._holdGestureToken === token
+      && this._holdPointerId === pointerId
+      && this._holdPointerTarget === target
+      && this.isConnected
+      && this.contains(target);
   }
 
-  _onPointerCancel() {
-    if (this._holdTimer) {
-      clearTimeout(this._holdTimer);
-      this._holdTimer = null;
-    }
+  _onPointerUp(event) {
+    if (event.pointerId !== this._holdPointerId) return;
+    event.stopPropagation();
+    this._finishHoldGesture(false);
+  }
+
+  _onPointerCancel(event) {
+    if (event.pointerId !== this._holdPointerId) return;
+    event.stopPropagation();
+    this._finishHoldGesture(true);
+  }
+
+  _onLostPointerCapture(event) {
+    if (event.pointerId === this._holdPointerId) this._finishHoldGesture(true);
   }
 
   _onWindowBlur() {
     this._clearGestureTimers();
+  }
+
+  _onWindowHoldEnd(event) {
+    if (event.pointerId !== this._holdPointerId) return;
+    Promise.resolve().then(() => {
+      if (event.pointerId === this._holdPointerId) this._finishHoldGesture(true);
+    });
   }
 
   _escape(value) {
@@ -352,11 +462,11 @@ class HomeSwitchCard extends HTMLElement {
     event.stopPropagation();
     if (toggle) {
       event.preventDefault();
-      if (this._state(this._c.entity) !== 'unavailable') this._callToggle(this._c.entity);
+      this._callToggle(this._c.entity);
       return;
     }
     if (this._suppressNextClick) {
-      this._suppressNextClick = false;
+      this._clearSuppressNextClick();
       return;
     }
     this._queueTap();
@@ -368,11 +478,10 @@ class HomeSwitchCard extends HTMLElement {
     event.preventDefault();
     event.stopPropagation();
     this._clearGestureTimers();
-    this._suppressNextClick = true;
-    this._runAction('tap');
-    setTimeout(() => {
-      this._suppressNextClick = false;
-    }, 0);
+    if (this._runAction('tap')) {
+      this._suppressNextClick = true;
+      this._scheduleSuppressNextClickReset();
+    }
   }
 
   _render() {
@@ -388,12 +497,9 @@ class HomeSwitchCard extends HTMLElement {
     const detailItems = this._detailItems();
     const gridRows = Number(this._c.grid_options && this._c.grid_options.rows);
     const tall = Number.isFinite(gridRows) && gridRows > 1;
-    const relativeTick = this._hasRelativeDetail(detailItems)
-      ? Math.floor(Date.now() / 30000)
-      : '';
     const signature = [
       entity, name, state, type, this._icon(), tall,
-      this._detailSignature(stateObject, detailItems), relativeTick,
+      this._detailSignature(stateObject, detailItems),
     ].join('|');
 
     if (signature === this._lastRenderSignature) return;
@@ -408,7 +514,7 @@ class HomeSwitchCard extends HTMLElement {
     const tallCopy = tall && summary
       ? `<div class="tall-copy" data-more role="button" tabindex="0"
           aria-label="${safeName}">
-          <div class="row-sub">${safeSummary}</div>
+          <div class="row-sub" data-detail-summary>${safeSummary}</div>
         </div>`
       : '';
 
@@ -428,7 +534,7 @@ class HomeSwitchCard extends HTMLElement {
             style="--mdc-icon-size:32px"></ha-icon>
           <div class="copy">
             <div class="row-name">${safeName}</div>
-            ${tall || !summary ? '' : `<div class="row-sub">${safeSummary}</div>`}
+            ${tall || !summary ? '' : `<div class="row-sub" data-detail-summary>${safeSummary}</div>`}
           </div>
         </div>
         <button class="toggle ${on ? 'on' : ''}" data-toggle type="button"
@@ -501,9 +607,11 @@ class HomeSwitchCard extends HTMLElement {
       .switch-card.rows-tall .tall-copy .row-sub {
         width: 100%;
       }
-      .row-left:focus-visible {
-        outline: none;
-        background: transparent;
+      .row-left:focus-visible,
+      .tall-copy:focus-visible {
+        outline: 2px solid var(--switch-accent);
+        outline-offset: 3px;
+        border-radius: 6px;
       }
       .switch-icon {
         display: block;
@@ -613,10 +721,14 @@ HomeSwitchCard.TYPES = {
   lock: { icon: 'mdi:lock' },
 };
 
-customElements.define('home-switch-card', HomeSwitchCard);
+if (!customElements.get('home-switch-card')) {
+  customElements.define('home-switch-card', HomeSwitchCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'home-switch-card',
-  name: 'Home Switch',
-  description: 'Theme-aware switch control with configurable visual type',
-});
+if (!window.customCards.some(card => card.type === 'home-switch-card')) {
+  window.customCards.push({
+    type: 'home-switch-card',
+    name: 'Home Switch',
+    description: 'Theme-aware switch control with configurable visual type',
+  });
+}

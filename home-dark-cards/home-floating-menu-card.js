@@ -2,7 +2,7 @@ const DEFAULT_TABS = [
   { id: 'home', icon: 'mdi:home', label: 'Home', path: '/home-dark/home' },
   { id: 'lights', icon: 'mdi:lightbulb', label: 'Lights', path: '/home-dark/lights' },
   { id: 'climate', icon: 'mdi:thermometer', label: 'Climate', path: '/home-dark/climate' },
-  { id: 'cameras', icon: 'mdi:cctv', label: 'Cameras', path: '/home-dark/cameras' },
+  { id: 'blinds', icon: 'mdi:blinds-horizontal', label: 'Blinds', path: '/home-dark/blinds' },
   { id: 'media', icon: 'mdi:music', label: 'Media', path: '/home-dark/media' },
   { id: 'vacuum', icon: 'mdi:robot-vacuum', label: 'Vacuum', path: '/home-dark/vacuum' },
 ];
@@ -11,22 +11,31 @@ class HomeFloatingMenuCard extends HTMLElement {
   constructor() {
     super();
     this._root = this.attachShadow({ mode: 'open' });
-    this._onLocationChanged = () => {
-      this._render();
-      this._schedulePositionRetries();
-    };
+    this._buttons = new Map();
+    this._instanceOrder = ++HomeFloatingMenuCard._nextInstanceOrder;
     this._onPointerDown = (event) => {
-      if (event.target.closest?.('button')) event.stopPropagation();
+      if (this._buttonFromEvent(event)) event.stopPropagation();
     };
+    this._onClick = (event) => {
+      const button = this._buttonFromEvent(event);
+      if (!button) return;
+      event.stopPropagation();
+      const tab = this._config?.tabs.find((item) => item.id === button.dataset.tab);
+      if (tab) this._navigate(tab.path);
+    };
+    this._onObservedResize = () => this._schedulePosition();
   }
 
   setConfig(config) {
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new Error('Floating-menu configuration must be an object');
+    }
     const tabs = Array.isArray(config.tabs) && config.tabs.length
       ? config.tabs
       : DEFAULT_TABS;
     const seen = new Set();
 
-    this._config = {
+    const nextConfig = {
       ...config,
       tabs: tabs.map((tab) => {
         if (!tab || typeof tab !== 'object') {
@@ -49,38 +58,60 @@ class HomeFloatingMenuCard extends HTMLElement {
         };
       }),
       show_labels: config.show_labels === true,
+      current: config.current == null ? '' : String(config.current).trim(),
+      view_path: config.view_path == null ? '' : String(config.view_path).trim(),
     };
-    this._render();
+    const structureKey = JSON.stringify({
+      tabs: nextConfig.tabs,
+      showLabels: nextConfig.show_labels,
+    });
+    const structureChanged = structureKey !== this._structureKey || !this._menu;
+
+    this._config = nextConfig;
+    if (structureChanged) {
+      this._structureKey = structureKey;
+      this._buildMenu();
+    }
+
+    if (this._connected) {
+      HomeFloatingMenuCard._syncInstances();
+      if (structureChanged) this._schedulePosition();
+    } else {
+      const routeTab = this._routeTabId();
+      this._updateActiveHighlight(this._highlightedTabId(routeTab));
+    }
   }
 
   connectedCallback() {
+    if (this._connected) return;
     HomeFloatingMenuCard._instances.add(this);
     this._connected = true;
-    window.addEventListener('location-changed', this._onLocationChanged);
-    window.addEventListener('popstate', this._onLocationChanged);
-    window.addEventListener('hashchange', this._onLocationChanged);
-    window.addEventListener('resize', this._onLocationChanged);
-    this.addEventListener('pointerdown', this._onPointerDown, true);
+    this.addEventListener('pointerdown', this._onPointerDown);
+    this.addEventListener('click', this._onClick);
+    HomeFloatingMenuCard._attachGlobalListeners();
     if (typeof ResizeObserver === 'function') {
-      this._layoutObserver = new ResizeObserver(() => this._positionMenu());
+      this._layoutObserver = new ResizeObserver(this._onObservedResize);
       this._layoutObserver.observe(this);
     }
-    this._render();
-    this._schedulePositionRetries();
+    HomeFloatingMenuCard._syncInstances();
+    this._schedulePosition();
   }
 
   disconnectedCallback() {
+    if (!this._connected) return;
     this._layoutObserver?.disconnect();
     this._layoutObserver = null;
-    if (this._positionFrame) cancelAnimationFrame(this._positionFrame);
+    if (this._positionFrame != null) cancelAnimationFrame(this._positionFrame);
     this._positionFrame = null;
-    HomeFloatingMenuCard._instances.delete(this);
+    this.removeEventListener('pointerdown', this._onPointerDown);
+    this.removeEventListener('click', this._onClick);
     this._connected = false;
-    window.removeEventListener('location-changed', this._onLocationChanged);
-    window.removeEventListener('popstate', this._onLocationChanged);
-    window.removeEventListener('hashchange', this._onLocationChanged);
-    window.removeEventListener('resize', this._onLocationChanged);
-    this.removeEventListener('pointerdown', this._onPointerDown, true);
+    HomeFloatingMenuCard._instances.delete(this);
+    if (HomeFloatingMenuCard._instances.size) {
+      HomeFloatingMenuCard._syncInstances();
+    } else {
+      HomeFloatingMenuCard._detachGlobalListeners();
+    }
   }
 
   getCardSize() {
@@ -91,38 +122,127 @@ class HomeFloatingMenuCard extends HTMLElement {
     return { columns: 'full', rows: 'auto' };
   }
 
-  _activeTab() {
-    if (!this._config) return '';
-    if (this._config.current) return String(this._config.current);
+  static _attachGlobalListeners() {
+    if (HomeFloatingMenuCard._globalListenersAttached) return;
+    window.addEventListener(
+      'location-changed',
+      HomeFloatingMenuCard._handleLocationChanged,
+    );
+    window.addEventListener('popstate', HomeFloatingMenuCard._handleLocationChanged);
+    window.addEventListener('hashchange', HomeFloatingMenuCard._handleLocationChanged);
+    window.addEventListener('resize', HomeFloatingMenuCard._handleResize);
+    HomeFloatingMenuCard._globalListenersAttached = true;
+  }
 
-    const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+  static _detachGlobalListeners() {
+    if (!HomeFloatingMenuCard._globalListenersAttached) return;
+    window.removeEventListener(
+      'location-changed',
+      HomeFloatingMenuCard._handleLocationChanged,
+    );
+    window.removeEventListener('popstate', HomeFloatingMenuCard._handleLocationChanged);
+    window.removeEventListener('hashchange', HomeFloatingMenuCard._handleLocationChanged);
+    window.removeEventListener('resize', HomeFloatingMenuCard._handleResize);
+    HomeFloatingMenuCard._globalListenersAttached = false;
+    HomeFloatingMenuCard._lastSyncedPath = '';
+  }
+
+  static _handleLocationChanged() {
+    const path = HomeFloatingMenuCard._currentPath();
+    if (path === HomeFloatingMenuCard._lastSyncedPath) return;
+    HomeFloatingMenuCard._syncInstances();
+  }
+
+  static _handleResize() {
+    HomeFloatingMenuCard._instances.forEach((instance) => {
+      if (instance._connected) instance._schedulePosition();
+    });
+  }
+
+  static _currentPath() {
+    return window.location.pathname.replace(/\/+$/, '') || '/';
+  }
+
+  static _syncInstances() {
+    HomeFloatingMenuCard._lastSyncedPath = HomeFloatingMenuCard._currentPath();
+    const instances = [...HomeFloatingMenuCard._instances]
+      .filter((instance) => instance._connected && instance._config && instance._menu)
+      .sort((a, b) => a._instanceOrder - b._instanceOrder);
+    if (!instances.length) return;
+
+    const routeTabs = new Map();
+    instances.forEach((instance) => {
+      const routeTab = instance._routeTabId();
+      routeTabs.set(instance, routeTab);
+      instance._updateActiveHighlight(instance._highlightedTabId(routeTab));
+    });
+
+    const routeInstance = instances.find((instance) => (
+      instance._config.view_path &&
+      instance._config.view_path === routeTabs.get(instance)
+    ));
+    const unscopedInstance = instances.find((instance) => !instance._config.view_path);
+    const visibleInstance = routeInstance || unscopedInstance || instances[0];
+
+    instances.forEach((instance) => {
+      instance._updateRouteVisibility(instance === visibleInstance);
+    });
+  }
+
+  _routeTabId() {
+    if (!this._config) return '';
+    const currentPath = HomeFloatingMenuCard._currentPath();
     const matchedTab = this._config.tabs.find((tab) => {
-      const targetPath = tab.path.replace(/\/+$/, '') || '/';
-      if (currentPath === targetPath || currentPath.endsWith(`/${tab.id}`)) {
-        return true;
-      }
-      return tab.id === 'home' && (
-        currentPath === '/home-dark' ||
-        currentPath.endsWith('/home-dark')
-      );
-    })?.id;
+      const targetPath = this._tabPath(tab);
+      if (!targetPath) return false;
+      if (currentPath === targetPath) return true;
+      if (tab.id !== 'home' || !targetPath.endsWith('/home')) return false;
+      return currentPath === (targetPath.slice(0, -'/home'.length) || '/');
+    });
+
     if (matchedTab) {
-      HomeFloatingMenuCard._lastKnownActive = matchedTab;
-      return matchedTab;
+      HomeFloatingMenuCard._lastKnownRoute = matchedTab.id;
+      return matchedTab.id;
     }
-    return HomeFloatingMenuCard._lastKnownActive || '';
+
+    const lastKnown = HomeFloatingMenuCard._lastKnownRoute;
+    return this._config.tabs.some((tab) => tab.id === lastKnown) ? lastKnown : '';
+  }
+
+  _highlightedTabId(routeTab) {
+    const current = this._config?.current;
+    if (current && this._config.tabs.some((tab) => tab.id === current)) {
+      return current;
+    }
+    return routeTab;
+  }
+
+  _tabPath(tab) {
+    try {
+      const target = new URL(tab.path, window.location.origin);
+      if (target.origin !== window.location.origin) return '';
+      return target.pathname.replace(/\/+$/, '') || '/';
+    } catch (_error) {
+      return '';
+    }
   }
 
   _navigate(path) {
-    const target = new URL(path, window.location.origin);
+    let target;
+    try {
+      target = new URL(path, window.location.origin);
+    } catch (_error) {
+      return;
+    }
+    if (target.origin !== window.location.origin) return;
     if (window.location.pathname === target.pathname &&
         window.location.search === target.search &&
         window.location.hash === target.hash) {
       return;
     }
-    const targetTab = this._config.tabs.find((tab) => tab.path === path);
+    const targetTab = this._config?.tabs.find((tab) => tab.path === path);
     if (targetTab) {
-      HomeFloatingMenuCard._lastKnownActive = targetTab.id;
+      HomeFloatingMenuCard._lastKnownRoute = targetTab.id;
     }
     const previousPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     const currentState = window.history.state;
@@ -139,38 +259,16 @@ class HomeFloatingMenuCard extends HTMLElement {
     }));
   }
 
-  _render() {
+  _buildMenu() {
     if (!this._config) return;
-    const active = this._activeTab();
-    if (this._config.view_path && this._config.view_path !== active) {
-      const activeInstanceExists = this._connected &&
-        [...HomeFloatingMenuCard._instances].some(
-          (instance) => instance._config?.view_path === active,
-        );
-      if (!activeInstanceExists) return;
-      this._root.innerHTML = '';
-      this.style.display = 'none';
-      return;
-    }
-    if (this._connected) {
-      HomeFloatingMenuCard._instances.forEach((instance) => {
-        if (instance !== this) {
-          instance._root.innerHTML = '';
-          instance.style.display = 'none';
-        }
-      });
-    }
-    this.style.display = '';
     const labelsClass = this._config.show_labels ? 'with-labels' : '';
     const tabs = this._config.tabs.map((tab) => {
-      const isActive = tab.id === active;
       return `
         <button
           type="button"
-          class="${isActive ? 'active' : ''}"
           data-tab="${this._escape(tab.id)}"
           aria-label="${this._escape(tab.label)}"
-          aria-current="${isActive ? 'page' : 'false'}"
+          aria-current="false"
           title="${this._escape(tab.label)}"
         >
           <ha-icon icon="${this._escape(tab.icon)}"></ha-icon>
@@ -324,19 +422,43 @@ class HomeFloatingMenuCard extends HTMLElement {
       </nav>
     `;
 
+    this._menu = this._root.querySelector('.menu');
+    this._buttons = new Map();
     this._root.querySelectorAll('button').forEach((button) => {
-      button.addEventListener('click', (event) => {
-        event.stopPropagation();
-        const tab = this._config.tabs.find((item) => item.id === button.dataset.tab);
-        if (tab) this._navigate(tab.path);
-      });
+      this._buttons.set(button.dataset.tab, button);
     });
-    this._positionMenu();
-    this._schedulePositionRetries();
+  }
+
+  _buttonFromEvent(event) {
+    if (typeof event.composedPath !== 'function') return null;
+    const path = event.composedPath();
+    for (const node of path) {
+      const tabId = node?.dataset?.tab;
+      if (tabId && this._buttons.get(tabId) === node) return node;
+      if (node === this) break;
+    }
+    return null;
+  }
+
+  _updateRouteVisibility(visible) {
+    if (this._routeVisible === visible) return;
+    this._routeVisible = visible;
+    this.style.display = visible ? '' : 'none';
+  }
+
+  _updateActiveHighlight(activeTab) {
+    this._buttons.forEach((button, tabId) => {
+      const isActive = tabId === activeTab;
+      button.classList.toggle('active', isActive);
+      const ariaCurrent = isActive ? 'page' : 'false';
+      if (button.getAttribute('aria-current') !== ariaCurrent) {
+        button.setAttribute('aria-current', ariaCurrent);
+      }
+    });
   }
 
   _positionMenu() {
-    const menu = this._root.querySelector('.menu');
+    const menu = this._menu;
     if (!menu) return false;
     const centerRect = this._dashboardColumnRect();
     if (!centerRect) {
@@ -373,18 +495,12 @@ class HomeFloatingMenuCard extends HTMLElement {
     return hostRect && hostRect.width > 1 ? hostRect : null;
   }
 
-  _schedulePositionRetries() {
-    if (this._positionFrame) cancelAnimationFrame(this._positionFrame);
-    let attempts = 0;
-    const retry = () => {
+  _schedulePosition() {
+    if (!this._connected || this._positionFrame != null) return;
+    this._positionFrame = requestAnimationFrame(() => {
       this._positionFrame = null;
-      this._positionMenu();
-      attempts += 1;
-      if (attempts < 8) {
-        this._positionFrame = requestAnimationFrame(retry);
-      }
-    };
-    this._positionFrame = requestAnimationFrame(retry);
+      if (this._connected) this._positionMenu();
+    });
   }
 
   _escape(value) {
@@ -398,11 +514,18 @@ class HomeFloatingMenuCard extends HTMLElement {
 }
 
 HomeFloatingMenuCard._instances = new Set();
-HomeFloatingMenuCard._lastKnownActive = '';
-customElements.define('home-floating-menu-card', HomeFloatingMenuCard);
+HomeFloatingMenuCard._nextInstanceOrder = 0;
+HomeFloatingMenuCard._lastKnownRoute = '';
+HomeFloatingMenuCard._lastSyncedPath = '';
+HomeFloatingMenuCard._globalListenersAttached = false;
+if (!customElements.get('home-floating-menu-card')) {
+  customElements.define('home-floating-menu-card', HomeFloatingMenuCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'home-floating-menu-card',
-  name: 'Home Floating Menu Card',
-  description: 'Fixed bottom navigation for Home Dark dashboard views',
-});
+if (!window.customCards.some((card) => card?.type === 'home-floating-menu-card')) {
+  window.customCards.push({
+    type: 'home-floating-menu-card',
+    name: 'Home Floating Menu Card',
+    description: 'Fixed bottom navigation for Home Dark dashboard views',
+  });
+}

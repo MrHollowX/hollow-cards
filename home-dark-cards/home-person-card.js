@@ -1,9 +1,11 @@
 class HomePersonCard extends HTMLElement {
+  static _zoneIndexes = new WeakMap();
+
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this._wired = false;
-    this._lastRenderKey = null;
+    this._shellReady = false;
   }
 
   setConfig(config) {
@@ -24,7 +26,7 @@ class HomePersonCard extends HTMLElement {
       icon: typeof config.icon === 'string' ? config.icon.trim() : '',
       comfortable_spacing: config.comfortable_spacing === true
     };
-    this._lastRenderKey = null;
+    this._render();
   }
 
   getCardSize() { return this._config?.comfortable_spacing === true ? 3 : 2; }
@@ -40,36 +42,63 @@ class HomePersonCard extends HTMLElement {
   }
 
   connectedCallback() {
-    if (this._wired) return;
-    this._wired = true;
-    this.shadowRoot.addEventListener('click', (event) => {
-      if (event.target.closest('button')) {
-        this.dispatchEvent(new CustomEvent('hass-more-info', {
-          detail: { entityId: this._config.entity }, bubbles: true, composed: true
-        }));
-      }
-    });
+    if (!this._wired) {
+      this._wired = true;
+      this.shadowRoot.addEventListener('click', (event) => {
+        if (event.target.closest('button') && this._config?.entity) {
+          this.dispatchEvent(new CustomEvent('hass-more-info', {
+            detail: { entityId: this._config.entity }, bubbles: true, composed: true
+          }));
+        }
+      });
+    }
+    this._render();
   }
 
   _state(entity) {
     return entity && this._hass && this._hass.states[entity] ? this._hass.states[entity] : null;
   }
 
-  _attr(entity, key, fallback = null) {
-    const state = this._state(entity);
-    return state && state.attributes[key] != null ? state.attributes[key] : fallback;
+  _normalize(value) {
+    return typeof value === 'string' ? value.trim().toLowerCase() : '';
   }
 
-  _text(value) {
-    return String(value == null ? '' : value).replace(/[&<>\"']/g, (char) => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;'
-    }[char]));
+  _zoneIndex() {
+    const states = this._hass?.states;
+    if (!states || typeof states !== 'object') {
+      return { zones: [], byName: new Map(), home: null };
+    }
+
+    const cached = HomePersonCard._zoneIndexes.get(states);
+    if (cached) return cached;
+
+    const zones = [];
+    const byName = new Map();
+    let home = null;
+    Object.keys(states).forEach((entityId) => {
+      if (!entityId.startsWith('zone.')) return;
+      const zone = states[entityId];
+      if (!zone || typeof zone !== 'object') return;
+
+      zones.push(zone);
+      const objectId = entityId.slice(5);
+      const friendlyName = zone.attributes?.friendly_name;
+      [entityId, objectId, objectId.replace(/_/g, ' '), friendlyName].forEach((key) => {
+        const normalized = this._normalize(key);
+        if (normalized && !byName.has(normalized)) byName.set(normalized, zone);
+      });
+      if (entityId === 'zone.home') home = zone;
+    });
+
+    const index = { zones, byName, home };
+    HomePersonCard._zoneIndexes.set(states, index);
+    return index;
   }
 
   _location(state) {
-    const normalized = typeof state === 'string' ? state.trim().toLowerCase() : '';
+    const normalized = this._normalize(state);
     if (!normalized || normalized === 'unknown' || normalized === 'unavailable') return 'Location unavailable';
-    if (normalized === 'home') return 'Home';
+    if (state === 'home') return 'Home';
     if (normalized === 'not_home' || normalized === 'away') return 'Away';
     return state;
   }
@@ -79,20 +108,20 @@ class HomePersonCard extends HTMLElement {
   }
 
   _zoneForState(state) {
-    const normalized = typeof state === 'string' ? state.trim().toLowerCase() : '';
-    if (!normalized || normalized === 'not_home' || normalized === 'away' || normalized === 'unknown' || normalized === 'unavailable') return null;
-    return Object.entries(this._hass?.states || {}).find(([entityId, zone]) =>
-      (normalized === 'home' && entityId === 'zone.home') ||
-      (entityId.startsWith('zone.') &&
-      typeof zone.attributes?.friendly_name === 'string' &&
-      zone.attributes.friendly_name.trim().toLowerCase() === normalized)
-    )?.[1] || null;
+    if (state === 'home') return this._state('zone.home');
+    const normalized = this._normalize(state);
+    if (!normalized ||
+        normalized === 'home' ||
+        ['not_home', 'away', 'unknown', 'unavailable'].includes(normalized)) {
+      return null;
+    }
+    return this._zoneIndex().byName.get(normalized) || null;
   }
 
   _zoneAtCoordinates(personState) {
-    const matches = Object.entries(this._hass?.states || {}).map(([entityId, zone]) => {
+    const matches = this._zoneIndex().zones.map((zone) => {
       const radius = Number(zone.attributes?.radius);
-      const distance = entityId.startsWith('zone.') && Number.isFinite(radius) && radius >= 0
+      const distance = Number.isFinite(radius) && radius >= 0
         ? this._distanceKm(personState, zone)
         : null;
       return { zone, radius, distance };
@@ -120,50 +149,138 @@ class HomePersonCard extends HTMLElement {
     if (!this._config.show_battery || !this._config.battery_entity) return null;
     const state = this._state(this._config.battery_entity);
     const value = state ? Number(state.state) : NaN;
-    if (!Number.isFinite(value) || value < 0 || value > 100) return null;
+    if (!state ||
+        ['unknown', 'unavailable', 'none'].includes(this._normalize(state.state)) ||
+        !Number.isFinite(value) ||
+        value < 0 ||
+        value > 100) {
+      return { text: 'Unavailable', ariaLabel: 'Battery unavailable', unavailable: true };
+    }
     const percent = `${Math.round(value)}%`;
-    return { percent, ariaLabel: `Battery ${percent}` };
+    return { text: percent, ariaLabel: `Battery ${percent}`, unavailable: false };
+  }
+
+  _proximity(distanceKm) {
+    if (distanceKm == null) return null;
+    const useMiles = this._hass?.config?.unit_system?.length === 'mi';
+    const value = useMiles ? distanceKm * 0.621371192237334 : distanceKm;
+    return `${value.toFixed(1)} ${useMiles ? 'mi' : 'km'} from Home`;
+  }
+
+  _ensureShell() {
+    if (this._shellReady) return;
+    this.shadowRoot.innerHTML = `<style>${this._css()}</style>
+      <button class="card compact" data-presence="away" type="button">
+        <span class="avatar fallback" role="img">
+          <img class="avatar-image" alt="" hidden>
+          <ha-icon class="avatar-icon" icon="mdi:account" aria-hidden="true"></ha-icon>
+        </span>
+        <span class="copy">
+          <span class="header">
+            <span class="name"></span>
+            <span class="detail-item battery" hidden>
+              <ha-icon icon="mdi:battery" aria-hidden="true"></ha-icon>
+              <span class="battery-value"></span>
+            </span>
+          </span>
+          <span class="details" hidden>
+            <span class="status">
+              <ha-icon class="status-icon" icon="mdi:map-marker" aria-hidden="true"></ha-icon>
+              <span class="status-value"></span>
+            </span>
+          </span>
+        </span>
+      </button>`;
+    this._nodes = {
+      button: this.shadowRoot.querySelector('.card'),
+      avatar: this.shadowRoot.querySelector('.avatar'),
+      avatarImage: this.shadowRoot.querySelector('.avatar-image'),
+      avatarIcon: this.shadowRoot.querySelector('.avatar-icon'),
+      name: this.shadowRoot.querySelector('.name'),
+      battery: this.shadowRoot.querySelector('.battery'),
+      batteryIcon: this.shadowRoot.querySelector('.battery ha-icon'),
+      batteryValue: this.shadowRoot.querySelector('.battery-value'),
+      details: this.shadowRoot.querySelector('.details'),
+      statusIcon: this.shadowRoot.querySelector('.status-icon'),
+      statusValue: this.shadowRoot.querySelector('.status-value')
+    };
+    this._shellReady = true;
   }
 
   _render() {
     if (!this._hass || !this._config) return;
+    this._ensureShell();
+
     const person = this._state(this._config.entity);
-    if (!person) return;
-    const name = this._config.name || this._attr(this._config.entity, 'friendly_name', 'Person');
-    const picture = this._attr(this._config.entity, 'entity_picture', '');
-    const state = person.state;
-    const resolvedZone = this._zoneForState(state) || this._zoneAtCoordinates(person);
-    const knownLocation = resolvedZone || (typeof state === 'string' && state.trim().toLowerCase() === 'home');
-    const locationName = resolvedZone?.attributes?.friendly_name || this._location(state);
-    const location = this._config.show_location ? locationName : '';
+    const name = this._config.name || person?.attributes?.friendly_name || 'Person';
+    const picture = person?.attributes?.entity_picture || '';
+    const state = person?.state;
+    const normalizedState = this._normalize(state);
+    const hasAuthoritativeState = Boolean(normalizedState);
+    let resolvedZone = null;
+    if (person && (this._config.show_location || this._config.show_proximity)) {
+      resolvedZone = this._zoneForState(state);
+      if (!hasAuthoritativeState) resolvedZone = this._zoneAtCoordinates(person);
+    }
+    const namedState = hasAuthoritativeState &&
+      !['home', 'not_home', 'away', 'unknown', 'unavailable'].includes(normalizedState);
+    const knownLocation = state === 'home' || Boolean(resolvedZone) || namedState;
+    const locationName = !person
+      ? 'Person unavailable'
+      : resolvedZone?.attributes?.friendly_name || this._location(state);
+    const location = !person
+      ? locationName
+      : this._config.show_location ? locationName : '';
     const battery = this._battery();
-    const outsideKnownZone = !knownLocation;
-    const distance = this._config.show_proximity && outsideKnownZone ? this._distanceKm(person, this._state('zone.home')) : null;
-    const proximity = distance == null ? null : `${distance.toFixed(1)} km from Home`;
+    const proximityState = !hasAuthoritativeState;
+    const distance = person &&
+      this._config.show_proximity &&
+      !knownLocation &&
+      proximityState
+      ? this._distanceKm(person, this._state('zone.home'))
+      : null;
+    const proximity = this._proximity(distance);
     const presence = this._presence(state);
-    const active = presence === 'home';
-    const away = presence === 'away';
-    const presenceClass = active ? 'active' : away ? 'away' : '';
     const spacingClass = this._config.comfortable_spacing ? 'comfortable' : 'compact';
-    const renderKey = JSON.stringify([name, picture, state, location, battery?.percent || '', proximity || '', active, away, spacingClass, this._config.show_name, this._config.icon]);
-    if (renderKey === this._lastRenderKey) return;
-    this._lastRenderKey = renderKey;
     const status = proximity || location;
     const statusIcon = proximity ? 'mdi:map-marker-distance' : 'mdi:map-marker';
     const ariaDetails = [status, battery ? battery.ariaLabel : ''].filter(Boolean);
-    const avatar = this._config.icon
-      ? `<span class="avatar fallback" role="img" aria-label="${this._text(name)} avatar icon"><ha-icon icon="${this._text(this._config.icon)}"></ha-icon></span>`
-      : picture
-      ? `<img class="avatar" src="${this._text(picture)}" alt="${this._text(name)} avatar">`
-      : `<span class="avatar fallback" role="img" aria-label="${this._text(name)} avatar unavailable"><ha-icon icon="mdi:account"></ha-icon></span>`;
     const label = `${name}${ariaDetails.length ? `, ${ariaDetails.join(', ')}` : ''}`;
-    const statusItem = status
-      ? `<span class="status"><ha-icon icon="${statusIcon}" aria-hidden="true"></ha-icon><span title="${this._text(status)}">${this._text(status)}</span></span>`
-      : '';
-    const batteryItem = battery
-      ? `<span class="detail-item"><ha-icon icon="mdi:battery" title="${this._text(battery.ariaLabel)}" aria-label="${this._text(battery.ariaLabel)}"></ha-icon><span>${this._text(battery.percent)}</span></span>`
-      : '';
-    this.shadowRoot.innerHTML = `<style>${this._css()}</style><button class="card ${presenceClass}${presenceClass ? ' ' : ''}${spacingClass}" data-presence="${presence}" type="button" aria-label="${this._text(label)}">${avatar}<span class="copy"><span class="header">${this._config.show_name ? `<span class="name">${this._text(name)}</span>` : ''}${batteryItem}</span>${statusItem ? `<span class="details">${statusItem}</span>` : ''}</span></button>`;
+
+    this._nodes.button.className = `card ${presence === 'home' ? 'active' : 'away'} ${spacingClass}`;
+    this._nodes.button.dataset.presence = presence;
+    this._nodes.button.setAttribute('aria-label', label);
+
+    const usePicture = !this._config.icon && Boolean(picture);
+    this._nodes.avatar.classList.toggle('fallback', !usePicture);
+    this._nodes.avatar.setAttribute(
+      'aria-label',
+      `${name} avatar${usePicture ? '' : this._config.icon ? ' icon' : ' unavailable'}`
+    );
+    this._nodes.avatarImage.hidden = !usePicture;
+    if (usePicture) {
+      this._nodes.avatarImage.src = picture;
+      this._nodes.avatarImage.alt = `${name} avatar`;
+    } else {
+      this._nodes.avatarImage.removeAttribute('src');
+      this._nodes.avatarImage.alt = '';
+    }
+    this._nodes.avatarIcon.hidden = usePicture;
+    this._nodes.avatarIcon.setAttribute('icon', this._config.icon || 'mdi:account');
+
+    this._nodes.name.hidden = !this._config.show_name;
+    this._nodes.name.textContent = name;
+
+    this._nodes.battery.hidden = !battery;
+    this._nodes.battery.classList.toggle('unavailable', Boolean(battery?.unavailable));
+    this._nodes.battery.setAttribute('aria-label', battery?.ariaLabel || '');
+    this._nodes.batteryValue.textContent = battery?.text || '';
+    this._nodes.batteryIcon.setAttribute('title', battery?.ariaLabel || '');
+
+    this._nodes.details.hidden = !status;
+    this._nodes.statusIcon.setAttribute('icon', statusIcon);
+    this._nodes.statusValue.textContent = status || '';
+    this._nodes.statusValue.setAttribute('title', status || '');
   }
 
   _css() {
@@ -175,9 +292,11 @@ class HomePersonCard extends HTMLElement {
       .card.card[data-presence="home"] { background: var(--person-surface) !important; background-color: var(--person-surface) !important; color: var(--primary-text-color, #f5f7fb); }
       .card.card[data-presence="away"] { background: var(--person-away-background, #3d5270) !important; background-color: var(--person-away-background, #3d5270) !important; color: var(--person-away-color, #f5f7fb) !important; border-color: var(--person-away-border-color, rgba(255,255,255,.35)); }
       .card[data-presence="away"]:focus-visible { outline-color: var(--person-away-focus-color, #f5f7fb); }
-      .avatar { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border-radius: 50%; object-fit: cover; background: var(--secondary-background-color, #3d4a66); color: var(--secondary-text-color, #aebbd0); }
+      [hidden] { display: none !important; }
+      .avatar { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--secondary-background-color, #3d4a66); color: var(--secondary-text-color, #aebbd0); }
+      .avatar-image { width: 100%; height: 100%; display: block; border-radius: inherit; object-fit: cover; }
       .card[data-presence="away"] .avatar { background: var(--person-away-avatar-background, #4a6382) !important; background-color: var(--person-away-avatar-background, #4a6382) !important; color: var(--person-away-color, #f5f7fb) !important; border: 1px solid var(--person-away-avatar-border-color, rgba(255,255,255,.42)); }
-      .card[data-presence="away"] .avatar:not(.fallback) { filter: grayscale(1) contrast(1.05); }
+      .card[data-presence="away"] .avatar-image { filter: grayscale(1) contrast(1.05); }
       .fallback ha-icon { --mdc-icon-size: 22px; }
       .copy { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 3px; overflow: hidden; }
       .header { min-width: 0; display: flex; align-items: center; gap: 6px; }
@@ -193,6 +312,7 @@ class HomePersonCard extends HTMLElement {
       .detail-item { min-width: 0; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; }
       .detail-item ha-icon { flex: 0 0 auto; --mdc-icon-size: 14px; }
       .detail-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .detail-item.unavailable { color: var(--secondary-text-color, #91a2bb); }
       @media (max-width: 360px) {
         .card { min-height: 62px; gap: 8px; padding-inline: 8px; border-radius: 16px; }
         .card.comfortable { padding-block: 8px; }
@@ -203,6 +323,10 @@ class HomePersonCard extends HTMLElement {
     `;
   }
 }
-customElements.define('home-person-card', HomePersonCard);
+if (!customElements.get('home-person-card')) {
+  customElements.define('home-person-card', HomePersonCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({ type: 'home-person-card', name: 'Home Person', description: 'Responsive person presence card with optional battery, Home distance, and comfortable vertical spacing' });
+if (!window.customCards.some(card => card.type === 'home-person-card')) {
+  window.customCards.push({ type: 'home-person-card', name: 'Home Person', description: 'Responsive person presence card with optional battery, Home distance, and comfortable vertical spacing' });
+}

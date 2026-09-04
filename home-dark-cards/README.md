@@ -2,6 +2,26 @@
 
 This folder contains the JavaScript custom-card sources available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. They provide the dashboard header, room summaries, person presence, status and security summaries, light, switch, climate, cover, vacuum, appliance, camera, energy, and entity-status controls, an expandable card container, and fixed bottom navigation. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
 
+The shared coding-agent guidance for this repository is in
+[`../ai-skill/SKILL.md`](../ai-skill/SKILL.md). It applies to all agents and
+covers card lifecycle contracts, unavailable-entity handling, Home Assistant
+resource deployment, and safe dashboard changes. There are no separate
+tool-specific instructions to keep synchronized.
+
+## Local verification
+
+The repository currently contains 16 card source files and a 23-test Node.js
+invariant suite. Run it from the repository root after JavaScript changes:
+
+```text
+node --test tests/home-dark-cards-invariants.test.cjs
+```
+
+The suite checks registration safety, capability-aware controls, service-call
+guards, interaction-state preservation, and card-specific editor/runtime
+contracts. It does not replace validation against the live Home Assistant
+dashboard after a resource deployment.
+
 **Hosting modes, verified against the live resource registry on 2026-08-24.**
 Local cards are registered as URL-mode module resources under
 `/local/home-dark-cards/` and require manual host copying, except for
@@ -190,10 +210,10 @@ source-enforced entity-domain or value constraints.
 ### Home header card
 
 - **Card type:** `custom:home-header-card`
-- **Purpose:** Displays the current time, date, current weather, humidity, feels-like
-  temperature, and an optional daily forecast.
+- **Purpose:** Displays the current time, date, current weather, humidity, and an
+  optional daily forecast.
 - **Resource:** `home-header-card.js`
-- **URL:** `/local/home-dark-cards/home-header-card.js?v=20260812-1531-source-sync`
+- **URL:** `/local/home-dark-cards/home-header-card.js?v=20260905-no-feels-like`
 
 ```yaml
 type: custom:home-header-card
@@ -213,9 +233,8 @@ show_forecast: false
   card instance's current display; it does not persist a dashboard setting.
 - The greeting is `Welcome, <Home Assistant user name> 👋`. When the frontend
   user name is unavailable, it is `Welcome, there 👋`.
-- Current humidity comes from the weather entity's `humidity` attribute.
-- The feels-like value comes from `apparent_temperature` and is displayed with the
-  entity's `temperature_unit`. The metrics row is hidden when both values are missing.
+- Current humidity comes from the weather entity's `humidity` attribute. The
+  `apparent_temperature` attribute is intentionally not displayed.
 - The clock/date remain at the top while the current weather summary and forecast
   share a compact horizontal row. Current weather details and each forecast day are
   readable icon-led one-line items without nested forecast boxes or item borders.
@@ -773,8 +792,10 @@ name: Couch
   `friendly_name` is used.
 - `icon` provides the fallback icon. `icon_on` and `icon_off` override it for
   the respective states.
-- `tap_action`, `hold_action`, and `double_tap_action` default to
-  `{ action: none }`. They support `toggle`, `more-info`, `perform-action`,
+- `tap_action` defaults to `{ action: more-info }`, so clicking the card's left
+  content opens the configured light's Home Assistant more-info dialog.
+  `hold_action` and `double_tap_action` default to `{ action: none }`. These
+  actions support `toggle`, `more-info`, `perform-action`,
   `call-service`, `navigate`, `url`, `fire-dom-event`, and `none`, using the
   normal Home Assistant action fields. Configured actions apply to the left
   content area; the right-side control always toggles the configured light.
@@ -783,7 +804,9 @@ name: Couch
   `--ha-card-background` surface from a surrounding popup.
 - While dragging or using the keyboard, the slider keeps a local preview instead of
   being overwritten by the previous Home Assistant state. The completed interaction
-  sends one `light.turn_on` call with `brightness_pct`; the preview remains visible
+  sends one `light.turn_on` call with `brightness_pct` from 1% through 100%; the
+  slider never dims below 1%, and the separate toggle remains the way to turn the
+  light fully off. The preview remains visible
   until the matching Home Assistant state arrives, then reconciles to that state. A
   failed call or five-second timeout falls back to the latest available state.
 - Pointer cancellation, lost capture, and window blur cancel the interaction without
@@ -1063,6 +1086,7 @@ camera_label: Video doorbell
 lock_label: Front door
 show_camera: true
 show_lock: true
+show_lock_name: true
 confirm_unlock: true
 silent_entity: switch.doorbell_system_sounds
 last_ring_entity: sensor.doorbell_last_doorbell_ring
@@ -1082,12 +1106,12 @@ confirm_lock_actions: true
 - `front_sensor_entity` supplies Open/Closed and relative activity text.
 - `last_ring_entity` supplies a timestamp state for the Last Ring text;
   `show_last_ring` controls whether it is shown.
-- `show_camera` and `show_lock` default to `true`.
+- `show_camera`, `show_lock`, and `show_lock_name` default to `true`. Set
+  `show_lock_name: false` to display only the lock state in the lock control;
+  the lock name remains available in the control's accessible label and dialog text.
 - `camera_label`, `sound_on_label`, and `dnd_label` are configurable displayed labels.
-  `name` defaults to `Door Security`. `lock_label` is accepted and present in the live
-  configuration, but the current source uses the literal `Front door` text for lock
-  titles and confirmation-dialog text, so changing `lock_label` currently has no visible
-  effect.
+  `name` defaults to `Door Security`. `lock_label` is displayed in the lock control
+  when `show_lock_name` is enabled and is also used for lock titles and confirmation-dialog text.
 - `status_position` accepts `top` or `bottom`; other values use `top`. It controls
   whether the ring/door status overlay appears at the top or bottom of the camera image.
 - `confirm_lock_actions` defaults to `false`. When `true`, both lock and unlock actions

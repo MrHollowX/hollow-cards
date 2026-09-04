@@ -81,7 +81,7 @@ persistence.
 flowchart LR
     subgraph Repository["Local repository"]
         Sources["home-dark-cards/*.js"]
-        Guidance["AGENTS.md, CLAUDE.md, README.md, .cursor/rules"]
+        Guidance["AGENTS.md, ai-skill/SKILL.md, README.md"]
     end
 
     subgraph Host["Home Assistant host"]
@@ -315,8 +315,9 @@ flowchart LR
 The repository does not declare a JavaScript runtime version or package
 dependency versions. Two recorded Home Assistant versions must be kept distinct:
 the `home-dark-cards/README.md` export metadata says Home Assistant Core
-`2026.7.4` for an export made on 2026-08-01, while `AGENTS.md` and `CLAUDE.md`
-record the connected installation as Home Assistant Core `2026.7.3`.
+`2026.7.4` for an export made on 2026-08-01. Live installation details must be
+verified through the connected Home Assistant instance rather than treated as
+local configuration.
 
 - **Frontend:**
   - Frameworks/Libraries: Native browser Custom Elements and Home Assistant
@@ -375,23 +376,16 @@ ha_custom_cards_set/
 │   ├── home-appliance-card.js       # Home Connect appliance control
 │   ├── home-camera-grid-card.js     # Grouped camera snapshots
 │   └── README.md                   # Card contracts and deployment notes
-├── .cursor/
-│   └── rules/
-│       ├── home-assistant-best-practices.mdc
-│       └── home-assistant/references/ # Automation, dashboard, helper, and
-│                                      # device-control guidance
-├── .claude/
-│   └── settings.local.json         # Claude permissions and enabled plugin
-├── AGENTS.md                       # Cursor project context and remote snapshot
-├── CLAUDE.md                       # Mirrored project context
-├── README.md                       # Repository and skill documentation
+├── ai-skill/
+│   └── SKILL.md                    # Shared guidance for all coding agents
+├── AGENTS.md                       # Discovery pointer to the shared skill
+├── README.md                       # Repository and workflow documentation
 ├── .gitattributes                  # Text-file LF normalization rule
 └── ai-overview.md                  # This onboarding document
 ```
 
 The repository has no `src/`, `components/`, `pages/`, `services/`, `utils/`,
-`models/`, `tests/`, `scripts/`, package manifest, lockfile, Dockerfile, or CI
-workflow.
+`models/`, `scripts/`, package manifest, lockfile, Dockerfile, or CI workflow.
 
 The README records these local card resource IDs:
 
@@ -432,9 +426,9 @@ The README records these local card resource IDs:
   - The repository contains no `.env`, `.env.example`, environment loader, or
     application configuration schema.
   - Project context records the target Lovelace configuration as storage mode.
-  - The project-context files say that actual entities, automations, scripts,
-    scenes, helpers, dashboards, and other Home Assistant state live on the
-    remote instance, not in this repository.
+  - The shared `ai-skill/SKILL.md` says that actual entities, automations,
+    scripts, scenes, helpers, dashboards, and other Home Assistant state live
+    on the remote instance, not in this repository.
 
 - **Setup Instructions for local development:**
   1. No package installation or build step is defined in the repository.
@@ -449,8 +443,8 @@ The README records these local card resource IDs:
   5. Save the dashboard and hard-refresh the browser after copying or updating a
      resource.
 
-The README explicitly states that this repository does not copy files to Home
-Assistant or change the remote dashboard automatically.
+The README and shared skill explicitly state that this repository does not copy
+files to Home Assistant or change the remote dashboard automatically.
 
 ---
 

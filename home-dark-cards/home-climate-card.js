@@ -1,4 +1,16 @@
 class HomeClimateCard extends HTMLElement {
+  constructor() {
+    super();
+    this._onClick = this._onClick.bind(this);
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onKeydown = this._onKeydown.bind(this);
+    this._onFocusIn = this._onFocusIn.bind(this);
+    this._onFocusOut = this._onFocusOut.bind(this);
+    this._onWindowBlur = this._onWindowBlur.bind(this);
+    this._onViewportChange = this._onViewportChange.bind(this);
+    this._onDocumentPointerDown = this._onDocumentPointerDown.bind(this);
+  }
+
   setConfig(config) {
     if (!config || typeof config.entity !== 'string' || !config.entity.startsWith('climate.')) {
       throw new Error('A climate entity is required');
@@ -85,14 +97,6 @@ class HomeClimateCard extends HTMLElement {
       HomeClimateCard._nextId = (HomeClimateCard._nextId || 0) + 1;
       this._instanceId = `home-climate-${HomeClimateCard._nextId}`;
     }
-    this._onClick = this._onClick.bind(this);
-    this._onPointerDown = this._onPointerDown.bind(this);
-    this._onKeydown = this._onKeydown.bind(this);
-    this._onFocusIn = this._onFocusIn.bind(this);
-    this._onFocusOut = this._onFocusOut.bind(this);
-    this._onWindowBlur = this._onWindowBlur.bind(this);
-    this._onViewportChange = this._onViewportChange.bind(this);
-    this._onDocumentPointerDown = this._onDocumentPointerDown.bind(this);
     this.addEventListener('pointerdown', this._onPointerDown, true);
     this.addEventListener('click', this._onClick, true);
     this.addEventListener('keydown', this._onKeydown);
@@ -102,6 +106,7 @@ class HomeClimateCard extends HTMLElement {
     window.addEventListener('resize', this._onViewportChange);
     document.addEventListener('scroll', this._onViewportChange, true);
     document.addEventListener('pointerdown', this._onDocumentPointerDown, true);
+    if (this._hass && this._config) this._render(true);
   }
 
   disconnectedCallback() {
@@ -117,6 +122,17 @@ class HomeClimateCard extends HTMLElement {
     window.removeEventListener('resize', this._onViewportChange);
     document.removeEventListener('scroll', this._onViewportChange, true);
     document.removeEventListener('pointerdown', this._onDocumentPointerDown, true);
+    this._focusedControl = null;
+    this._menuFocusTransition = false;
+    this._menuRenderAllowed = false;
+    this._openMenu = null;
+    this._menuIndex = 0;
+    this._deferredRender = false;
+    this._queuedFocusMenu = null;
+    this._interactionRenderQueued = false;
+    this._pointerFocusControl = null;
+    this._queuedFocusFlushIdentity = null;
+    this._lastRenderSignature = null;
     this._wired = false;
   }
 
@@ -143,6 +159,7 @@ class HomeClimateCard extends HTMLElement {
   }
 
   _number(value) {
+    if (value == null || value === '') return null;
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
   }
@@ -188,16 +205,29 @@ class HomeClimateCard extends HTMLElement {
       : null;
   }
 
+  _powerTargetAvailable(control) {
+    return Boolean(control && !this._isUnavailableState(this._state(control.entity)));
+  }
+
+  _renderAfterInteraction(render) {
+    if (!render) return;
+    if (this._openMenu || this._menuFocusTransition || this._hasTargetInteractionFocus()) {
+      this._deferredRender = true;
+      return;
+    }
+    this._render(true);
+  }
+
   _clearPowerPreview(render) {
     if (this._powerPreviewTimer) clearTimeout(this._powerPreviewTimer);
     this._powerPreviewTimer = null;
     this._powerPreview = null;
-    if (render) this._render(true);
+    this._renderAfterInteraction(render);
   }
 
   _powerOn() {
     const control = this._powerControl();
-    if (!control) return false;
+    if (!this._powerTargetAvailable(control)) return false;
     const state = control.type === 'switch' ? this._powerSwitchState() : this._state();
     const preview = this._powerPreview &&
       this._powerPreview.entity === control.entity &&
@@ -222,7 +252,7 @@ class HomeClimateCard extends HTMLElement {
 
   _togglePower() {
     const control = this._powerControl();
-    if (!control || !this._hass || this._isUnavailableState(this._state())) return null;
+    if (!this._hass || !this._powerTargetAvailable(control)) return null;
     const nextOn = !this._powerOn();
     this._powerPreview = { entity: control.entity, type: control.type, on: nextOn };
     if (this._powerPreviewTimer) clearTimeout(this._powerPreviewTimer);
@@ -312,6 +342,24 @@ class HomeClimateCard extends HTMLElement {
     return Number(bounded.toFixed(precision));
   }
 
+  _rangeConfig() {
+    const attributes = this._attrs();
+    if (this._number(attributes.temperature) != null) return null;
+    const supported = Number(attributes.supported_features) || 0;
+    const hasRangeAttributes = attributes.target_temp_low != null &&
+      attributes.target_temp_high != null;
+    if ((supported & 2) === 0 && !hasRangeAttributes) return null;
+    const low = this._number(attributes.target_temp_low);
+    const high = this._number(attributes.target_temp_high);
+    if (low == null || high == null) return null;
+    const min = this._number(attributes.min_temp);
+    const max = this._number(attributes.max_temp);
+    const precision = this._number(attributes.precision) ??
+      this._number(attributes.target_temp_precision);
+    const step = this._number(attributes.target_temp_step) || precision || 1;
+    return { low, high, min, max, step, precision };
+  }
+
   _fieldConfig(field) {
     const attributes = this._attrs();
     if (field === 'temperature') {
@@ -322,6 +370,21 @@ class HomeClimateCard extends HTMLElement {
       const precision = this._number(attributes.precision) ?? this._number(attributes.target_temp_precision);
       const step = this._number(attributes.target_temp_step) || precision || 1;
       return { field, value, min, max, step, precision, service: 'set_temperature', dataKey: 'temperature' };
+    }
+    if (field === 'target_temp_low' || field === 'target_temp_high') {
+      const range = this._rangeConfig();
+      if (!range) return null;
+      return {
+        field,
+        value: field === 'target_temp_low' ? range.low : range.high,
+        min: range.min,
+        max: range.max,
+        step: range.step,
+        precision: range.precision,
+        service: 'set_temperature',
+        dataKey: field,
+        range,
+      };
     }
     if (field === 'humidity') {
       const value = this._number(attributes.target_humidity);
@@ -335,28 +398,55 @@ class HomeClimateCard extends HTMLElement {
   }
 
   _displayValue(field, fallback) {
-    const pending = this._pending && this._pending.entity === this._config.entity &&
-      this._pending.field === field ? this._pending.value : null;
-    return pending != null ? pending : fallback;
+    const pending = this._pending && this._pending.entity === this._config.entity
+      ? this._pending
+      : null;
+    if (pending?.field === 'temperature_range' &&
+      Object.prototype.hasOwnProperty.call(pending.values || {}, field)) {
+      return pending.values[field];
+    }
+    return pending?.field === field && pending.value != null ? pending.value : fallback;
   }
 
   _setPending(field, value) {
-    this._clearPending();
+    if (this._pendingTimer) clearTimeout(this._pendingTimer);
+    const token = (this._pendingGeneration || 0) + 1;
+    this._pendingGeneration = token;
     const state = this._state();
     this._pending = {
       entity: this._config.entity,
       field,
       value,
       baselineValue: this._authoritativeValue(field, state),
+      token,
     };
-    this._pendingTimer = setTimeout(() => this._clearPending(true), 5000);
+    this._pendingTimer = setTimeout(() => this._clearPending(true, token), 5000);
+    return token;
   }
 
-  _clearPending(render) {
+  _setRangePending(low, high) {
+    if (this._pendingTimer) clearTimeout(this._pendingTimer);
+    const token = (this._pendingGeneration || 0) + 1;
+    this._pendingGeneration = token;
+    this._pending = {
+      entity: this._config.entity,
+      field: 'temperature_range',
+      values: {
+        target_temp_low: low,
+        target_temp_high: high,
+      },
+      token,
+    };
+    this._pendingTimer = setTimeout(() => this._clearPending(true, token), 5000);
+    return token;
+  }
+
+  _clearPending(render, token) {
+    if (token != null && this._pending?.token !== token) return;
     if (this._pendingTimer) clearTimeout(this._pendingTimer);
     this._pendingTimer = null;
     this._pending = null;
-    if (render) this._render(true);
+    this._renderAfterInteraction(render);
   }
 
   _closeMenu(render, focusMenuKey) {
@@ -454,12 +544,12 @@ class HomeClimateCard extends HTMLElement {
     });
   }
 
-  _flushDeferredRender() {
+  _flushDeferredRender(force = false, focusIdentity = null) {
     if (!this.isConnected || this._openMenu || this._menuFocusTransition || !this._deferredRender) {
       return;
     }
     this._deferredRender = false;
-    this._render();
+    this._render(force, focusIdentity);
   }
 
   _authoritativeValue(field, state) {
@@ -488,6 +578,20 @@ class HomeClimateCard extends HTMLElement {
     }
     const state = this._state();
     if (this._isUnavailableState(state)) return 'waiting';
+    if (this._pending.field === 'temperature_range') {
+      const expected = this._pending.values || {};
+      const lowReached = this._pendingMatches(
+        this._authoritativeValue('target_temp_low', state),
+        expected.target_temp_low,
+        'target_temp_low',
+      );
+      const highReached = this._pendingMatches(
+        this._authoritativeValue('target_temp_high', state),
+        expected.target_temp_high,
+        'target_temp_high',
+      );
+      return lowReached && highReached ? 'reached' : 'waiting';
+    }
     const actual = this._authoritativeValue(this._pending.field, state);
     if (this._pendingMatches(actual, this._pending.value, this._pending.field)) {
       return 'reached';
@@ -513,7 +617,9 @@ class HomeClimateCard extends HTMLElement {
   }
 
   _onPointerDown(event) {
-    if (this._interactiveControl(event)) {
+    const control = this._interactiveControl(event);
+    if (control) {
+      this._pointerFocusControl = control;
       // Capture before Bubble Card's ancestor handlers. Do not preventDefault:
       // the browser must still move focus to the button/option normally.
       event.stopPropagation();
@@ -536,11 +642,25 @@ class HomeClimateCard extends HTMLElement {
   }
 
   _onWindowBlur() {
+    const focusIdentity = this._focusedControlIdentity();
+    const hadDeferredRender = this._deferredRender;
+    const menuWasOpen = Boolean(this._openMenu);
+    this._pointerFocusControl = null;
+    this._queuedFocusFlushIdentity = null;
     if (this._openMenu) this._closeMenu(true);
     this._focusedControl = null;
-    if (this._deferredRender) {
+    if (hadDeferredRender && !menuWasOpen) {
       this._deferredRender = false;
-      this._render();
+      this._render(true, focusIdentity);
+    }
+  }
+
+  _finishPointerFocusTransition() {
+    const focusIdentity = this._queuedFocusFlushIdentity;
+    this._queuedFocusFlushIdentity = null;
+    this._pointerFocusControl = null;
+    if (focusIdentity && this._deferredRender) {
+      this._flushDeferredRender(true, focusIdentity);
     }
   }
 
@@ -557,12 +677,88 @@ class HomeClimateCard extends HTMLElement {
     return active;
   }
 
+  _controlFocusIdentity(element) {
+    if (!this._isInteractiveElement(element)) return null;
+    if (element.matches('button[data-step-field]')) {
+      return {
+        type: 'step',
+        field: element.dataset.stepField || '',
+        direction: element.dataset.direction || '',
+      };
+    }
+    if (element.matches('button[data-power-switch]')) return { type: 'power' };
+    if (element.matches('button[data-additional-power-index]')) {
+      return {
+        type: 'additional-power',
+        index: element.dataset.additionalPowerIndex || '',
+      };
+    }
+    if (element.matches('button[data-menu-trigger]')) {
+      return {
+        type: 'menu-trigger',
+        key: element.dataset.menuTrigger || '',
+      };
+    }
+    if (element.matches('button[data-menu-option]')) {
+      return {
+        type: 'menu-option',
+        key: element.dataset.menuOption || '',
+        value: element.dataset.menuValue || '',
+      };
+    }
+    if (element.matches('button[data-additional-controls-toggle]')) {
+      return { type: 'additional-toggle' };
+    }
+    if (element.matches('[data-more]')) return { type: 'more' };
+    return null;
+  }
+
+  _focusedControlIdentity() {
+    const active = this._activeElement();
+    return this._controlFocusIdentity(active) ||
+      this._controlFocusIdentity(this._focusedControl);
+  }
+
+  _restoreFocusedControl(identity) {
+    if (!identity || !this._card) return;
+    let control = null;
+    if (identity.type === 'step') {
+      control = Array.from(this._card.querySelectorAll('button[data-step-field]')).find(button => (
+        button.dataset.stepField === identity.field &&
+        button.dataset.direction === identity.direction
+      ));
+    } else if (identity.type === 'power') {
+      control = this._card.querySelector('button[data-power-switch]');
+    } else if (identity.type === 'additional-power') {
+      control = Array.from(this._card.querySelectorAll('button[data-additional-power-index]'))
+        .find(button => button.dataset.additionalPowerIndex === identity.index);
+    } else if (identity.type === 'menu-trigger') {
+      control = Array.from(this._card.querySelectorAll('button[data-menu-trigger]'))
+        .find(button => button.dataset.menuTrigger === identity.key);
+    } else if (identity.type === 'menu-option') {
+      control = Array.from(this._card.querySelectorAll('button[data-menu-option]')).find(button => (
+        button.dataset.menuOption === identity.key &&
+        button.dataset.menuValue === identity.value
+      ));
+    } else if (identity.type === 'additional-toggle') {
+      control = this._card.querySelector('button[data-additional-controls-toggle]');
+    } else if (identity.type === 'more') {
+      control = this._card.querySelector('[data-more]');
+    }
+    if (control && !control.disabled) {
+      control.focus();
+      this._focusedControl = control;
+    } else if (this._focusedControl && !this.contains(this._focusedControl)) {
+      this._focusedControl = null;
+    }
+  }
+
   _isInteractiveElement(element) {
     return Boolean(
       element &&
       this.contains(element) &&
       typeof element.matches === 'function' &&
-      element.matches('button,[data-menu-option],[data-menu-trigger]'),
+      element.matches('button,[data-menu-option],[data-menu-trigger],[data-more]'),
     );
   }
 
@@ -583,7 +779,7 @@ class HomeClimateCard extends HTMLElement {
       element &&
       this.contains(element) &&
       typeof element.matches === 'function' &&
-      element.matches('button[data-step-field],button[data-power-switch],button[data-additional-power-index]'),
+      element.matches('button[data-step-field],button[data-power-switch]'),
     );
   }
 
@@ -597,10 +793,25 @@ class HomeClimateCard extends HTMLElement {
     // Ignore that synchronous removal; the microtask in _openMenuFor clears
     // this guard after the option has received focus.
     if (this._menuFocusTransition) return;
+    const previous = event && event.target;
     const related = event && event.relatedTarget;
     const active = this._activeElement();
-    if (this._isInteractiveElement(related) || this._isInteractiveElement(active)) {
-      this._focusedControl = this._isInteractiveElement(related) ? related : active;
+    const next = this._isInteractiveElement(related)
+      ? related
+      : active !== previous && this._isInteractiveElement(active)
+        ? active
+        : null;
+    if (next) {
+      this._focusedControl = next;
+      if (this._deferredRender && previous !== next &&
+        this._isTargetInteractionElement(previous)) {
+        const focusIdentity = this._controlFocusIdentity(next);
+        if (this._pointerFocusControl === next) {
+          this._queuedFocusFlushIdentity = focusIdentity;
+        } else {
+          this._flushDeferredRender(true, focusIdentity);
+        }
+      }
       return;
     }
     this._focusedControl = null;
@@ -616,21 +827,31 @@ class HomeClimateCard extends HTMLElement {
     const menuKey = option.dataset.menuOption;
     const entity = option.dataset.menuEntity || this._config.entity;
     if (!service || !key || value == null || !menuKey || this._isUnavailableState(this._state(entity))) return;
-    if (entity === this._config.entity) this._setPending(key, value);
+    const pendingToken = entity === this._config.entity
+      ? this._setPending(key, value)
+      : null;
     this._closeMenu(true, menuKey);
     let result;
     try {
       result = this._call(service, { [key]: value }, entity);
     } catch (error) {
-      this._clearPending();
+      if (pendingToken != null) this._clearPending(false, pendingToken);
       return;
     }
-    if (result && typeof result.catch === 'function') {
-      result.catch(() => this._clearPending(true));
+    if (pendingToken != null && result && typeof result.catch === 'function') {
+      result.catch(() => this._clearPending(true, pendingToken));
     }
   }
 
   _onClick(event) {
+    try {
+      this._handleClick(event);
+    } finally {
+      this._finishPointerFocusTransition();
+    }
+  }
+
+  _handleClick(event) {
     const option = this._eventControl(event, 'button[data-menu-option]');
     if (option) {
       event.preventDefault();
@@ -689,29 +910,54 @@ class HomeClimateCard extends HTMLElement {
       if (this._isUnavailableState(this._state())) return;
       const config = this._fieldConfig(field);
       if (!config) return;
-      const attributes = this._attrs();
-      const raw = field === 'humidity'
-        ? this._number(attributes.target_humidity)
-        : this._number(attributes.temperature);
+      const raw = this._number(this._authoritativeValue(field, this._state()));
       if (raw == null) return;
-      const displayed = this._displayValue(field, raw);
+      const displayed = this._number(this._displayValue(field, raw));
+      if (displayed == null) return;
+      let minimum = config.min;
+      let maximum = config.max;
+      let serviceData;
+      let rangeLow;
+      let rangeHigh;
+      if (config.range) {
+        rangeLow = this._number(this._displayValue('target_temp_low', config.range.low));
+        rangeHigh = this._number(this._displayValue('target_temp_high', config.range.high));
+        if (rangeLow == null || rangeHigh == null) return;
+        if (field === 'target_temp_low') {
+          maximum = maximum == null ? rangeHigh : Math.min(maximum, rangeHigh);
+        } else {
+          minimum = minimum == null ? rangeLow : Math.max(minimum, rangeLow);
+        }
+      }
       const next = this._roundToStep(
         displayed + Number(button.dataset.direction) * config.step,
-        config.min,
-        config.max,
+        minimum,
+        maximum,
         config.step,
         config.precision,
       );
-      this._setPending(field, next);
+      if (config.range) {
+        serviceData = {
+          target_temp_low: field === 'target_temp_low' ? next : rangeLow,
+          target_temp_high: field === 'target_temp_high' ? next : rangeHigh,
+        };
+      } else {
+        serviceData = { [config.dataKey]: next };
+      }
+      const pendingToken = config.range
+        ? this._setRangePending(serviceData.target_temp_low, serviceData.target_temp_high)
+        : this._setPending(field, next);
       let result;
       try {
-        result = this._call(config.service, { [config.dataKey]: next });
+        result = this._call(config.service, serviceData);
       } catch (error) {
-        this._clearPending(true);
+        this._clearPending(true, pendingToken);
         return;
       }
       this._queueInteractionRender();
-      if (result && typeof result.catch === 'function') result.catch(() => this._clearPending(true));
+      if (result && typeof result.catch === 'function') {
+        result.catch(() => this._clearPending(true, pendingToken));
+      }
       return;
     }
     const more = this._eventControl(event, '[data-more]');
@@ -839,15 +1085,54 @@ class HomeClimateCard extends HTMLElement {
     </div>`;
   }
 
+  _rangeStepper(field, label, value, config) {
+    const displayed = this._displayValue(field, value);
+    const precision = Math.max(
+      this._precision(config.step),
+      config.precision == null ? 0 : this._precision(config.precision),
+      this._precision(displayed),
+    );
+    return `<div class="range-stepper-control">
+      <span class="range-label">${this._esc(label)}</span>
+      <div class="stepper temperature-stepper" role="group" aria-label="${this._esc(label)} target temperature controls">
+        <button type="button" data-step-field="${this._esc(field)}" data-direction="-1"
+          aria-label="Decrease ${this._esc(label.toLowerCase())} target temperature">&minus;</button>
+        <strong class="target-value">${this._formatTemperature(displayed, precision)}</strong>
+        <button type="button" data-step-field="${this._esc(field)}" data-direction="1"
+          aria-label="Increase ${this._esc(label.toLowerCase())} target temperature">+</button>
+      </div>
+    </div>`;
+  }
+
+  _rangeTemperatureControl(config, name) {
+    const powerToggle = this._config.additional_entities.length
+      ? ''
+      : this._powerToggle(name);
+    return `<div class="value-control range-value-control">
+      <div class="temperature-control-header">
+        <span class="control-label">Target temperature range</span>
+        <div class="temperature-controls range-temperature-controls">
+          ${powerToggle}
+          <div class="range-steppers">
+            ${this._rangeStepper('target_temp_low', 'Low', config.low, config)}
+            ${this._rangeStepper('target_temp_high', 'High', config.high, config)}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   _powerToggle(name) {
     const powerControl = this._config.show_power_toggle ? this._powerControl() : null;
     if (!powerControl) return '';
-    const powerOn = this._powerOn();
+    const available = this._powerTargetAvailable(powerControl);
+    const powerOn = available && this._powerOn();
+    const label = available ? `A/C ${powerOn ? 'ON' : 'OFF'}` : 'A/C unavailable';
     return `<button class="power-toggle temperature-power ${powerOn ? 'on' : 'off'}" data-power-switch type="button"
-      aria-label="${powerOn ? 'Turn off' : 'Turn on'} A/C in ${this._esc(name)}"
-      aria-pressed="${powerOn}">
+      aria-label="${available ? `${powerOn ? 'Turn off' : 'Turn on'} A/C in ${this._esc(name)}` : `A/C power in ${this._esc(name)} is unavailable`}"
+      aria-pressed="${powerOn}" ${available ? '' : 'disabled'}>
       <ha-icon icon="mdi:power" aria-hidden="true" style="--mdc-icon-size:16px"></ha-icon>
-      <span class="power-label">A/C ${powerOn ? 'ON' : 'OFF'}</span>
+      <span class="power-label">${label}</span>
     </button>`;
   }
 
@@ -861,6 +1146,7 @@ class HomeClimateCard extends HTMLElement {
   }
 
   _additionalPowerOn(control) {
+    if (!this._powerTargetAvailable(control)) return false;
     const state = this._state(control.entity);
     return control.type === 'switch'
       ? Boolean(state && state.state === 'on')
@@ -869,9 +1155,9 @@ class HomeClimateCard extends HTMLElement {
 
   _toggleAdditionalPower(index) {
     const entry = this._config.additional_entities[index];
-    if (!entry || !this._hass || this._isUnavailableState(this._state(entry.entity))) return null;
+    if (!entry || !this._hass) return null;
     const control = this._additionalPowerControl(entry);
-    if (!control) return null;
+    if (!this._powerTargetAvailable(control)) return null;
     const nextOn = !this._additionalPowerOn(control);
     const result = control.type === 'switch'
       ? this._hass.callService('switch', nextOn ? 'turn_on' : 'turn_off', { entity_id: control.entity })
@@ -883,12 +1169,14 @@ class HomeClimateCard extends HTMLElement {
   _additionalPowerToggle(entry, index, name) {
     const control = this._additionalPowerControl(entry);
     if (!control) return '';
-    const powerOn = this._additionalPowerOn(control);
+    const available = this._powerTargetAvailable(control);
+    const powerOn = available && this._additionalPowerOn(control);
+    const label = available ? `A/C ${powerOn ? 'ON' : 'OFF'}` : 'A/C unavailable';
     return `<button class="power-toggle additional-power ${powerOn ? 'on' : 'off'}" data-additional-power-index="${index}" type="button"
-      aria-label="${powerOn ? 'Turn off' : 'Turn on'} ${this._esc(name)}"
-      aria-pressed="${powerOn}">
+      aria-label="${available ? `${powerOn ? 'Turn off' : 'Turn on'} ${this._esc(name)}` : `${this._esc(name)} power is unavailable`}"
+      aria-pressed="${powerOn}" ${available ? '' : 'disabled'}>
       <ha-icon icon="mdi:power" aria-hidden="true" style="--mdc-icon-size:16px"></ha-icon>
-      <span class="power-label">A/C ${powerOn ? 'ON' : 'OFF'}</span>
+      <span class="power-label">${label}</span>
     </button>`;
   }
 
@@ -953,7 +1241,7 @@ class HomeClimateCard extends HTMLElement {
     </div>`;
   }
 
-  _render(force) {
+  _render(force, preferredFocusIdentity = null) {
     if (!this._hass || !this._config) return;
     if (this._openMenu && !this._menuRenderAllowed) {
       this._deferredRender = true;
@@ -963,6 +1251,7 @@ class HomeClimateCard extends HTMLElement {
       this._deferredRender = true;
       return;
     }
+    const focusIdentity = preferredFocusIdentity || this._focusedControlIdentity();
     this._deferredRender = false;
     const pendingStatus = this._pendingStatus();
     if (pendingStatus === 'reached' || pendingStatus === 'rejected') this._clearPending();
@@ -977,6 +1266,7 @@ class HomeClimateCard extends HTMLElement {
     const horizontalSwingModes = this._array(attributes.swing_horizontal_modes);
     const temperature = this._number(attributes.current_temperature);
     const targetConfig = this._fieldConfig('temperature');
+    const rangeConfig = targetConfig ? null : this._rangeConfig();
     const humidityConfig = this._fieldConfig('humidity');
     const currentHumidity = this._number(attributes.current_humidity);
     const currentMode = this._displayValue('hvac_mode', state ? state.state : 'unavailable');
@@ -987,8 +1277,9 @@ class HomeClimateCard extends HTMLElement {
       'swing_horizontal_mode',
       attributes.swing_horizontal_mode,
     );
-    const temperaturePrecision = targetConfig
-      ? Math.max(this._precision(targetConfig.step), temperature == null ? 0 : this._precision(temperature))
+    const temperatureConfig = targetConfig || rangeConfig;
+    const temperaturePrecision = temperatureConfig
+      ? Math.max(this._precision(temperatureConfig.step), temperature == null ? 0 : this._precision(temperature))
       : 0;
     const currentAction = attributes.hvac_action;
     const displayedTemperature = targetConfig
@@ -997,8 +1288,15 @@ class HomeClimateCard extends HTMLElement {
     const displayedHumidity = humidityConfig
       ? this._displayValue('humidity', humidityConfig.value)
       : '';
+    const displayedRangeLow = rangeConfig
+      ? this._displayValue('target_temp_low', rangeConfig.low)
+      : '';
+    const displayedRangeHigh = rangeConfig
+      ? this._displayValue('target_temp_high', rangeConfig.high)
+      : '';
     const powerControl = available ? this._powerControl() : null;
-    const powerOn = powerControl ? this._powerOn() : false;
+    const powerAvailable = this._powerTargetAvailable(powerControl);
+    const powerOn = powerAvailable ? this._powerOn() : false;
     const pending = this._pending && this._pending.entity === this._config.entity
       ? this._pending
       : null;
@@ -1022,6 +1320,7 @@ class HomeClimateCard extends HTMLElement {
         extraAttributes.swing_horizontal_mode,
         extraAttributes.icon,
         extraAttributes.friendly_name,
+        extraAttributes.supported_features,
       ];
     });
     const renderSignature = [
@@ -1048,11 +1347,16 @@ class HomeClimateCard extends HTMLElement {
       targetConfig
         ? [targetConfig.value, targetConfig.min, targetConfig.max, targetConfig.step, targetConfig.precision].join(',')
         : '',
+      rangeConfig
+        ? [rangeConfig.low, rangeConfig.high, rangeConfig.min, rangeConfig.max, rangeConfig.step, rangeConfig.precision].join(',')
+        : '',
       humidityConfig
         ? [humidityConfig.value, humidityConfig.min, humidityConfig.max].join(',')
         : '',
       displayedTemperature,
       displayedHumidity,
+      displayedRangeLow,
+      displayedRangeHigh,
       attributes.target_temp_low,
       attributes.target_temp_high,
       attributes.min_temp,
@@ -1064,9 +1368,14 @@ class HomeClimateCard extends HTMLElement {
       attributes.max_humidity,
       attributes.supported_features,
       powerControl ? `${powerControl.type}:${powerControl.entity}` : '',
+      powerAvailable,
       powerOn,
       powerPreview ? `${powerPreview.entity}:${powerPreview.type}:${powerPreview.on}` : '',
-      pending ? `${pending.field}:${pending.value}` : '',
+      pending
+        ? pending.field === 'temperature_range'
+          ? `${pending.field}:${pending.values?.target_temp_low}:${pending.values?.target_temp_high}`
+          : `${pending.field}:${pending.value}`
+        : '',
       this._openMenu || '',
       JSON.stringify(additionalEntities),
       this._config.additional_entities_collapsible,
@@ -1085,7 +1394,7 @@ class HomeClimateCard extends HTMLElement {
       this._menu('Horizontal swing', horizontalSwingModes, horizontalSwingMode, 'set_swing_horizontal_mode', 'swing_horizontal_mode'),
     ].filter(Boolean).join('');
 
-    const html = available ? `<div class="card-row">
+    const primaryHtml = available ? `<div class="card-row">
       <div class="row-left" data-more role="button" tabindex="0" aria-label="Show details for ${this._esc(name)}">
         <ha-icon icon="${this._esc(this._icon())}" class="climate-icon" style="--mdc-icon-size:26px"></ha-icon>
         <div><div class="row-name">${this._esc(name)}</div>
@@ -1104,9 +1413,10 @@ class HomeClimateCard extends HTMLElement {
     </div>
     ${menus ? `<div class="control-grid">${menus}</div>` : ''}
     ${targetConfig ? this._temperatureControl(targetConfig, name) : ''}
-    ${humidityConfig ? this._humidityControl(humidityConfig, name, currentHumidity) : ''}
-    ${this._additionalControls()}`
+    ${rangeConfig ? this._rangeTemperatureControl(rangeConfig, name) : ''}
+    ${humidityConfig ? this._humidityControl(humidityConfig, name, currentHumidity) : ''}`
       : `<div class="unavailable">Climate entity ${this._esc(this._config.entity)} is unavailable.</div>`;
+    const html = `${primaryHtml}${this._additionalControls()}`;
 
     if (!this._shell) {
       this.innerHTML = `<style>${this._css()}</style><ha-card class="climate-card" style="background:var(--climate-bg)!important;background-color:var(--climate-bg)!important;border:1px solid var(--climate-divider)!important;border-radius:var(--climate-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important"></ha-card>`;
@@ -1114,6 +1424,7 @@ class HomeClimateCard extends HTMLElement {
       this._card = this.querySelector('.climate-card');
     }
     this._card.innerHTML = html;
+    this._restoreFocusedControl(focusIdentity);
   }
 
   _css() {
@@ -1171,6 +1482,8 @@ class HomeClimateCard extends HTMLElement {
       .climate-card .power-toggle.on { border-color:transparent; background:var(--climate-accent); color:var(--climate-page-bg); }
       .climate-card .power-toggle.off { color:var(--climate-secondary); }
       .climate-card .power-toggle:focus-visible { outline:3px solid var(--climate-focus); outline-offset:2px; }
+      .climate-card .power-toggle:disabled,.climate-card .menu-trigger:disabled,
+      .climate-card .stepper button:disabled { cursor:not-allowed; opacity:.45; }
       .climate-card .status-line { flex-wrap:wrap; gap:8px 16px; font-size:11.5px; margin-top:10px; }
       .climate-card .control-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(125px,1fr)); gap:8px; margin-top:12px; }
       .climate-card .additional-controls { display:grid; gap:12px; margin-top:16px; padding-top:14px; border-top:1px solid var(--climate-divider); }
@@ -1227,6 +1540,10 @@ class HomeClimateCard extends HTMLElement {
       .climate-card .temperature-control-header { flex-direction:column; justify-content:center; gap:7px; min-width:0; }
       .climate-card .temperature-controls { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-width:0; }
       .climate-card .temperature-power { flex:0 1 auto; }
+      .climate-card .range-temperature-controls { align-items:flex-start; }
+      .climate-card .range-steppers { display:grid; gap:7px; min-width:0; }
+      .climate-card .range-stepper-control { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0; }
+      .climate-card .range-label { width:2.25rem; flex:none; color:var(--climate-secondary); font-size:10px; font-weight:750; text-align:right; text-transform:uppercase; }
       .climate-card .value-copy { flex:1 1 auto; min-width:0; }
       .climate-card .value-reading { align-items:baseline; flex-wrap:wrap; gap:4px 9px; margin-top:3px; }
       .climate-card .value-reading strong { color:var(--climate-accent); font-size:15px; line-height:1.2; }
@@ -1248,16 +1565,23 @@ class HomeClimateCard extends HTMLElement {
         .climate-card .temperature-controls { gap:6px; }
         .climate-card .temperature-power { min-width:72px; padding-inline:7px; }
         .climate-card .temperature-stepper { grid-template-columns:28px minmax(3.5rem,auto) 28px; gap:6px; }
+        .climate-card .range-temperature-controls { flex-wrap:wrap; }
+        .climate-card .range-steppers { width:100%; }
+        .climate-card .range-stepper-control { justify-content:center; }
         .climate-card .control-grid { grid-template-columns:minmax(0,1fr); }
       }
     `;
   }
 }
 
-customElements.define('home-climate-card', HomeClimateCard);
+if (!customElements.get('home-climate-card')) {
+  customElements.define('home-climate-card', HomeClimateCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'home-climate-card',
-  name: 'Home Climate',
-  description: 'Dynamic climate controls for heating and cooling entities',
-});
+if (!window.customCards.some(card => card.type === 'home-climate-card')) {
+  window.customCards.push({
+    type: 'home-climate-card',
+    name: 'Home Climate',
+    description: 'Dynamic climate controls for heating and cooling entities',
+  });
+}

@@ -1,5 +1,5 @@
 class HomeRoomTileCard extends HTMLElement {
-  setConfig(c){ if(!c.name) throw new Error('name required'); this._c=c; this._lastRenderSignature=null; }
+  setConfig(c){ if(!c.name) throw new Error('name required'); this._c=c; this._lastRenderSignature=null; if(this._hass)this._render(); }
   getCardSize(){ return 2; }
   set hass(h){ this._hass=h; this._render(); }
   _st(e){ if(!e) return 'unavailable'; const s=this._hass.states[e]; return s? s.state:'unavailable'; }
@@ -12,7 +12,6 @@ class HomeRoomTileCard extends HTMLElement {
     if(typeof configuredUnit==='string'&&configuredUnit.trim()) return configuredUnit.trim();
     return '\u00b0C';
   }
-  _esc(value){ return String(value==null?'':value).replace(/[&<>"']/g, character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character])); }
   _more(e){ if(!e) return; this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:e},bubbles:true,composed:true})); }
   _popupHash(){
     if(typeof this._c.popup_hash!=='string') return '';
@@ -45,7 +44,7 @@ class HomeRoomTileCard extends HTMLElement {
     ].join(';;');
   }
   _render(){
-    if(!this._hass) return;
+    if(!this._hass||!this._c) return;
     const c=this._c;
     const stateSignature=this._stateSignature();
     if(this._shell && stateSignature===this._lastRenderSignature)return;
@@ -55,7 +54,7 @@ class HomeRoomTileCard extends HTMLElement {
     const hum = c.climate_entity? this._attr(c.climate_entity,'current_humidity','') : '';
     const temperatureText = temp==null || temp==='--'
       ? '--'
-      : `${this._esc(temp)} ${this._esc(this._temperatureUnit(c.climate_entity))}`;
+      : `${temp} ${this._temperatureUnit(c.climate_entity)}`;
     const domainIcons=[];
     if(c.light_group_entity) domainIcons.push('mdi:lightbulb-outline');
     if(c.motion_entity) domainIcons.push('mdi:motion-sensor');
@@ -63,24 +62,41 @@ class HomeRoomTileCard extends HTMLElement {
     if(c.climate_entity) domainIcons.push('mdi:thermometer');
     if(c.cover_entity) domainIcons.push('mdi:blinds');
     if(!this._shell){
-      this.innerHTML=`<style>${this._css()}</style><div class="tile"><ha-icon class="mainicon" style="--mdc-icon-size:26px"></ha-icon><div class="name"></div><div class="sub"></div><div class="icons"></div></div>`;
+      this.innerHTML=`<style>${this._css()}</style><button class="tile" type="button"><ha-icon class="mainicon" style="--mdc-icon-size:26px"></ha-icon><span class="name"></span><span class="sub"></span><span class="icons"></span></button>`;
       this._shell=true;
       this._tile=this.querySelector('.tile');
       this._mainicon=this.querySelector('.mainicon');
       this._name=this.querySelector('.name');
       this._sub=this.querySelector('.sub');
       this._icons=this.querySelector('.icons');
-      this._tile.addEventListener('click', ()=>this._open());
+      this._tile.addEventListener('click',(event)=>{
+        event.preventDefault();
+        event.stopPropagation();
+        this._open();
+      });
     }
-    this._mainicon.setAttribute('icon', c.icon||'mdi:home');
-    this._name.innerHTML=c.name;
-    this._sub.innerHTML= temp!=null? `${temperatureText}${hum?' &middot; '+this._esc(hum)+'%':''}` : '';
-    this._icons.innerHTML= domainIcons.map(i=>`<ha-icon icon="${i}" style="--mdc-icon-size:13px"></ha-icon>`).join('') + (on? `<span class="tag">on</span>`:'');
+    this._mainicon.setAttribute('icon',typeof c.icon==='string'&&c.icon?c.icon:'mdi:home');
+    this._name.textContent=String(c.name);
+    this._sub.textContent=temp!=null?`${temperatureText}${hum?` \u00b7 ${hum}%`:''}`:'';
+    const iconNodes=domainIcons.map((icon)=>{
+      const node=document.createElement('ha-icon');
+      node.setAttribute('icon',icon);
+      node.style.setProperty('--mdc-icon-size','13px');
+      return node;
+    });
+    if(on){
+      const tag=document.createElement('span');
+      tag.className='tag';
+      tag.textContent='on';
+      iconNodes.push(tag);
+    }
+    this._icons.replaceChildren(...iconNodes);
   }
   _css(){
     return `
     home-room-tile-card{ display:block; min-width:0; height:100%; font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; --tile-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --tile-radius:var(--home-room-tile-card-border-radius,20px); --tile-primary:var(--primary-text-color,#fff); --tile-secondary:var(--secondary-text-color,#8fa0b8); --tile-muted:var(--disabled-text-color,#5f7091); --tile-accent:var(--primary-color,#ffb340); --tile-divider:var(--divider-color,rgba(255,255,255,.1)); }
-    home-room-tile-card > .tile{ background:var(--tile-surface)!important; background-color:var(--tile-surface)!important; border:1px solid var(--tile-divider)!important; border-radius:var(--tile-radius)!important; box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important; padding:16px 12px 14px; min-height:120px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; text-align:center; color:var(--tile-primary); }
+    home-room-tile-card > .tile{ appearance:none; width:100%; margin:0; background:var(--tile-surface)!important; background-color:var(--tile-surface)!important; border:1px solid var(--tile-divider)!important; border-radius:var(--tile-radius)!important; box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important; padding:16px 12px 14px; min-height:120px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; text-align:center; color:var(--tile-primary); font:inherit; }
+    home-room-tile-card > .tile:focus-visible{ outline:3px solid var(--tile-accent); outline-offset:3px; }
     .name{ font-size:14px; font-weight:700; }
     .sub{ min-height:14px; font-size:11.5px; color:var(--tile-secondary); }
     .icons{ display:flex; gap:6px; color:var(--tile-muted); align-items:center; margin-top:2px; min-height:13px; }
@@ -88,6 +104,10 @@ class HomeRoomTileCard extends HTMLElement {
     `;
   }
 }
-customElements.define('home-room-tile-card', HomeRoomTileCard);
+if(!customElements.get('home-room-tile-card')){
+  customElements.define('home-room-tile-card', HomeRoomTileCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({type:'home-room-tile-card', name:'Home Room Tile', description:'Room summary tile (tap for more-info or configured popup hash)'});
+if(!window.customCards.some(card=>card.type==='home-room-tile-card')){
+  window.customCards.push({type:'home-room-tile-card', name:'Home Room Tile', description:'Room summary tile (tap for more-info or configured popup hash)'});
+}

@@ -189,10 +189,14 @@ class HomeEnergyOverviewCard extends HTMLElement {
   }
 }
 
-customElements.define('home-energy-overview-card', HomeEnergyOverviewCard);
+if (!customElements.get('home-energy-overview-card')) {
+  customElements.define('home-energy-overview-card', HomeEnergyOverviewCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'home-energy-overview-card',
-  name: 'Home Energy Overview',
-  description: 'Responsive daily energy usage and cost summary',
-});
+if (!window.customCards.some(card => card.type === 'home-energy-overview-card')) {
+  window.customCards.push({
+    type: 'home-energy-overview-card',
+    name: 'Home Energy Overview',
+    description: 'Responsive daily energy usage and cost summary',
+  });
+}

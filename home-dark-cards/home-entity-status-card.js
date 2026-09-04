@@ -3,7 +3,8 @@ class HomeEntityStatusCard extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this._numericValues = new Map();
-    this._renderKey = '';
+    this._metricNodes = new Map();
+    this._shellReady = false;
   }
 
   setConfig(config) {
@@ -25,7 +26,6 @@ class HomeEntityStatusCard extends HTMLElement {
       entities: entities.map(entry => Object.assign({}, entry)),
     };
     this._numericValues = new Map();
-    this._renderKey = '';
     this._render();
   }
 
@@ -71,16 +71,6 @@ class HomeEntityStatusCard extends HTMLElement {
 
   _isUnavailable(state) {
     return !state || ['unknown', 'unavailable', 'none'].includes(String(state.state).toLowerCase());
-  }
-
-  _escape(value) {
-    return String(value == null ? '' : value).replace(/[&<>"']/g, character => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }[character]));
   }
 
   _friendlyState(state, metric) {
@@ -183,7 +173,7 @@ class HomeEntityStatusCard extends HTMLElement {
       ? metric.unit
       : state?.attributes?.unit_of_measurement || '';
     const value = unavailable
-      ? '--'
+      ? 'Unavailable'
       : isNumeric
         ? this._formatNumber(numericValue, metric.precision)
         : this._friendlyState(state, metric);
@@ -218,8 +208,149 @@ class HomeEntityStatusCard extends HTMLElement {
     }));
   }
 
+  _ensureShell() {
+    if (this._shellReady) return;
+    this.shadowRoot.innerHTML = `<style>${this._css()}</style>
+      <ha-card class="card">
+        <div class="header">
+          <ha-icon></ha-icon>
+          <span></span>
+        </div>
+        <div class="metrics"></div>
+      </ha-card>`;
+    this._nodes = {
+      card: this.shadowRoot.querySelector('.card'),
+      header: this.shadowRoot.querySelector('.header'),
+      headerIcon: this.shadowRoot.querySelector('.header ha-icon'),
+      headerText: this.shadowRoot.querySelector('.header span'),
+      metrics: this.shadowRoot.querySelector('.metrics'),
+    };
+    this._shellReady = true;
+  }
+
+  _createMetricNode() {
+    const button = (this.ownerDocument || document).createElement('button');
+    button.className = 'metric';
+    button.type = 'button';
+    button.innerHTML = `<span class="dots" aria-hidden="true">
+        <span class="dot dot-0"></span>
+        <span class="dot dot-1"></span>
+        <span class="dot dot-2"></span>
+        <span class="dot dot-3"></span>
+        <span class="dot dot-4"></span>
+      </span>
+      <span class="metric-label"></span>
+      <strong></strong>`;
+    return {
+      button,
+      dots: Array.from(button.querySelectorAll('.dot')),
+      label: button.querySelector('.metric-label'),
+      value: button.querySelector('strong'),
+    };
+  }
+
+  _stableConfigValue(value) {
+    if (value === null) return 'null';
+    if (Array.isArray(value)) {
+      return `array:[${value.map(item => this._stableConfigValue(item)).join(',')}]`;
+    }
+    if (typeof value === 'object') {
+      const properties = Object.keys(value)
+        .sort()
+        .map(key => `${JSON.stringify(key)}:${this._stableConfigValue(value[key])}`);
+      return `object:{${properties.join(',')}}`;
+    }
+    if (typeof value === 'number') {
+      if (Number.isNaN(value)) return 'number:NaN';
+      if (value === Infinity) return 'number:Infinity';
+      if (value === -Infinity) return 'number:-Infinity';
+      if (Object.is(value, -0)) return 'number:-0';
+    }
+    return `${typeof value}:${JSON.stringify(value)}`;
+  }
+
+  _metricSignature(metric) {
+    const properties = Object.keys(metric)
+      .filter(key => !['id', 'key'].includes(key))
+      .sort()
+      .map(key => `${JSON.stringify(key)}:${this._stableConfigValue(metric[key])}`);
+    return `object:{${properties.join(',')}}`;
+  }
+
+  _explicitMetricIdentity(metric) {
+    for (const property of ['id', 'key']) {
+      if (!Object.prototype.hasOwnProperty.call(metric, property)) continue;
+      const value = metric[property];
+      const valid = typeof value === 'string'
+        ? value.trim().length > 0
+        : typeof value === 'number' && Number.isFinite(value);
+      if (valid) return `explicit\u0000${property}\u0000${this._stableConfigValue(value)}`;
+    }
+    return '';
+  }
+
+  _metricKeys(metrics) {
+    const identities = metrics.map(metric => ({
+      explicit: this._explicitMetricIdentity(metric),
+      signature: this._metricSignature(metric),
+    }));
+    const explicitSignatures = new Map();
+    identities.forEach(({ explicit, signature }) => {
+      if (!explicit) return;
+      if (!explicitSignatures.has(explicit)) explicitSignatures.set(explicit, new Set());
+      explicitSignatures.get(explicit).add(signature);
+    });
+
+    const occurrences = new Map();
+    return identities.map(({ explicit, signature }) => {
+      const identity = explicit
+        ? explicitSignatures.get(explicit).size > 1
+          ? `${explicit}\u0000config\u0000${signature}`
+          : explicit
+        : `config\u0000${signature}`;
+      const occurrence = occurrences.get(identity) || 0;
+      occurrences.set(identity, occurrence + 1);
+      return `${identity}\u0000${occurrence}`;
+    });
+  }
+
+  _updateMetricNode(nodes, config, value, valueUpdated) {
+    const { button, dots, label, value: valueNode } = nodes;
+    const classes = [
+      'metric',
+      value.unavailable ? 'unavailable' : '',
+      value.isMotionActive ? 'motion-active' : '',
+      value.dotColorMode ? `dot-color-${value.dotColorMode}` : '',
+      value.tone ? `dot-tone-${value.tone}` : '',
+    ].filter(Boolean);
+    button.className = classes.join(' ');
+    button.dataset.entity = config.entity;
+
+    const valueText = value.unit && !value.unavailable && this._number(value.state?.state) != null
+      ? `${value.value} ${value.unit}`
+      : value.value;
+    button.setAttribute('aria-label', `Show details for ${value.label}: ${valueText}`);
+    label.textContent = value.label;
+    valueNode.textContent = valueText;
+
+    const dotOrder = this._config.metric_layout === 'vertical'
+      ? [4, 3, 2, 1, 0]
+      : [0, 1, 2, 3, 4];
+    dotOrder.forEach((dotIndex, position) => {
+      const dot = dots[position];
+      dot.className = `dot dot-${dotIndex}${dotIndex < value.activeDots ? ' active' : ''}`;
+    });
+
+    if (valueUpdated) {
+      void button.offsetWidth;
+      button.classList.add('value-updated');
+    }
+  }
+
   _render() {
     if (!this._hass || !this._config) return;
+    this._ensureShell();
+
     const previousNumericValues = this._numericValues || new Map();
     const metrics = this._config.entities.map(metric => {
       const value = this._metric(metric);
@@ -234,56 +365,40 @@ class HomeEntityStatusCard extends HTMLElement {
     this._numericValues = new Map(metrics
       .filter(({ value }) => value.isNumeric)
       .map(({ config, value }) => [config.entity, value.stateValue]));
-    const metricCount = Math.max(1, Math.min(6, metrics.length));
-    const renderKey = JSON.stringify({
-      name: this._config.name,
-      icon: this._config.icon,
-      showHeader: this._config.show_header,
-      layout: this._config.entity_layout,
-      metricLayout: this._config.metric_layout,
-      metrics: metrics.map(({ config, value }) => [
-        config.entity,
-        config.label,
-        config.min,
-        config.max,
-        config.color_direction,
-        config.active_state,
-        value.state?.state,
-        value.state?.attributes?.unit_of_measurement,
-        value.state?.attributes?.device_class,
-      ]),
+
+    this._nodes.card.classList.toggle('header-hidden', !this._config.show_header);
+    this._nodes.header.hidden = !this._config.show_header;
+    this._nodes.headerIcon.setAttribute('icon', this._config.icon);
+    this._nodes.headerText.textContent = this._config.name;
+    this._nodes.metrics.className =
+      `metrics ${this._config.entity_layout} metric-${this._config.metric_layout}`;
+    this._nodes.metrics.style.setProperty(
+      '--metric-count',
+      String(Math.max(1, Math.min(6, metrics.length))),
+    );
+
+    const metricKeys = this._metricKeys(metrics.map(({ config }) => config));
+    const activeKeys = new Set();
+    metrics.forEach(({ config, value, valueUpdated }, index) => {
+      const key = metricKeys[index];
+      activeKeys.add(key);
+      let nodes = this._metricNodes.get(key);
+      if (!nodes) {
+        nodes = this._createMetricNode();
+        this._metricNodes.set(key, nodes);
+      }
+      this._updateMetricNode(nodes, config, value, valueUpdated);
+      const currentNode = this._nodes.metrics.children[index] || null;
+      if (currentNode !== nodes.button) {
+        this._nodes.metrics.insertBefore(nodes.button, currentNode);
+      }
     });
-    if (renderKey === this._renderKey) return;
-    this._renderKey = renderKey;
 
-    const content = metrics.map(({ config, value, valueUpdated }) => {
-      const dotOrder = this._config.metric_layout === 'vertical'
-        ? [4, 3, 2, 1, 0]
-        : [0, 1, 2, 3, 4];
-      const dots = dotOrder.map(index =>
-        `<span class="dot dot-${index}${index < value.activeDots ? ' active' : ''}" aria-hidden="true"></span>`
-      ).join('');
-      const valueText = value.unit && !value.unavailable && this._number(value.state?.state) != null
-        ? `${value.value} ${value.unit}`
-        : value.value;
-      return `<button class="metric${value.unavailable ? ' unavailable' : ''}${value.isMotionActive ? ' motion-active' : ''}${valueUpdated ? ' value-updated' : ''}${value.dotColorMode ? ` dot-color-${value.dotColorMode}` : ''}${value.tone ? ` dot-tone-${value.tone}` : ''}" type="button"
-        data-entity="${this._escape(config.entity)}"
-        aria-label="Show details for ${this._escape(value.label)}: ${this._escape(valueText)}">
-        <span class="dots" aria-hidden="true">${dots}</span>
-        <span class="metric-label">${this._escape(value.label)}</span>
-        <strong>${this._escape(valueText)}</strong>
-      </button>`;
-    }).join('');
-
-    this.shadowRoot.innerHTML = `<style>${this._css()}</style>
-      <ha-card class="card${this._config.show_header ? '' : ' header-hidden'}">
-        ${this._config.show_header ? `<div class="header">
-          <ha-icon icon="${this._escape(this._config.icon)}"></ha-icon>
-          <span>${this._escape(this._config.name)}</span>
-        </div>` : ''}
-        <div class="metrics ${this._config.entity_layout} metric-${this._config.metric_layout}"
-          style="--metric-count:${metricCount}">${content}</div>
-      </ha-card>`;
+    this._metricNodes.forEach((nodes, key) => {
+      if (activeKeys.has(key)) return;
+      nodes.button.remove();
+      this._metricNodes.delete(key);
+    });
   }
 
   _css() {
@@ -313,10 +428,11 @@ class HomeEntityStatusCard extends HTMLElement {
         box-shadow:0 4px 14px rgba(0,0,0,.16);
       }
       .card * { box-sizing:border-box; }
+      [hidden] { display:none !important; }
       .header { display:flex; align-items:center; gap:9px; min-width:0; font-size:16px; font-weight:750; line-height:1.2; }
       .header ha-icon { color:var(--status-accent); --mdc-icon-size:21px; }
       .header span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .metrics { display:flex; gap:0; margin-top:8px; }
+      .metrics { display:flex; min-width:0; gap:0; margin-top:8px; }
       .header-hidden .metrics { margin-top:0; }
       .card.header-hidden { padding:11px 13px; }
       .metrics.vertical { flex-direction:column; }
@@ -378,17 +494,6 @@ class HomeEntityStatusCard extends HTMLElement {
         overflow:hidden;
         text-overflow:ellipsis;
       }
-      .metrics.horizontal.metric-vertical .metric + .metric { position:relative; }
-      .metrics.horizontal.metric-vertical .metric + .metric::before {
-        content:'';
-        position:absolute;
-        top:50%;
-        left:0;
-        width:1px;
-        height:58px;
-        background:rgba(255,255,255,.09);
-        transform:translateY(-50%);
-      }
       .dot { width:6px; height:6px; border-radius:50%; background:var(--status-secondary); box-shadow:0 0 0 1px color-mix(in srgb,var(--status-secondary) 55%,var(--status-primary)); opacity:1; }
       .dot-0 { --dot-color:#1f7a45; }
       .dot-1 { --dot-color:#8ed45b; }
@@ -449,8 +554,19 @@ class HomeEntityStatusCard extends HTMLElement {
         .metric.value-updated .dot.active { animation:none; opacity:1; transform:none; }
       }
       .metric-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--status-secondary); font-size:12px; font-weight:700; }
-      .metric strong { min-width:0; color:var(--status-primary); font-size:15px; font-weight:650; line-height:1.15; white-space:nowrap; }
+      .metric strong { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; color:var(--status-primary); font-size:15px; font-weight:650; line-height:1.15; white-space:nowrap; }
       .metric.unavailable strong { color:var(--status-secondary); }
+      .metrics.horizontal.metric-vertical .metric + .metric { position:relative; }
+      .metrics.horizontal.metric-vertical .metric + .metric::before {
+        content:'';
+        position:absolute;
+        top:50%;
+        left:0;
+        width:1px;
+        height:58px;
+        background:rgba(255,255,255,.09);
+        transform:translateY(-50%);
+      }
       @media (max-width:380px) {
         .card { padding:15px 13px 11px; }
         .metric { grid-template-columns:56px minmax(0,1fr) auto; gap:7px; }
@@ -466,10 +582,14 @@ class HomeEntityStatusCard extends HTMLElement {
   }
 }
 
-customElements.define('home-entity-status-card', HomeEntityStatusCard);
+if (!customElements.get('home-entity-status-card')) {
+  customElements.define('home-entity-status-card', HomeEntityStatusCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'home-entity-status-card',
-  name: 'Home Entity Status',
-  description: 'Dot-based status groups for numeric sensors and binary entities',
-});
+if (!window.customCards.some(card => card.type === 'home-entity-status-card')) {
+  window.customCards.push({
+    type: 'home-entity-status-card',
+    name: 'Home Entity Status',
+    description: 'Dot-based status groups for numeric sensors and binary entities',
+  });
+}
