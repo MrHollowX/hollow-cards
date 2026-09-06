@@ -46,7 +46,7 @@ test('HACS entry points load the complete card set', () => {
   }
 
   assert.match(
-    fs.readFileSync(path.join(DIST_DIRECTORY, 'ha_custom_cards_set.js'), 'utf8'),
+    fs.readFileSync(path.join(DIST_DIRECTORY, 'hollow-cards-set.js'), 'utf8'),
     /import '\.\/hollow-cards\.js';/
   );
 });

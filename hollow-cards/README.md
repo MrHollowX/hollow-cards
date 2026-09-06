@@ -2,8 +2,8 @@
 
 This folder contains the JavaScript custom-card sources for Hollow Cards. The
 files now use the `hollow-*` filenames and custom element names. The existing
-`home-dark` Home Assistant dashboard route remains unchanged, but its card
-configurations must use the new `custom:hollow-*` types. They provide the
+Home Assistant dashboard route remains unchanged, but its card configurations
+must use the new `custom:hollow-*` types. They provide the
 dashboard header, room summaries, person
 presence, status and security summaries, light, switch, climate, cover, vacuum,
 appliance, camera, energy, and entity-status controls, an expandable card
@@ -84,7 +84,7 @@ found no references.
 
 - **Card type:** `custom:hollow-floating-menu-card`
 - **Purpose:** Fixed, safe-area-aware bottom navigation that remains visible while
-  the dashboard view scrolls. The live `home-dark` dashboard places one instance
+  the dashboard view scrolls. The live dashboard places one instance
   in each of its six views and uses `view_path` to avoid duplicate fixed menus
   when inactive views remain mounted.
 - **Resource:** `hollow-floating-menu-card.js`
@@ -208,7 +208,7 @@ camera_groups:
 ## Card usage
 
 Each example below uses the card type, source filename, and deployed resource URL.
-Entity IDs marked as verified were present in the current `home-dark` configuration or
+Entity IDs marked as verified were present in the current dashboard configuration or
 were verified in Home Assistant's entity registry. `[Needs configuration]` means the
 card supports the option, but this repository does not confirm an installation-specific
 value.
@@ -232,7 +232,7 @@ forecast_days: 5
 show_forecast: false
 ```
 
-- `weather_entity` is optional. The current `home-dark` dashboard uses the verified
+- `weather_entity` is optional. The current dashboard uses the verified
   `weather.openweathermap` entity.
 - `forecast_days` accepts a number and is rounded and clamped to `1`–`5`; the default is
   `3`. The current dashboard sets it to `5`.
@@ -390,7 +390,7 @@ status_sections:
 - **Resource:** `hollow-energy-overview-card.js`
 - **Resource ID:** `da52af5bbea0436d882c4261595b237e`
 
-The verified current card on the `home-dark` Lights view is:
+The verified current card on the Lights view is:
 
 ```yaml
 type: custom:hollow-energy-overview-card
@@ -601,7 +601,7 @@ half_open_position: 50
 - **Resource ID:** `d3ddace99f314afbbbe9ad689d437161`
 - **URL:** `/local/hollow-cards/hollow-climate-card.js?v=20260826-additional-ac-power-controls`
 
-The current `home-dark` dashboard uses this card for all eight climate entities:
+The current dashboard uses this card for all eight climate entities:
 `climate.living_room`, `climate.cinema`, `climate.office_ac`, `climate.erics_room`,
 `climate.master_bedroom`, `climate.master_bathroom`, `climate.erics_bathroom`, and
 `climate.studio_bathroom`.
@@ -702,7 +702,7 @@ show_additional_title: true
   original `home-dark-*` theme variables with fixed dark fallbacks: card
   `#212c42`, page `#1a2433`, primary `#f5f7fb`, secondary `#91a2bb`, accent
   `#ffb340`, controls `#2b3850`, and muted text `#66758f`.
-- The live `home-dark` dashboard uses 16 climate-card instances: eight in the
+- The live dashboard uses 16 climate-card instances: eight in the
   Climate view and eight in room popups. The dashboard configuration, not this
   JavaScript resource, owns popup membership and room layout.
 - After the first paint, identical Home Assistant updates skip rebuilding the card
@@ -948,7 +948,7 @@ editable in the dashboard editor.
 
 ### Living Room popup
 
-The first room popup is configured in the live `home-dark` dashboard rather than
+The first room popup is configured in the live dashboard rather than
 inside JavaScript. The Living Room room tile has `popup_hash: '#living-room'`, and
 the Home view contains a Bubble Card with `card_type: pop-up`, the same hash, a
 dark `#1a2433` background, and nested child cards:
@@ -1189,7 +1189,7 @@ grid_options:
 - The verified metric entities are `sensor.home_pm2_5`, `sensor.home_pm10`, and
   `sensor.air_quality_index`.
 
-## Adding a card to `home-dark`
+## Adding a card to the dashboard
 
 1. For a URL-mode card, copy the card JavaScript file to Home Assistant:
    `/config/www/hollow-cards/<card-file>.js`.
@@ -1198,7 +1198,7 @@ grid_options:
    Do not create an inline resource for a new local card. `hollow-cover-card` is
    the existing inline-resource exception and must not be replaced by this
    workflow.
-3. Open the `home-dark` dashboard editor, choose the target view, add a card, select
+3. Open the dashboard editor, choose the target view, add a card, select
    **Manual**, and paste the relevant YAML example.
 4. Save the dashboard and hard-refresh the browser if the resource was newly copied or
    updated.
@@ -1213,7 +1213,7 @@ the new module.
 
 Local files are deployed under `/config/www/hollow-cards/` and registered in
 Home Assistant as `/local/hollow-cards/*.js` module resources. Future custom
-cards belonging to `home-dark` must use this URL-mode workflow.
+cards belonging to the dashboard must use this URL-mode workflow.
 `hollow-cover-card` is the retained inline-resource exception and is not covered
 by these URL-resource update steps.
 
@@ -1226,7 +1226,7 @@ the corresponding `user-hass` MCP tool:
    `resource_type: "module"` and the matching `/local/hollow-cards/*.js` URL.
    Add a new cache-busting query when updating a URL-mode file.
 3. Confirm the returned resource ID and then reload the dashboard resource in Home Assistant if required.
-4. Verify the resource with `ha_config_list_dashboard_resources()` and check the `home-dark` dashboard configuration.
+4. Verify the resource with `ha_config_list_dashboard_resources()` and check the dashboard configuration.
 
 Updating Home Assistant is an explicit remote configuration change; this folder does not
 perform it automatically.

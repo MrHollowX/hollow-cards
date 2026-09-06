@@ -1,9 +1,9 @@
 # Hollow Cards
 
 Hollow Cards is a set of standalone JavaScript custom cards for Home Assistant.
-The card element names use the `custom:hollow-*` prefix. The existing
-`home-dark` dashboard paths remain unchanged because they belong to the
-external dashboard configuration.
+The card element names use the `custom:hollow-*` prefix. Existing dashboard
+paths remain unchanged because they belong to the external dashboard
+configuration.
 
 The shared, agent-neutral project guidance is [`ai-skill/SKILL.md`](ai-skill/SKILL.md);
 coding agents should read it before making changes.
@@ -11,19 +11,18 @@ coding agents should read it before making changes.
 ## Install with HACS
 
 HACS can install Hollow Cards as a Dashboard repository. If the repository is
-not listed in the HACS catalog yet, add `MrHollowX/ha_custom_cards_set` as a
+not listed in the HACS catalog yet, add `MrHollowX/hollow-cards-set` as a
 custom repository and choose the **Dashboard** category.
 
 After downloading, add one module resource to Home Assistant:
 
 ```yaml
 resources:
-  - url: /hacsfiles/ha_custom_cards_set/ha_custom_cards_set.js
+  - url: /hacsfiles/hollow-cards-set/hollow-cards-set.js
     type: module
 ```
 
-If the GitHub repository is renamed to `hollow-cards`, use
-`/hacsfiles/hollow-cards/hollow-cards.js` instead. Remove duplicate old
+This path matches the `hollow-cards-set` repository name. Remove duplicate old
 `/local/hollow-cards/*.js` resources when switching to the HACS entry point.
 
 The dashboard card types are `custom:hollow-header-card`,

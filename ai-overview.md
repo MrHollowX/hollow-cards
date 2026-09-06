@@ -357,7 +357,7 @@ local configuration.
 ## Project Structure
 
 ```plaintext
-ha_custom_cards_set/
+hollow-cards-set/
 ├── hollow-cards/
 │   ├── hollow-header-card.js         # Clock, weather, and forecast card
 │   ├── hollow-status-card.js         # House mode and air-quality card
