@@ -1,13 +1,41 @@
-# Home Dark Cards
+# Hollow Cards
 
-This repository contains standalone JavaScript custom cards for the Home
-Assistant `home-dark` Lovelace dashboard. The shared, agent-neutral project
-guidance is [`ai-skill/SKILL.md`](ai-skill/SKILL.md); coding agents should read
-it before making changes.
+Hollow Cards is a set of standalone JavaScript custom cards for Home Assistant.
+The card element names use the `custom:hollow-*` prefix. The existing
+`home-dark` dashboard paths remain unchanged because they belong to the
+external dashboard configuration.
+
+The shared, agent-neutral project guidance is [`ai-skill/SKILL.md`](ai-skill/SKILL.md);
+coding agents should read it before making changes.
+
+## Install with HACS
+
+HACS can install Hollow Cards as a Dashboard repository. If the repository is
+not listed in the HACS catalog yet, add `MrHollowX/ha_custom_cards_set` as a
+custom repository and choose the **Dashboard** category.
+
+After downloading, add one module resource to Home Assistant:
+
+```yaml
+resources:
+  - url: /hacsfiles/ha_custom_cards_set/ha_custom_cards_set.js
+    type: module
+```
+
+If the GitHub repository is renamed to `hollow-cards`, use
+`/hacsfiles/hollow-cards/hollow-cards.js` instead. Remove duplicate old
+`/local/hollow-cards/*.js` resources when switching to the HACS entry point.
+
+The dashboard card types are `custom:hollow-header-card`,
+`custom:hollow-climate-card`, and the other `custom:hollow-*` types.
+
+When card source files change, run
+`powershell -File scripts/sync-hacs-dist.ps1` before committing so the HACS
+payload stays synchronized.
 
 ## Repository contents
 
-- [`home-dark-cards/`](home-dark-cards/) — local card sources and their detailed
+- [`hollow-cards/`](hollow-cards/) — local card sources and their detailed
   configuration, resource, and deployment contracts.
 - [`tests/`](tests/) — Node.js invariant tests for the 16 source cards (23 tests).
 - [`ai-overview.md`](ai-overview.md) — architecture and onboarding notes.
@@ -15,21 +43,22 @@ it before making changes.
 
 The cards run in the Home Assistant browser frontend. They receive state and
 service APIs through Home Assistant's `hass` object. This repository has no
-backend, build system, package manifest, local HA configuration, database, or
-generated bundle.
+backend, local Home Assistant configuration, or database. The root
+`hacs.json`, `dist/` payload, and sync script are packaging-only assets for
+HACS; card behavior remains in `hollow-cards/`.
 
 ## Verification
 
 Run the invariant suite with:
 
 ```text
-node --test tests/home-dark-cards-invariants.test.cjs
+node --test tests/hollow-cards-invariants.test.cjs
 ```
 
 Live entities, dashboards, and Lovelace resources remain on the remote Home
 Assistant instance. See the skill and the card README for the MCP workflow,
 URL-mode deployment directory, cache-busting rules, and the retained inline
-`home-cover-card` exception.
+`hollow-cover-card` exception.
 
 There are no tool-specific skill copies in this repository. `AGENTS.md` is only
 the discovery pointer; [`ai-skill/SKILL.md`](ai-skill/SKILL.md) is the shared

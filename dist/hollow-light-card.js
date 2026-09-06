@@ -688,13 +688,13 @@ class HomeLightCard extends HTMLElement {
 
   _css() {
     return `
-      home-light-card {
+      hollow-light-card {
         display: block;
         width: 100%;
         min-width: 0;
         font-family: -apple-system, 'Segoe UI', Helvetica, sans-serif;
         --light-card-bg: var(--card-background-color, var(--ha-card-background, #212c42));
-        --light-card-radius: var(--home-light-card-border-radius, 20px);
+        --light-card-radius: var(--hollow-light-card-border-radius, 20px);
         --light-primary-text: var(--primary-text-color, #f5f7fb);
         --light-secondary-text: var(--secondary-text-color, #91a2bb);
         --light-accent: var(--primary-color, var(--accent-color, #ffb340));
@@ -703,7 +703,7 @@ class HomeLightCard extends HTMLElement {
         --light-muted: var(--disabled-text-color, #66758f);
         --light-divider: var(--divider-color, rgba(255,255,255,.1));
       }
-      home-light-card > ha-card.row-card {
+      hollow-light-card > ha-card.row-card {
         box-sizing: border-box;
         width: 100%;
         min-width: 0;
@@ -771,14 +771,14 @@ class HomeLightCard extends HTMLElement {
   }
 }
 
-if (!customElements.get('home-light-card')) {
-  customElements.define('home-light-card', HomeLightCard);
+if (!customElements.get('hollow-light-card')) {
+  customElements.define('hollow-light-card', HomeLightCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some(card => card.type === 'home-light-card')) {
+if (!window.customCards.some(card => card.type === 'hollow-light-card')) {
   window.customCards.push({
-    type: 'home-light-card',
-    name: 'Home Light',
+    type: 'hollow-light-card',
+    name: 'Hollow Light',
     description: 'Theme-aware light control row with optional brightness slider',
   });
 }

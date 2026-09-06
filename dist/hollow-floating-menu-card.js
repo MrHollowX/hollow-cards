@@ -518,14 +518,14 @@ HomeFloatingMenuCard._nextInstanceOrder = 0;
 HomeFloatingMenuCard._lastKnownRoute = '';
 HomeFloatingMenuCard._lastSyncedPath = '';
 HomeFloatingMenuCard._globalListenersAttached = false;
-if (!customElements.get('home-floating-menu-card')) {
-  customElements.define('home-floating-menu-card', HomeFloatingMenuCard);
+if (!customElements.get('hollow-floating-menu-card')) {
+  customElements.define('hollow-floating-menu-card', HomeFloatingMenuCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some((card) => card?.type === 'home-floating-menu-card')) {
+if (!window.customCards.some((card) => card?.type === 'hollow-floating-menu-card')) {
   window.customCards.push({
-    type: 'home-floating-menu-card',
-    name: 'Home Floating Menu Card',
-    description: 'Fixed bottom navigation for Home Dark dashboard views',
+    type: 'hollow-floating-menu-card',
+    name: 'Hollow Floating Menu Card',
+    description: 'Fixed bottom navigation for Hollow Cards dashboard views',
   });
 }

@@ -27,7 +27,7 @@ class HomeEnergyOverviewCard extends HTMLElement {
         price_per_kwh: price,
       }))
       : [];
-    if (!items.length) throw new Error('home-energy-overview-card requires one or more items with usage_entity and either cost_entity, price_per_kwh, or price_entity');
+    if (!items.length) throw new Error('hollow-energy-overview-card requires one or more items with usage_entity and either cost_entity, price_per_kwh, or price_entity');
     this._config = {
       title: typeof config.title === 'string' && config.title.trim() ? config.title.trim() : "Today's usage & cost",
       icon: typeof config.icon === 'string' && config.icon ? config.icon : 'mdi:chart-line',
@@ -154,7 +154,7 @@ class HomeEnergyOverviewCard extends HTMLElement {
 
   _css() {
     return `
-      :host { display:block; min-width:0; width:100%; container-type:inline-size; --energy-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --energy-card-radius:var(--home-energy-overview-card-border-radius,20px); --energy-control:var(--secondary-background-color,#2b3850); color:var(--primary-text-color,#f5f7fb); font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; }
+      :host { display:block; min-width:0; width:100%; container-type:inline-size; --energy-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --energy-card-radius:var(--hollow-energy-overview-card-border-radius,20px); --energy-control:var(--secondary-background-color,#2b3850); color:var(--primary-text-color,#f5f7fb); font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; }
       .card { box-sizing:border-box; padding:14px; overflow:hidden; background:var(--energy-surface)!important; color:var(--primary-text-color,#f5f7fb); border:1px solid var(--divider-color,rgba(255,255,255,.1))!important; border-radius:var(--energy-card-radius)!important; box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important; }
       .card *, .card *::before, .card *::after { box-sizing:border-box; }
       .header { display:flex; align-items:center; gap:8px; margin:0 2px 11px; min-width:0; color:var(--primary-text-color,#f5f7fb); font-size:15px; font-weight:750; line-height:1.2; }
@@ -189,14 +189,14 @@ class HomeEnergyOverviewCard extends HTMLElement {
   }
 }
 
-if (!customElements.get('home-energy-overview-card')) {
-  customElements.define('home-energy-overview-card', HomeEnergyOverviewCard);
+if (!customElements.get('hollow-energy-overview-card')) {
+  customElements.define('hollow-energy-overview-card', HomeEnergyOverviewCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some(card => card.type === 'home-energy-overview-card')) {
+if (!window.customCards.some(card => card.type === 'hollow-energy-overview-card')) {
   window.customCards.push({
-    type: 'home-energy-overview-card',
-    name: 'Home Energy Overview',
+    type: 'hollow-energy-overview-card',
+    name: 'Hollow Energy Overview',
     description: 'Responsive daily energy usage and cost summary',
   });
 }

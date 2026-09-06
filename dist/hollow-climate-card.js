@@ -95,7 +95,7 @@ class HomeClimateCard extends HTMLElement {
     this._wired = true;
     if (!this._instanceId) {
       HomeClimateCard._nextId = (HomeClimateCard._nextId || 0) + 1;
-      this._instanceId = `home-climate-${HomeClimateCard._nextId}`;
+      this._instanceId = `hollow-climate-${HomeClimateCard._nextId}`;
     }
     this.addEventListener('pointerdown', this._onPointerDown, true);
     this.addEventListener('click', this._onClick, true);
@@ -1429,13 +1429,13 @@ class HomeClimateCard extends HTMLElement {
 
   _css() {
     return `
-      home-climate-card {
+      hollow-climate-card {
         display:block;
         width:100%;
         min-width:0;
         font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;
         --climate-bg:var(--card-background-color,var(--ha-card-background,#212c42));
-        --climate-card-radius:var(--home-climate-card-border-radius,20px);
+        --climate-card-radius:var(--hollow-climate-card-border-radius,20px);
         --climate-page-bg:var(--primary-background-color,#1a2433);
         --climate-primary:var(--primary-text-color,#f5f7fb);
         --climate-secondary:var(--secondary-text-color,#91a2bb);
@@ -1445,7 +1445,7 @@ class HomeClimateCard extends HTMLElement {
         --climate-muted:var(--disabled-text-color,#66758f);
         --climate-divider:var(--divider-color,rgba(255,255,255,.14));
       }
-      home-climate-card > ha-card.climate-card {
+      hollow-climate-card > ha-card.climate-card {
         box-sizing:border-box;
         width:100%;
         min-width:0;
@@ -1574,14 +1574,14 @@ class HomeClimateCard extends HTMLElement {
   }
 }
 
-if (!customElements.get('home-climate-card')) {
-  customElements.define('home-climate-card', HomeClimateCard);
+if (!customElements.get('hollow-climate-card')) {
+  customElements.define('hollow-climate-card', HomeClimateCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some(card => card.type === 'home-climate-card')) {
+if (!window.customCards.some(card => card.type === 'hollow-climate-card')) {
   window.customCards.push({
-    type: 'home-climate-card',
-    name: 'Home Climate',
+    type: 'hollow-climate-card',
+    name: 'Hollow Climate',
     description: 'Dynamic climate controls for heating and cooling entities',
   });
 }

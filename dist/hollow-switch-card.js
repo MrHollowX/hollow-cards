@@ -553,13 +553,13 @@ class HomeSwitchCard extends HTMLElement {
 
   _css() {
     return `
-      home-switch-card {
+      hollow-switch-card {
         display: block;
         width: 100%;
         min-width: 0;
         font-family: -apple-system, 'Segoe UI', Helvetica, sans-serif;
         --switch-card-bg: var(--card-background-color, var(--ha-card-background, #212c42));
-        --switch-card-radius: var(--home-switch-card-border-radius, 20px);
+        --switch-card-radius: var(--hollow-switch-card-border-radius, 20px);
         --switch-primary-text: var(--primary-text-color, #f5f7fb);
         --switch-secondary-text: var(--secondary-text-color, #91a2bb);
         --switch-accent: var(--primary-color, var(--accent-color, #ffb340));
@@ -568,7 +568,7 @@ class HomeSwitchCard extends HTMLElement {
         --switch-page-bg: var(--primary-background-color, #1a2433);
         --switch-divider: var(--divider-color, rgba(255, 255, 255, .1));
       }
-      home-switch-card > ha-card.switch-card {
+      hollow-switch-card > ha-card.switch-card {
         box-sizing: border-box;
         width: 100%;
         min-width: 0;
@@ -721,14 +721,14 @@ HomeSwitchCard.TYPES = {
   lock: { icon: 'mdi:lock' },
 };
 
-if (!customElements.get('home-switch-card')) {
-  customElements.define('home-switch-card', HomeSwitchCard);
+if (!customElements.get('hollow-switch-card')) {
+  customElements.define('hollow-switch-card', HomeSwitchCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some(card => card.type === 'home-switch-card')) {
+if (!window.customCards.some(card => card.type === 'hollow-switch-card')) {
   window.customCards.push({
-    type: 'home-switch-card',
-    name: 'Home Switch',
+    type: 'hollow-switch-card',
+    name: 'Hollow Switch',
     description: 'Theme-aware switch control with configurable visual type',
   });
 }

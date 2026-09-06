@@ -94,9 +94,9 @@ class HomeRoomTileCard extends HTMLElement {
   }
   _css(){
     return `
-    home-room-tile-card{ display:block; min-width:0; height:100%; font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; --tile-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --tile-radius:var(--home-room-tile-card-border-radius,20px); --tile-primary:var(--primary-text-color,#fff); --tile-secondary:var(--secondary-text-color,#8fa0b8); --tile-muted:var(--disabled-text-color,#5f7091); --tile-accent:var(--primary-color,#ffb340); --tile-divider:var(--divider-color,rgba(255,255,255,.1)); }
-    home-room-tile-card > .tile{ appearance:none; width:100%; margin:0; background:var(--tile-surface)!important; background-color:var(--tile-surface)!important; border:1px solid var(--tile-divider)!important; border-radius:var(--tile-radius)!important; box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important; padding:16px 12px 14px; min-height:120px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; text-align:center; color:var(--tile-primary); font:inherit; }
-    home-room-tile-card > .tile:focus-visible{ outline:3px solid var(--tile-accent); outline-offset:3px; }
+    hollow-room-tile-card{ display:block; min-width:0; height:100%; font-family:-apple-system,'Segoe UI',Helvetica,sans-serif; --tile-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --tile-radius:var(--hollow-room-tile-card-border-radius,20px); --tile-primary:var(--primary-text-color,#fff); --tile-secondary:var(--secondary-text-color,#8fa0b8); --tile-muted:var(--disabled-text-color,#5f7091); --tile-accent:var(--primary-color,#ffb340); --tile-divider:var(--divider-color,rgba(255,255,255,.1)); }
+    hollow-room-tile-card > .tile{ appearance:none; width:100%; margin:0; background:var(--tile-surface)!important; background-color:var(--tile-surface)!important; border:1px solid var(--tile-divider)!important; border-radius:var(--tile-radius)!important; box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important; padding:16px 12px 14px; min-height:120px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; text-align:center; color:var(--tile-primary); font:inherit; }
+    hollow-room-tile-card > .tile:focus-visible{ outline:3px solid var(--tile-accent); outline-offset:3px; }
     .name{ font-size:14px; font-weight:700; }
     .sub{ min-height:14px; font-size:11.5px; color:var(--tile-secondary); }
     .icons{ display:flex; gap:6px; color:var(--tile-muted); align-items:center; margin-top:2px; min-height:13px; }
@@ -104,10 +104,10 @@ class HomeRoomTileCard extends HTMLElement {
     `;
   }
 }
-if(!customElements.get('home-room-tile-card')){
-  customElements.define('home-room-tile-card', HomeRoomTileCard);
+if(!customElements.get('hollow-room-tile-card')){
+  customElements.define('hollow-room-tile-card', HomeRoomTileCard);
 }
 window.customCards = window.customCards || [];
-if(!window.customCards.some(card=>card.type==='home-room-tile-card')){
-  window.customCards.push({type:'home-room-tile-card', name:'Home Room Tile', description:'Room summary tile (tap for more-info or configured popup hash)'});
+if(!window.customCards.some(card=>card.type==='hollow-room-tile-card')){
+  window.customCards.push({type:'hollow-room-tile-card', name:'Hollow Room Tile', description:'Room summary tile (tap for more-info or configured popup hash)'});
 }

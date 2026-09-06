@@ -121,7 +121,7 @@ class HomeGroupCard extends HTMLElement {
         message.className = 'group-error';
         message.textContent = 'Unable to load grouped cards.';
         body.replaceChildren(message);
-        console.error('home-group-card:', error);
+        console.error('hollow-group-card:', error);
       } finally {
         if (token === this._renderToken && body === this.querySelector('.group-body')) {
           body.removeAttribute('aria-busy');
@@ -176,13 +176,13 @@ class HomeGroupCard extends HTMLElement {
 
     this.innerHTML = `
       <style>
-        home-group-card {
+        hollow-group-card {
           display: block;
           width: 100%;
           min-width: 0;
           font-family: -apple-system, 'Segoe UI', Helvetica, sans-serif;
           --group-card-bg: var(--card-background-color, var(--ha-card-background, #212c42));
-          --group-card-radius: var(--home-group-card-border-radius, 20px);
+          --group-card-radius: var(--hollow-group-card-border-radius, 20px);
           --group-primary: var(--primary-text-color, #f5f7fb);
           --group-secondary: var(--secondary-text-color, #91a2bb);
           --group-control: var(--secondary-background-color, #2b3850);
@@ -190,7 +190,7 @@ class HomeGroupCard extends HTMLElement {
           --group-muted: var(--disabled-text-color, #66758f);
           --group-divider: var(--divider-color, rgba(255, 255, 255, .1));
         }
-        home-group-card > .group-card {
+        hollow-group-card > .group-card {
           box-sizing: border-box;
           width: 100%;
           min-width: 0;
@@ -306,14 +306,14 @@ class HomeGroupCard extends HTMLElement {
   }
 }
 
-if (!customElements.get('home-group-card')) {
-  customElements.define('home-group-card', HomeGroupCard);
+if (!customElements.get('hollow-group-card')) {
+  customElements.define('hollow-group-card', HomeGroupCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some((card) => card.type === 'home-group-card')) {
+if (!window.customCards.some((card) => card.type === 'hollow-group-card')) {
   window.customCards.push({
-    type: 'home-group-card',
-    name: 'Home Group',
-    description: 'Expandable Home Dark card group with an optional entity header',
+    type: 'hollow-group-card',
+    name: 'Hollow Group',
+    description: 'Expandable Hollow Cards group with an optional entity header',
   });
 }

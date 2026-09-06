@@ -1,6 +1,14 @@
-# Home Dark Cards
+# Hollow Cards
 
-This folder contains the JavaScript custom-card sources available to the `home-dark` Home Assistant dashboard. The files are local card sources and are not a generated build. They provide the dashboard header, room summaries, person presence, status and security summaries, light, switch, climate, cover, vacuum, appliance, camera, energy, and entity-status controls, an expandable card container, and fixed bottom navigation. Media players are provided by the separately maintained `custom:mediocre-media-player-card` resource.
+This folder contains the JavaScript custom-card sources for Hollow Cards. The
+files now use the `hollow-*` filenames and custom element names. The existing
+`home-dark` Home Assistant dashboard route remains unchanged, but its card
+configurations must use the new `custom:hollow-*` types. They provide the
+dashboard header, room summaries, person
+presence, status and security summaries, light, switch, climate, cover, vacuum,
+appliance, camera, energy, and entity-status controls, an expandable card
+container, and fixed bottom navigation. Media players are provided by the
+separately maintained `custom:mediocre-media-player-card` resource.
 
 The shared coding-agent guidance for this repository is in
 [`../ai-skill/SKILL.md`](../ai-skill/SKILL.md). It applies to all agents and
@@ -14,7 +22,7 @@ The repository currently contains 16 card source files and a 23-test Node.js
 invariant suite. Run it from the repository root after JavaScript changes:
 
 ```text
-node --test tests/home-dark-cards-invariants.test.cjs
+node --test tests/hollow-cards-invariants.test.cjs
 ```
 
 The suite checks registration safety, capability-aware controls, service-call
@@ -24,8 +32,8 @@ dashboard after a resource deployment.
 
 **Hosting modes, verified against the live resource registry on 2026-08-24.**
 Local cards are registered as URL-mode module resources under
-`/local/home-dark-cards/` and require manual host copying, except for
-`home-cover-card`. Its resource ID `264907031d174aae8eaf44caa4dab133` remains
+`/local/hollow-cards/` and require manual host copying, except for
+`hollow-cover-card`. Its resource ID `264907031d174aae8eaf44caa4dab133` remains
 the separately managed inline-resource exception. Media playback uses a
 separately registered external card resource. The unused legacy
 `HomeDashboardCard` inline resource was removed after a cross-dashboard search
@@ -36,52 +44,54 @@ found no references.
 - **Source:** Home Assistant dashboard resource registry
 - **Home Assistant Core:** `2026.8.1`
 - **Exported:** `2026-08-19 17:34 (UTC+03:00)`
-- **Dashboard usage:** the live dashboard contains 16 `custom:home-climate-card` references (eight Climate-view cards and eight room-popup cards), 13 `custom:home-entity-status-card` references (three Climate-view cards, three bathroom room-popup cards, five room-popup door/window groups, and Cinema/Garage occupancy groups), three `custom:home-switch-card` references for the bathroom fans, six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups.
-- **Deployment directory:** `/config/www/home-dark-cards/` for URL-mode resources
-- **Registered URL prefix:** `/local/home-dark-cards/`
+- **Dashboard usage:** the live dashboard contains 16 `custom:hollow-climate-card` references (eight Climate-view cards and eight room-popup cards), 13 `custom:hollow-entity-status-card` references (three Climate-view cards, three bathroom room-popup cards, five room-popup door/window groups, and Cinema/Garage occupancy groups), three `custom:hollow-switch-card` references for the bathroom fans, six external media-player-card references (three Media-view cards and three room-popup cards), six floating-menu references (one in each view), and 10 room popups.
+- **Deployment directory:** `/config/www/hollow-cards/` for URL-mode resources
+- **Registered URL prefix:** `/local/hollow-cards/`
 - **Resource type:** JavaScript modules; URL-mode resources require manual copying
-  to `/config/www/home-dark-cards/` because MCP cannot upload those files
+  to `/config/www/hollow-cards/` because MCP cannot upload those files
 - **Current resource sync:** local cards use URL-mode resources with
   cache-busting query suffixes, except for the existing inline
-  `home-cover-card` resource
+  `hollow-cover-card` resource
 - **Removed legacy resources:** the unused `HomeDashboardCard` and
-  `home-navbar-card` registrations were removed after cross-dashboard searches
+  `hollow-navbar-card` registrations were removed after cross-dashboard searches
   found no usages
-- **HACS resources:** not included; this folder contains only the local custom-card resources
+- **HACS resources:** the repository root contains `hacs.json`; HACS installs
+  the mirrored JavaScript payload from `dist/` and exposes the Hollow Cards
+  entry point under `/hacsfiles/<repository-name>/`.
 
 ## Exported resources
 
 | File | Card name | Resource ID |
 |---|---|---|
-| `home-header-card.js` | `home-header-card` | `f5ede969d4124ec89d4e76d2d2f4ecca` |
-| `home-room-tile-card.js` | `home-room-tile-card` | `02af4e539e264967a4c8b7079075876e` |
-| `home-light-card.js` | `home-light-card` | `376b336445804f819b97c6b461f530cb` |
-| `home-person-card.js` | `home-person-card` | `d655ab1709e94df7be303b4504d5397c` |
-| `home-door-security-card.js` | `home-door-security-card` | `fdf4fcf92eee4a61805911ed6fc8a781` |
-| `home-status-card.js` | `home-status-card` | `aa8e713224b14feab81eb6aa0586560d` |
-| `home-climate-card.js` | `home-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
-| `home-entity-status-card.js` | `home-entity-status-card` | `72bcc61a0f334c23912a28e272f5a6ef` |
-| `home-cover-card.js` | `home-cover-card` | `264907031d174aae8eaf44caa4dab133` |
-| `home-floating-menu-card.js` | `home-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
-| `home-switch-card.js` | `home-switch-card` | `257d462671f14a0fba4d422931a99f2b` |
-| `home-group-card.js` | `home-group-card` | `e0a94f1cc4cc4b9b95f828176e7c0a57` |
-| `home-energy-overview-card.js` | `home-energy-overview-card` | `da52af5bbea0436d882c4261595b237e` |
-| `home-vacuum-card.js` | `home-vacuum-card` | `3192edab42a1488192bc960c27807df7` |
-| `home-appliance-card.js` | `home-appliance-card` | [Not recorded in this repository] |
-| `home-camera-grid-card.js` | `home-camera-grid-card` | [Not recorded in this repository] |
+| `hollow-header-card.js` | `hollow-header-card` | `f5ede969d4124ec89d4e76d2d2f4ecca` |
+| `hollow-room-tile-card.js` | `hollow-room-tile-card` | `02af4e539e264967a4c8b7079075876e` |
+| `hollow-light-card.js` | `hollow-light-card` | `376b336445804f819b97c6b461f530cb` |
+| `hollow-person-card.js` | `hollow-person-card` | `d655ab1709e94df7be303b4504d5397c` |
+| `hollow-door-security-card.js` | `hollow-door-security-card` | `fdf4fcf92eee4a61805911ed6fc8a781` |
+| `hollow-status-card.js` | `hollow-status-card` | `aa8e713224b14feab81eb6aa0586560d` |
+| `hollow-climate-card.js` | `hollow-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
+| `hollow-entity-status-card.js` | `hollow-entity-status-card` | `72bcc61a0f334c23912a28e272f5a6ef` |
+| `hollow-cover-card.js` | `hollow-cover-card` | `264907031d174aae8eaf44caa4dab133` |
+| `hollow-floating-menu-card.js` | `hollow-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
+| `hollow-switch-card.js` | `hollow-switch-card` | `257d462671f14a0fba4d422931a99f2b` |
+| `hollow-group-card.js` | `hollow-group-card` | `e0a94f1cc4cc4b9b95f828176e7c0a57` |
+| `hollow-energy-overview-card.js` | `hollow-energy-overview-card` | `da52af5bbea0436d882c4261595b237e` |
+| `hollow-vacuum-card.js` | `hollow-vacuum-card` | `3192edab42a1488192bc960c27807df7` |
+| `hollow-appliance-card.js` | `hollow-appliance-card` | [Not recorded in this repository] |
+| `hollow-camera-grid-card.js` | `hollow-camera-grid-card` | [Not recorded in this repository] |
 
 ### Home floating menu card
 
-- **Card type:** `custom:home-floating-menu-card`
+- **Card type:** `custom:hollow-floating-menu-card`
 - **Purpose:** Fixed, safe-area-aware bottom navigation that remains visible while
   the dashboard view scrolls. The live `home-dark` dashboard places one instance
   in each of its six views and uses `view_path` to avoid duplicate fixed menus
   when inactive views remain mounted.
-- **Resource:** `home-floating-menu-card.js`
+- **Resource:** `hollow-floating-menu-card.js`
 - **Resource ID:** `f6e3ebca911144e2ab3dc847a082a31e`
 
 ```yaml
-type: custom:home-floating-menu-card
+type: custom:hollow-floating-menu-card
 view_path: home
 show_labels: false
 tabs:
@@ -109,38 +119,38 @@ tabs:
 - `getCardSize()` returns `0` because the navigation is fixed rather than
   consuming normal card-flow height. The card requests a full-width,
   auto-height sections-grid placement.
-- **Deployment:** Copy `home-floating-menu-card.js` to
-  `/config/www/home-dark-cards/` before loading the dashboard. Its resource is
-  registered as `/local/home-dark-cards/home-floating-menu-card.js`.
+- **Deployment:** Copy `hollow-floating-menu-card.js` to
+  `/config/www/hollow-cards/` before loading the dashboard. Its resource is
+  registered as `/local/hollow-cards/hollow-floating-menu-card.js`.
 
 ## Icon configuration
 
-All Home Dark cards use Material Design Icons (MDI) names. Configure
-`icon: mdi:...` to override the primary icon for `home-header-card`,
-`home-room-tile-card`, `home-person-card`,
-`home-status-card`, `home-climate-card`, `home-cover-card`,
-`home-switch-card`, `home-entity-status-card`, `home-group-card`,
-`home-energy-overview-card`, `home-vacuum-card`, and
-`home-camera-grid-card`. Existing dynamic status and control icons remain
+All Hollow Cards use Material Design Icons (MDI) names. Configure
+`icon: mdi:...` to override the primary icon for `hollow-header-card`,
+`hollow-room-tile-card`, `hollow-person-card`,
+`hollow-status-card`, `hollow-climate-card`, `hollow-cover-card`,
+`hollow-switch-card`, `hollow-entity-status-card`, `hollow-group-card`,
+`hollow-energy-overview-card`, `hollow-vacuum-card`, and
+`hollow-camera-grid-card`. Existing dynamic status and control icons remain
 state-driven unless their card exposes one of the options below.
 
-- `home-light-card` uses `icon_on` and `icon_off` for state-specific icons.
+- `hollow-light-card` uses `icon_on` and `icon_off` for state-specific icons.
   Its `icon` is the fallback when a state-specific icon is not configured.
-- `home-floating-menu-card` uses `tabs[].icon`.
-- `home-status-card` additionally supports `pm25_icon`, `pm10_icon`, and
+- `hollow-floating-menu-card` uses `tabs[].icon`.
+- `hollow-status-card` additionally supports `pm25_icon`, `pm10_icon`, and
   `aqi_icon`.
-- `home-cover-card` accepts a per-room `rooms[].icon`, which takes precedence
+- `hollow-cover-card` accepts a per-room `rooms[].icon`, which takes precedence
   over the card-level icon.
-- `home-door-security-card` accepts `icons.camera`, `door_open`,
+- `hollow-door-security-card` accepts `icons.camera`, `door_open`,
   `door_closed`, `silent_on`, `silent_off`, `lock_locked`, `lock_unlocked`,
   and `lock_unavailable`.
-- `home-vacuum-card` accepts `icons.battery`, `room`, `clean`, `pause`,
+- `hollow-vacuum-card` accepts `icons.battery`, `room`, `clean`, `pause`,
   `dock`, `locate`, and `map_unavailable`.
-- `home-camera-grid-card` accepts `camera_icon` and `unavailable_icon`; a
+- `hollow-camera-grid-card` accepts `camera_icon` and `unavailable_icon`; a
   camera group can use its own `icon`.
 
 ```yaml
-type: custom:home-status-card
+type: custom:hollow-status-card
 icon: mdi:home-analytics
 pm25_icon: mdi:air-filter
 pm10_icon: mdi:blur-radial
@@ -148,7 +158,7 @@ aqi_icon: mdi:weather-hazy
 ```
 
 ```yaml
-type: custom:home-cover-card
+type: custom:hollow-cover-card
 rooms:
   - name: Living Room
     icon: mdi:blinds-horizontal
@@ -157,7 +167,7 @@ rooms:
 ```
 
 ```yaml
-type: custom:home-door-security-card
+type: custom:hollow-door-security-card
 icon: mdi:doorbell-video
 icons:
   camera: mdi:doorbell-video
@@ -171,7 +181,7 @@ icons:
 ```
 
 ```yaml
-type: custom:home-vacuum-card
+type: custom:hollow-vacuum-card
 icon: mdi:robot-vacuum-variant
 icons:
   battery: mdi:battery
@@ -184,7 +194,7 @@ icons:
 ```
 
 ```yaml
-type: custom:home-camera-grid-card
+type: custom:hollow-camera-grid-card
 icon: mdi:cctv
 camera_icon: mdi:video-outline
 unavailable_icon: mdi:camera-off-outline
@@ -209,14 +219,14 @@ source-enforced entity-domain or value constraints.
 
 ### Home header card
 
-- **Card type:** `custom:home-header-card`
+- **Card type:** `custom:hollow-header-card`
 - **Purpose:** Displays the current time, date, current weather, humidity, and an
   optional daily forecast.
-- **Resource:** `home-header-card.js`
-- **URL:** `/local/home-dark-cards/home-header-card.js?v=20260905-no-feels-like`
+- **Resource:** `hollow-header-card.js`
+- **URL:** `/local/hollow-cards/hollow-header-card.js?v=20260905-no-feels-like`
 
 ```yaml
-type: custom:home-header-card
+type: custom:hollow-header-card
 weather_entity: weather.openweathermap
 forecast_days: 5
 show_forecast: false
@@ -246,18 +256,18 @@ show_forecast: false
 
 ### Home room tile card
 
-- **Card type:** `custom:home-room-tile-card`
+- **Card type:** `custom:hollow-room-tile-card`
 - **Purpose:** Room summary tile showing the configured room icon, climate readings,
   configured domain icons, and an `on` indicator when the light group is on. Tapping
   opens a configured URL hash when `popup_hash` is set; otherwise it opens more-info
   for the light group, or the climate entity when no light group is set.
-- **Resource:** `home-room-tile-card.js`
-- **URL:** `/local/home-dark-cards/home-room-tile-card.js?v=20260812-1531-source-sync`
+- **Resource:** `hollow-room-tile-card.js`
+- **URL:** `/local/hollow-cards/hollow-room-tile-card.js?v=20260812-1531-source-sync`
 
 This is the current verified Living Room configuration:
 
 ```yaml
-type: custom:home-room-tile-card
+type: custom:hollow-room-tile-card
 name: Living Room
 icon: mdi:sofa
 light_group_entity: light.living_room_all
@@ -282,18 +292,18 @@ popup_hash: '#living-room'
 
 ### Home vacuum card
 
-- **Card type:** `custom:home-vacuum-card`
-- **Purpose:** Home Dark Roborock control card with current state, Clean/Pause/Dock/
+- **Card type:** `custom:hollow-vacuum-card`
+- **Purpose:** Hollow Cards Roborock control card with current state, Clean/Pause/Dock/
   Locate controls, a pinch-zoomable live map, icon-led cleaning and dock metrics,
   and collapsible configuration sections.
-- **Resource:** `home-vacuum-card.js`
+- **Resource:** `hollow-vacuum-card.js`
 - **Resource ID:** `3192edab42a1488192bc960c27807df7`
-- **URL:** `/local/home-dark-cards/home-vacuum-card.js?v=20260824-1637`
+- **URL:** `/local/hollow-cards/hollow-vacuum-card.js?v=20260824-1637`
 
 This is the current verified Vacuum-view configuration:
 
 ```yaml
-type: custom:home-vacuum-card
+type: custom:hollow-vacuum-card
 entity: vacuum.roborock
 name: Roborock
 status_entity: sensor.roborock_status
@@ -374,16 +384,16 @@ status_sections:
 
 ### Home energy overview card
 
-- **Card type:** `custom:home-energy-overview-card`
-- **Purpose:** Responsive Home Dark summary of daily energy usage and cost. Each
+- **Card type:** `custom:hollow-energy-overview-card`
+- **Purpose:** Responsive Hollow Cards summary of daily energy usage and cost. Each
   item opens the usage entity's native more-info dialog.
-- **Resource:** `home-energy-overview-card.js`
+- **Resource:** `hollow-energy-overview-card.js`
 - **Resource ID:** `da52af5bbea0436d882c4261595b237e`
 
 The verified current card on the `home-dark` Lights view is:
 
 ```yaml
-type: custom:home-energy-overview-card
+type: custom:hollow-energy-overview-card
 title: Daily Overview
 icon: mdi:chart-line
 price_entity: input_number.energy_price
@@ -415,17 +425,17 @@ items:
 
 ### Home appliance card
 
-- **Card type:** `custom:home-appliance-card`
+- **Card type:** `custom:hollow-appliance-card`
 - **Purpose:** Compact Home Connect appliance summary with online state,
   operation and program status, optional progress and timing, and expandable
   controls for appliance power, program selection, stop, and switch-like
   options.
-- **Resource:** `home-appliance-card.js`
+- **Resource:** `hollow-appliance-card.js`
 - **Resource ID / deployed URL / dashboard usage:** [Not recorded in this
   repository].
 
 ```yaml
-type: custom:home-appliance-card
+type: custom:hollow-appliance-card
 name: Washing Machine
 location: Laundry
 icon: mdi:washing-machine
@@ -484,16 +494,16 @@ options:
 
 ### Home camera grid card
 
-- **Card type:** `custom:home-camera-grid-card`
+- **Card type:** `custom:hollow-camera-grid-card`
 - **Purpose:** Responsive grouped camera-snapshot grid. Each camera tile shows
   a snapshot and normalized availability status, then opens the camera's native
   Home Assistant more-info dialog when selected.
-- **Resource:** `home-camera-grid-card.js`
+- **Resource:** `hollow-camera-grid-card.js`
 - **Resource ID / deployed URL / dashboard usage:** [Not recorded in this
   repository].
 
 ```yaml
-type: custom:home-camera-grid-card
+type: custom:hollow-camera-grid-card
 title: Home cameras
 subtitle: Camera snapshots
 icon: mdi:cctv
@@ -529,18 +539,18 @@ camera_groups:
 
 ### Home cover card
 
-- **Card type:** `custom:home-cover-card`
+- **Card type:** `custom:hollow-cover-card`
 - **Purpose:** Dark modular control card for blinds and shutters, including
   capability-aware open, stop, close, position, discrete slat-tilt, and shutter
   light-position controls.
-- **Resource:** `home-cover-card.js`
+- **Resource:** `hollow-cover-card.js`
 - **Resource ID:** `264907031d174aae8eaf44caa4dab133`
 - **Hosting:** Existing inline module resource. Keep the local source as the
   behavioral reference; do not replace this resource with a URL-mode resource
   as part of the generic deployment workflow.
 
 ```yaml
-type: custom:home-cover-card
+type: custom:hollow-cover-card
 kind: blinds
 entities:
   - cover.living_room_window_shutter
@@ -583,13 +593,13 @@ half_open_position: 50
 
 ### Home climate card
 
-- **Card type:** `custom:home-climate-card`
+- **Card type:** `custom:hollow-climate-card`
 - **Purpose:** Dedicated climate control card for both heating and cooling entities.
   It reads the live climate entity attributes and renders only the controls exposed by
   that entity.
-- **Resource:** `home-climate-card.js`
+- **Resource:** `hollow-climate-card.js`
 - **Resource ID:** `d3ddace99f314afbbbe9ad689d437161`
-- **URL:** `/local/home-dark-cards/home-climate-card.js?v=20260826-additional-ac-power-controls`
+- **URL:** `/local/hollow-cards/hollow-climate-card.js?v=20260826-additional-ac-power-controls`
 
 The current `home-dark` dashboard uses this card for all eight climate entities:
 `climate.living_room`, `climate.cinema`, `climate.office_ac`, `climate.erics_room`,
@@ -597,7 +607,7 @@ The current `home-dark` dashboard uses this card for all eight climate entities:
 `climate.studio_bathroom`.
 
 ```yaml
-type: custom:home-climate-card
+type: custom:hollow-climate-card
 entity: climate.cinema
 name: Cinema
 power_switch: switch.cinema_air_conditioning_knx_switch
@@ -711,16 +721,16 @@ show_additional_title: true
 
 ### Home entity status card
 
-- **Card type:** `custom:home-entity-status-card`
+- **Card type:** `custom:hollow-entity-status-card`
 - **Purpose:** Compact, theme-aligned status group for numeric and binary Home
   Assistant entities. Each metric opens its normal Home Assistant more-info dialog.
-- **Resource:** `home-entity-status-card.js`
-- **URL:** `/local/home-dark-cards/home-entity-status-card.js?v=20260819-2335-progressive-lux`
-- **Hosting:** URL mode under `/local/home-dark-cards/`; copy the local file to
-  `/config/www/home-dark-cards/` before loading a changed resource URL.
+- **Resource:** `hollow-entity-status-card.js`
+- **URL:** `/local/hollow-cards/hollow-entity-status-card.js?v=20260819-2335-progressive-lux`
+- **Hosting:** URL mode under `/local/hollow-cards/`; copy the local file to
+  `/config/www/hollow-cards/` before loading a changed resource URL.
 
 ```yaml
-type: custom:home-entity-status-card
+type: custom:hollow-entity-status-card
 show_header: false
 entity_layout: horizontal
 metric_layout: vertical
@@ -774,16 +784,16 @@ entities:
 
 ### Home light card
 
-- **Card type:** `custom:home-light-card`
+- **Card type:** `custom:hollow-light-card`
 - **Purpose:** Theme-aware single-light control row. It toggles the configured light
   and shows a touch-friendly brightness slider only when the entity's
   `supported_color_modes` contains a mode other than `onoff`.
-- **Resource:** `home-light-card.js`
+- **Resource:** `hollow-light-card.js`
 - **Resource ID:** `376b336445804f819b97c6b461f530cb`
-- **URL:** `/local/home-dark-cards/home-light-card.js?v=20260819-1214-light-url`
+- **URL:** `/local/hollow-cards/hollow-light-card.js?v=20260819-1214-light-url`
 
 ```yaml
-type: custom:home-light-card
+type: custom:hollow-light-card
 entity: light.livingroom_couch
 name: Couch
 ```
@@ -800,7 +810,7 @@ name: Couch
   normal Home Assistant action fields. Configured actions apply to the left
   content area; the right-side control always toggles the configured light.
 - The card uses the existing `--home-dark-*` theme tokens used by the climate
-  card, with the Home Dark palette as fallbacks. It does not inherit the generic
+  card, with the Hollow Cards palette as fallbacks. It does not inherit the generic
   `--ha-card-background` surface from a surrounding popup.
 - While dragging or using the keyboard, the slider keeps a local preview instead of
   being overwritten by the previous Home Assistant state. The completed interaction
@@ -815,29 +825,29 @@ name: Couch
 
 ### Home group card
 
-- **Card type:** `custom:home-group-card`
-- **Purpose:** Expandable Home Dark container that creates and hosts configured
+- **Card type:** `custom:hollow-group-card`
+- **Purpose:** Expandable Hollow Cards container that creates and hosts configured
   Lovelace child cards. Child cards keep their own controls and styling.
-- **Resource:** `home-group-card.js`
+- **Resource:** `hollow-group-card.js`
 - **Resource ID:** `e0a94f1cc4cc4b9b95f828176e7c0a57`
-- **URL:** `/local/home-dark-cards/home-group-card.js?v=20260820-1447-persistent-disclosure`
+- **URL:** `/local/hollow-cards/hollow-group-card.js?v=20260820-1447-persistent-disclosure`
 
 ```yaml
-type: custom:home-group-card
+type: custom:hollow-group-card
 title: Master Bedroom Lights
 entity: light.master_bedroom_all # Optional; omit for a title-only group
 open: false
 cards:
-  - type: custom:home-light-card
+  - type: custom:hollow-light-card
     entity: light.master_bedroom_entry
     name: Entry
-  - type: custom:home-light-card
+  - type: custom:hollow-light-card
     entity: light.master_bedroom_hue_light
     name: Entry (Hue)
 ```
 
 - `cards` is required and accepts normal Lovelace card configuration objects,
-  including every Home Dark custom card.
+  including every Hollow Cards custom card.
 - `entity` is optional. When present, its friendly name supplies the title unless
   `title` or `name` is configured, and its state is shown below the title.
 - Without an `entity`, configure `title` or `name`; the card renders the same
@@ -852,21 +862,21 @@ cards:
 
 ### Home switch card
 
-- **Card type:** `custom:home-switch-card`
+- **Card type:** `custom:hollow-switch-card`
 - **Purpose:** Theme-aware control row for switch-like entities. The entity is toggled
   by the right-side switch control, while the left content supports configurable tap,
   hold, and double-tap actions. The selected `switch_type` changes the visual design
   only; it does not change the entity or service behavior.
-- **Resource:** `home-switch-card.js`
+- **Resource:** `hollow-switch-card.js`
 - **Resource ID:** `257d462671f14a0fba4d422931a99f2b`
-- **URL:** `/local/home-dark-cards/home-switch-card.js?v=20260816-switch-card-17`
+- **URL:** `/local/hollow-cards/hollow-switch-card.js?v=20260816-switch-card-17`
 - **Deployment:** URL mode. Copy the local source to
-  `/config/www/home-dark-cards/home-switch-card.js` before loading the resource.
+  `/config/www/hollow-cards/hollow-switch-card.js` before loading the resource.
 
 The three current verified instances are the bathroom fan controls:
 
 ```yaml
-type: custom:home-switch-card
+type: custom:hollow-switch-card
 entity: switch.master_bathroom_fan
 name: Fan
 switch_type: fan
@@ -960,23 +970,23 @@ cards:
     heading: Living Room
     heading_style: title
     icon: mdi:sofa
-  - type: custom:home-light-card
+  - type: custom:hollow-light-card
     entity: light.living_room_all
     name: Room
-  - type: custom:home-light-card
+  - type: custom:hollow-light-card
     entity: light.apartment_balcony
     name: Balcony
-  - type: custom:home-light-card
+  - type: custom:hollow-light-card
     entity: light.livingroom_couch
     name: Couch
-  - type: custom:home-light-card
+  - type: custom:hollow-light-card
     entity: light.livingroom_tv
     name: TV Light
-  - type: custom:home-climate-card
+  - type: custom:hollow-climate-card
     entity: climate.living_room
     power_switch: switch.living_room_air_conditioning_knx_switch
     name: Living Room
-  - type: custom:home-climate-card
+  - type: custom:hollow-climate-card
     entity: climate.living_room_ac
     power_switch: switch.living_room_air_conditioning_knx_switch
     name: Living Room Air Conditioning
@@ -984,7 +994,7 @@ cards:
     entity_id: media_player.living_room_soundbar_ma
     name: Living Room Soundbar
     compact: true
-  - type: custom:home-cover-card
+  - type: custom:hollow-cover-card
     rooms:
       - name: Shutters
         kind: shutters
@@ -1008,24 +1018,24 @@ Garage — contain no media card.
 The popup child-card list, titles, icon, hash, background, and explicit
 `close_on_click: false` behavior live in Home Assistant dashboard configuration
 and can be edited there without changing this repository's card code. All local
-card sources except `home-cover-card` use URL-mode resources under
-`/local/home-dark-cards/` and require copying their files to
-`/config/www/home-dark-cards/`; resource registration alone does not upload
-those files. `home-cover-card` is the existing inline-resource exception. A
+card sources except `hollow-cover-card` use URL-mode resources under
+`/local/hollow-cards/` and require copying their files to
+`/config/www/hollow-cards/`; resource registration alone does not upload
+those files. `hollow-cover-card` is the existing inline-resource exception. A
 browser hard refresh is required after updating a resource.
 
 ### Home person card
 
-- **Card type:** `custom:home-person-card`
+- **Card type:** `custom:hollow-person-card`
 - **Purpose:** Responsive presence card with a person avatar, location, optional phone
   battery, and optional distance from `zone.home`.
-- **Resource:** `home-person-card.js`
-- **URL:** `/local/home-dark-cards/home-person-card.js?v=20260814-2223-no-hover-border`
+- **Resource:** `hollow-person-card.js`
+- **URL:** `/local/hollow-cards/hollow-person-card.js?v=20260814-2223-no-hover-border`
 
 This is the current verified Andrei configuration:
 
 ```yaml
-type: custom:home-person-card
+type: custom:hollow-person-card
 kind: person
 entity: person.andrei
 label: Andrei
@@ -1068,16 +1078,16 @@ battery_entity: sensor.andrei_battery_level
 
 ### Home door security card
 
-- **Card type:** `custom:home-door-security-card`
+- **Card type:** `custom:hollow-door-security-card`
 - **Purpose:** Doorbell camera preview with camera/door/ring status, silent-mode control,
   lock control, lock battery text, and an optional in-card lock confirmation dialog.
-- **Resource:** `home-door-security-card.js`
-- **URL:** `/local/home-dark-cards/home-door-security-card.js?v=20260812-1531-source-sync`
+- **Resource:** `hollow-door-security-card.js`
+- **URL:** `/local/hollow-cards/hollow-door-security-card.js?v=20260812-1531-source-sync`
 
 This is the current verified Home view configuration:
 
 ```yaml
-type: custom:home-door-security-card
+type: custom:hollow-door-security-card
 camera_entity: camera.doorbell
 lock_entity: lock.front_door
 battery_entity: sensor.front_door_lock_battery
@@ -1127,16 +1137,16 @@ confirm_lock_actions: true
 
 ### Home status card
 
-- **Card type:** `custom:home-status-card`
+- **Card type:** `custom:hollow-status-card`
 - **Purpose:** House-mode selector plus PM2.5, PM10, and optional AQI metrics with
   display-only air-quality bands. Metric buttons open entity more-info.
-- **Resource:** `home-status-card.js`
-- **URL:** `/local/home-dark-cards/home-status-card.js?v=20260812-1531-source-sync`
+- **Resource:** `hollow-status-card.js`
+- **URL:** `/local/hollow-cards/hollow-status-card.js?v=20260812-1531-source-sync`
 
 This is the current verified Home view configuration:
 
 ```yaml
-type: custom:home-status-card
+type: custom:hollow-status-card
 name: Home Status
 house_mode_entity: input_select.house_mode
 pm25_entity: sensor.home_pm2_5
@@ -1182,10 +1192,10 @@ grid_options:
 ## Adding a card to `home-dark`
 
 1. For a URL-mode card, copy the card JavaScript file to Home Assistant:
-   `/config/www/home-dark-cards/<card-file>.js`.
+   `/config/www/hollow-cards/<card-file>.js`.
 2. Register or update the matching URL-mode module resource at
-   `/local/home-dark-cards/<card-file>.js` with a cache-busting query suffix.
-   Do not create an inline resource for a new local card. `home-cover-card` is
+   `/local/hollow-cards/<card-file>.js` with a cache-busting query suffix.
+   Do not create an inline resource for a new local card. `hollow-cover-card` is
    the existing inline-resource exception and must not be replaced by this
    workflow.
 3. Open the `home-dark` dashboard editor, choose the target view, add a card, select
@@ -1194,26 +1204,26 @@ grid_options:
    updated.
 
 The `/local/...` URL only works after the JavaScript file has been copied to
-`/config/www/home-dark-cards/`. This repository contains local source files; the
+`/config/www/hollow-cards/`. This repository contains local source files; the
 Home Assistant MCP resource operation registers resources but does not copy files
 into `/config/www/`. After any resource update, hard-refresh the browser to load
 the new module.
 
 ## Registering or updating a resource
 
-Local files are deployed under `/config/www/home-dark-cards/` and registered in
-Home Assistant as `/local/home-dark-cards/*.js` module resources. Future custom
+Local files are deployed under `/config/www/hollow-cards/` and registered in
+Home Assistant as `/local/hollow-cards/*.js` module resources. Future custom
 cards belonging to `home-dark` must use this URL-mode workflow.
-`home-cover-card` is the retained inline-resource exception and is not covered
+`hollow-cover-card` is the retained inline-resource exception and is not covered
 by these URL-resource update steps.
 
 To register or update a live resource, use the Home Assistant dashboard resource API or
 the corresponding `user-hass` MCP tool:
 
-1. Place the JavaScript file in `/config/www/home-dark-cards/` without changing its
+1. Place the JavaScript file in `/config/www/hollow-cards/` without changing its
    contents.
 2. Use `ha_config_set_dashboard_resource` with the existing resource ID,
-   `resource_type: "module"` and the matching `/local/home-dark-cards/*.js` URL.
+   `resource_type: "module"` and the matching `/local/hollow-cards/*.js` URL.
    Add a new cache-busting query when updating a URL-mode file.
 3. Confirm the returned resource ID and then reload the dashboard resource in Home Assistant if required.
 4. Verify the resource with `ha_config_list_dashboard_resources()` and check the `home-dark` dashboard configuration.

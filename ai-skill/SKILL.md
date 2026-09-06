@@ -1,16 +1,16 @@
 ---
-name: home-dark-cards-agent
+name: hollow-cards-agent
 description: >
   Work safely on this repository's Home Assistant custom Lovelace cards,
   documentation, tests, and live-dashboard integration workflow. Use for
-  changes to the JavaScript cards under home-dark-cards/ or their documented
+  changes to the JavaScript cards under hollow-cards/ or their documented
   Home Assistant resource and dashboard contracts.
 metadata:
   audience: coding-agents
   scope: repository
 ---
 
-# Home Dark Cards coding-agent skill
+# Hollow Cards coding-agent skill
 
 Use this as the shared project guidance for any coding agent. It describes the
 repository's real boundaries and the parts of the workflow that are easy to
@@ -18,22 +18,23 @@ get wrong.
 
 ## Repository boundary
 
-- `home-dark-cards/*.js` is the source of truth for the local custom cards.
-- `home-dark-cards/README.md` records card contracts, verified entities, resource
+- `hollow-cards/*.js` is the source of truth for the local custom cards.
+- `hollow-cards/README.md` records card contracts, verified entities, resource
   IDs, hosting modes, and deployment notes. Read the relevant section before
   changing a card's configuration contract or resource behavior.
 - The cards are native browser custom elements running inside Home Assistant.
   They use the Lovelace lifecycle (`setConfig`, `set hass`, `getCardSize`, and,
   where applicable, `getGridOptions`) and the frontend `hass` object for state
   and service calls.
-- There is no repository-owned backend, build system, package manifest, local
-  Home Assistant configuration, database, or generated bundle. Do not invent
-  one as part of a card change.
+- There is no repository-owned backend, build system, local Home Assistant
+  configuration, or database. The root `hacs.json` and mirrored `dist/`
+  payload are packaging-only assets for HACS; do not invent an application
+  build system as part of a card change.
 - The `tests/` directory contains the Node.js invariant suite. Run it after
   JavaScript changes:
 
   ```text
-  node --test tests/home-dark-cards-invariants.test.cjs
+  node --test tests/hollow-cards-invariants.test.cjs
   ```
 
 ## Card implementation rules
@@ -66,13 +67,13 @@ source of truth.
 For dashboard or resource work:
 
 1. Inspect the live resource registry and find the existing resource by ID.
-2. Keep local card behavior in `home-dark-cards/`; do not move it into an inline
+2. Keep local card behavior in `hollow-cards/`; do not move it into an inline
    Lovelace resource or create a duplicate resource.
-3. URL-mode modules are manually copied to `/config/www/home-dark-cards/` and
-   loaded from `/local/home-dark-cards/<file>.js`. After a source update, use a
+3. URL-mode modules are manually copied to `/config/www/hollow-cards/` and
+   loaded from `/local/hollow-cards/<file>.js`. After a source update, use a
    new cache-busting query suffix on the existing resource ID when updating the
    live registry.
-4. `home-cover-card` is the known inline-resource exception. Verify the live
+4. `hollow-cover-card` is the known inline-resource exception. Verify the live
    registry before touching it, and tell the user explicitly if a requested
    change depends on that inline content.
 5. Verify the resulting dashboard/resource configuration after the change. If

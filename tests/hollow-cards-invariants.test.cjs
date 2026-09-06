@@ -5,24 +5,24 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
-const CARDS_DIRECTORY = path.join(ROOT, 'home-dark-cards');
+const CARDS_DIRECTORY = path.join(ROOT, 'hollow-cards');
 const SOURCE_FILES = [
-  'home-appliance-card.js',
-  'home-camera-grid-card.js',
-  'home-climate-card.js',
-  'home-cover-card.js',
-  'home-door-security-card.js',
-  'home-energy-overview-card.js',
-  'home-entity-status-card.js',
-  'home-floating-menu-card.js',
-  'home-group-card.js',
-  'home-header-card.js',
-  'home-light-card.js',
-  'home-person-card.js',
-  'home-room-tile-card.js',
-  'home-status-card.js',
-  'home-switch-card.js',
-  'home-vacuum-card.js',
+  'hollow-appliance-card.js',
+  'hollow-camera-grid-card.js',
+  'hollow-climate-card.js',
+  'hollow-cover-card.js',
+  'hollow-door-security-card.js',
+  'hollow-energy-overview-card.js',
+  'hollow-entity-status-card.js',
+  'hollow-floating-menu-card.js',
+  'hollow-group-card.js',
+  'hollow-header-card.js',
+  'hollow-light-card.js',
+  'hollow-person-card.js',
+  'hollow-room-tile-card.js',
+  'hollow-status-card.js',
+  'hollow-switch-card.js',
+  'hollow-vacuum-card.js',
 ];
 
 const sourcePath = (file) => path.join(CARDS_DIRECTORY, file);
@@ -348,12 +348,12 @@ test('all source cards are safe to register twice in one page session', () => {
       `${type} picker metadata is de-duplicated`,
     );
   });
-  assert.equal(runtime.defineCounts.get('home-cover-card-editor'), 1);
+  assert.equal(runtime.defineCounts.get('hollow-cover-card-editor'), 1);
   assert.equal(runtime.window.customCards.length, SOURCE_FILES.length);
 });
 
 test('appliance card CSS keeps every button selector card-scoped', () => {
-  const { Card } = loadCard('home-appliance-card.js');
+  const { Card } = loadCard('hollow-appliance-card.js');
   const css = new Card()._css();
   let inspected = 0;
 
@@ -363,18 +363,18 @@ test('appliance card CSS keeps every button selector card-scoped', () => {
     header.split(',').map((selector) => selector.trim()).forEach((selector) => {
       if (!/\bbutton\b/.test(selector)) return;
       inspected += 1;
-      assert.match(selector, /^home-appliance-card(?:\b|\s|>)/, selector);
+      assert.match(selector, /^hollow-appliance-card(?:\b|\s|>)/, selector);
     });
   }
   assert.ok(inspected >= 8, 'the test inspected the appliance button rule set');
 });
 
 test('cover editor hooks are static and expose the current editor contract', () => {
-  const { Card, customElements } = loadCard('home-cover-card.js');
+  const { Card, customElements } = loadCard('hollow-cover-card.js');
   assert.equal(Object.hasOwn(Card, 'getConfigElement'), true);
   assert.equal(Object.hasOwn(Card, 'getStubConfig'), true);
   assert.equal(Object.hasOwn(Card.prototype, 'getConfigElement'), false);
-  assert.equal(Card.getConfigElement().localName, 'home-cover-card-editor');
+  assert.equal(Card.getConfigElement().localName, 'hollow-cover-card-editor');
   assert.deepEqual(
     { ...Card.getStubConfig() },
     {
@@ -385,11 +385,11 @@ test('cover editor hooks are static and expose the current editor contract', () 
       show_tilt_buttons: true,
     },
   );
-  assert.equal(typeof customElements.get('home-cover-card-editor'), 'function');
+  assert.equal(typeof customElements.get('hollow-cover-card-editor'), 'function');
 });
 
 test('cover tilt controls require SET_TILT_POSITION and preserve zero values', () => {
-  const { Card } = loadCard('home-cover-card.js');
+  const { Card } = loadCard('hollow-cover-card.js');
   const card = new Card();
   card.setConfig({ kind: 'blinds', entity: 'cover.blind', show_tilt_buttons: true });
   const room = card._config.rooms[0];
@@ -431,7 +431,7 @@ test('cover tilt controls require SET_TILT_POSITION and preserve zero values', (
 });
 
 test('cover availability disables UI and blocks unavailable service calls', () => {
-  const { Card } = loadCard('home-cover-card.js');
+  const { Card } = loadCard('hollow-cover-card.js');
   const card = new Card();
   card.setConfig({ kind: 'blinds', entity: 'cover.blind' });
   const calls = [];
@@ -462,7 +462,7 @@ test('cover availability disables UI and blocks unavailable service calls', () =
 });
 
 test('room tile uses a semantic button and property-based dynamic DOM updates', () => {
-  const { Card } = loadCard('home-room-tile-card.js');
+  const { Card } = loadCard('hollow-room-tile-card.js');
   const render = Card.prototype._render.toString();
   assert.match(render, /<button class="tile" type="button">/);
   assert.match(render, /this\._name\.textContent\s*=\s*String\(c\.name\)/);
@@ -473,7 +473,7 @@ test('room tile uses a semantic button and property-based dynamic DOM updates', 
 });
 
 test('entity status horizontal layout keeps one row without filler background', () => {
-  const { Card } = loadCard('home-entity-status-card.js');
+  const { Card } = loadCard('hollow-entity-status-card.js');
   const card = new Card();
   const css = card._css();
   const horizontalRule = css.match(/\.metrics\.horizontal\s*\{([^}]*)\}/)?.[1] || '';
@@ -490,7 +490,7 @@ test('entity status horizontal layout keeps one row without filler background', 
 });
 
 test('header omits the feels-like temperature from its weather summary', () => {
-  const source = readSource('home-header-card.js');
+  const source = readSource('hollow-header-card.js');
   assert.doesNotMatch(source, /class="apparent"/);
   assert.doesNotMatch(source, /apparentTemperature/);
   assert.doesNotMatch(source, /Feels \$\{/);
@@ -498,7 +498,7 @@ test('header omits the feels-like temperature from its weather summary', () => {
 });
 
 test('status show_aqi false avoids state reads and removes the AQI metric', () => {
-  const { Card } = loadCard('home-status-card.js');
+  const { Card } = loadCard('hollow-status-card.js');
   const card = new Card();
   card.setConfig({
     house_mode_entity: 'input_select.mode',
@@ -558,7 +558,7 @@ test('status show_aqi false avoids state reads and removes the AQI metric', () =
 });
 
 test('status mode requests ignore stale failures and reconcile current authority', async () => {
-  const { Card } = loadCard('home-status-card.js');
+  const { Card } = loadCard('hollow-status-card.js');
   const card = new Card();
   card.setConfig({
     house_mode_entity: 'input_select.mode',
@@ -599,7 +599,7 @@ test('status mode requests ignore stale failures and reconcile current authority
 });
 
 test('person presence is exact-home and authoritative states are not GPS-overridden', () => {
-  const { Card } = loadCard('home-person-card.js');
+  const { Card } = loadCard('hollow-person-card.js');
   const card = new Card();
   card.setConfig({ entity: 'person.alex', show_location: true, show_proximity: true });
   assert.equal(card._presence('home'), 'home');
@@ -649,7 +649,7 @@ test('person presence is exact-home and authoritative states are not GPS-overrid
 });
 
 test('person zone scans are cached by hass states identity', () => {
-  const { Card } = loadCard('home-person-card.js');
+  const { Card } = loadCard('hollow-person-card.js');
   const card = new Card();
   const target = {
     'person.alex': { state: 'away', attributes: {} },
@@ -680,7 +680,7 @@ test('person zone scans are cached by hass states identity', () => {
 });
 
 test('floating menu defaults to six live routes and route/resize updates do not rebuild', () => {
-  const { Card, window } = loadCard('home-floating-menu-card.js');
+  const { Card, window } = loadCard('hollow-floating-menu-card.js');
   Card._instances.clear();
   Card._lastKnownRoute = '';
   Card._lastSyncedPath = '';
@@ -720,7 +720,7 @@ test('floating menu defaults to six live routes and route/resize updates do not 
 });
 
 test('camera snapshot configuration enforces the refresh contract', () => {
-  const { Card } = loadCard('home-camera-grid-card.js');
+  const { Card } = loadCard('hollow-camera-grid-card.js');
   const baseConfig = {
     camera_groups: [{ title: 'Entry', cameras: [{ entity: 'camera.entry' }] }],
   };
@@ -740,7 +740,7 @@ test('camera snapshot configuration enforces the refresh contract', () => {
 });
 
 test('camera snapshot sources update only while active and clear when unavailable', () => {
-  const { Card, document } = loadCard('home-camera-grid-card.js');
+  const { Card, document } = loadCard('hollow-camera-grid-card.js');
   const card = new Card();
   const state = { state: 'idle', attributes: { access_token: 'first', friendly_name: 'Entry' } };
   card._config = {
@@ -796,7 +796,7 @@ test('camera snapshot sources update only while active and clear when unavailabl
 });
 
 test('camera disconnect stops observers and refresh timers', () => {
-  const { Card } = loadCard('home-camera-grid-card.js');
+  const { Card } = loadCard('hollow-camera-grid-card.js');
   const card = new Card();
   let disconnected = 0;
   card._connected = true;
@@ -815,7 +815,7 @@ test('camera disconnect stops observers and refresh timers', () => {
 });
 
 test('door security snapshot refresh and age lifecycle are defined and safe', () => {
-  const { Card } = loadCard('home-door-security-card.js');
+  const { Card } = loadCard('hollow-door-security-card.js');
   const card = new Card();
   card.setConfig({
     camera_entity: 'camera.entry',
@@ -858,7 +858,7 @@ test('door security snapshot refresh and age lifecycle are defined and safe', ()
 });
 
 test('door lock command rechecks the authoritative state before acting', () => {
-  const { Card } = loadCard('home-door-security-card.js');
+  const { Card } = loadCard('hollow-door-security-card.js');
   const card = new Card();
   card.setConfig({ camera_entity: 'camera.entry', lock_entity: 'lock.front' });
   const calls = [];
@@ -874,14 +874,14 @@ test('door lock command rechecks the authoritative state before acting', () => {
 });
 
 test('door security supports hiding the visible lock name', () => {
-  const source = readSource('home-door-security-card.js');
+  const source = readSource('hollow-door-security-card.js');
   assert.match(source, /show_lock_name:c\.show_lock_name!==false/);
   assert.match(source, /visibleLockState=this\._c\.show_lock_name\?`\$\{this\._c\.lock_label\}: \$\{lockStateText\}`:lockStateText/);
   assert.match(source, /this\._lockState\.textContent=visibleLockState/);
 });
 
 test('climate availability gates services and focused controls defer state renders', () => {
-  const { Card } = loadCard('home-climate-card.js');
+  const { Card } = loadCard('hollow-climate-card.js');
   const card = new Card();
   card.setConfig({
     entity: 'climate.main',
@@ -911,7 +911,7 @@ test('climate availability gates services and focused controls defer state rende
 });
 
 test('climate disconnect clears stale focus and deferred interaction state', () => {
-  const { Card } = loadCard('home-climate-card.js');
+  const { Card } = loadCard('hollow-climate-card.js');
   const card = new Card();
   card.setConfig({ entity: 'climate.main' });
   card._wired = true;
@@ -934,7 +934,7 @@ test('climate disconnect clears stale focus and deferred interaction state', () 
 });
 
 test('vacuum actions require availability and current feature bits', () => {
-  const { Card } = loadCard('home-vacuum-card.js');
+  const { Card } = loadCard('hollow-vacuum-card.js');
   const card = new Card();
   card.setConfig({ entity: 'vacuum.robot' });
   const calls = [];
@@ -952,7 +952,7 @@ test('vacuum actions require availability and current feature bits', () => {
 });
 
 test('vacuum structure updates defer during menus and flush after interaction', () => {
-  const { Card, document } = loadCard('home-vacuum-card.js');
+  const { Card, document } = loadCard('hollow-vacuum-card.js');
   const card = new Card();
   card.setConfig({
     entity: 'vacuum.robot',
@@ -984,7 +984,7 @@ test('vacuum structure updates defer during menus and flush after interaction', 
 });
 
 test('light and switch rows block unavailable toggles and retain visible focus', () => {
-  const lightRuntime = loadCard('home-light-card.js');
+  const lightRuntime = loadCard('hollow-light-card.js');
   const light = new lightRuntime.Card();
   light.setConfig({ entity: 'light.test' });
   assert.equal(light._c.tap_action.action, 'more-info');
@@ -999,7 +999,7 @@ test('light and switch rows block unavailable toggles and retain visible focus',
   assert.equal(lightCalls.length, 1);
   assert.match(light._css(), /\.row-left:focus-visible[\s\S]{0,160}outline\s*:/);
 
-  const switchRuntime = loadCard('home-switch-card.js');
+  const switchRuntime = loadCard('hollow-switch-card.js');
   const switchCard = new switchRuntime.Card();
   switchCard.setConfig({ entity: 'switch.test' });
   const switchCalls = [];
@@ -1015,7 +1015,7 @@ test('light and switch rows block unavailable toggles and retain visible focus',
 });
 
 test('row control refresh paths preserve active slider/focus DOM', () => {
-  const { Card: LightCard } = loadCard('home-light-card.js');
+  const { Card: LightCard } = loadCard('hollow-light-card.js');
   const light = new LightCard();
   light.setConfig({ entity: 'light.test' });
   light._hass = { states: { 'light.test': { state: 'on', attributes: { brightness: 128 } } } };
@@ -1025,7 +1025,7 @@ test('row control refresh paths preserve active slider/focus DOM', () => {
   assert.equal(light._lastRenderSignature, 'before-drag');
   assert.equal(light._shell, undefined);
 
-  const { Card: SwitchCard } = loadCard('home-switch-card.js');
+  const { Card: SwitchCard } = loadCard('hollow-switch-card.js');
   const connected = SwitchCard.prototype.connectedCallback.toString();
   assert.match(connected, /_patchRelativeDetails\(\)/);
   assert.doesNotMatch(connected, /this\._render\(\)/);

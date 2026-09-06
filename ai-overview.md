@@ -1,47 +1,47 @@
 ## Project Overview
 
-- **Project Name:** Home Dark Cards
+- **Project Name:** Hollow Cards
 - **Description:** This repository contains sixteen standalone JavaScript custom cards
   for a Home Assistant Lovelace dashboard named `home-dark`. The cards execute in
   the Home Assistant browser frontend, read entity state from the frontend `hass`
   object, render responsive dashboard controls, dispatch Home Assistant
   `hass-more-info` events, and call Home Assistant domain services. The repository
   is not a standalone web application and does not contain a server, local Home
-  Assistant configuration, database, generated bundle, package manifest, or build
-  system.
+  Assistant configuration, database, or application build system. Its root
+  `hacs.json` and `dist/` directory are packaging assets for HACS.
 - **Main Features:**
-  - `home-header-card`: Clock, localized date, current weather, humidity,
+  - `hollow-header-card`: Clock, localized date, current weather, humidity,
     apparent temperature, and optional daily forecasts retrieved through
     `weather.get_forecasts`.
-  - `home-status-card`: House-mode selection plus PM2.5, PM10, and optional air
+  - `hollow-status-card`: House-mode selection plus PM2.5, PM10, and optional air
     quality metrics.
-  - `home-person-card`: Person presence, avatar, location, optional battery, and
+  - `hollow-person-card`: Person presence, avatar, location, optional battery, and
     optional distance from `zone.home`.
-  - `home-room-tile-card`: Room summary, climate readings, configured domain
+  - `hollow-room-tile-card`: Room summary, climate readings, configured domain
     icons, light status, and optional popup-hash navigation.
-  - `home-light-card`: Single-light toggle and touch/keyboard brightness control
+  - `hollow-light-card`: Single-light toggle and touch/keyboard brightness control
     when the live light exposes a non-`onoff` supported color mode.
-  - `home-climate-card`: Capability-driven HVAC menus, temperature and humidity
+  - `hollow-climate-card`: Capability-driven HVAC menus, temperature and humidity
     steppers, configurable switch power control, and native climate power
     fallback when the live entity exposes both required capability bits.
-  - `home-vacuum-card`: Roborock controls, live map, status metrics, alerts, and
+  - `hollow-vacuum-card`: Roborock controls, live map, status metrics, alerts, and
     collapsible configuration sections.
-  - `home-door-security-card`: Doorbell camera preview, ring and door status,
+  - `hollow-door-security-card`: Doorbell camera preview, ring and door status,
     silent-mode switch, lock control, lock battery text, and optional lock
     confirmation.
-  - `home-cover-card`: Capability-aware dark controls for blinds and shutters,
+  - `hollow-cover-card`: Capability-aware dark controls for blinds and shutters,
     including open, stop, close, position, discrete slat-tilt actions at 0%, 25%,
     75%, and 100%, and shutter light-position actions.
-  - `home-entity-status-card`: Configurable numeric and binary entity metrics
+  - `hollow-entity-status-card`: Configurable numeric and binary entity metrics
     with proportional status dots and more-info actions.
-  - `home-energy-overview-card`: Daily energy-use and cost summary.
-  - `home-switch-card`: Switch-like entity control with configurable actions
+  - `hollow-energy-overview-card`: Daily energy-use and cost summary.
+  - `hollow-switch-card`: Switch-like entity control with configurable actions
     and compact or tall layouts.
-  - `home-group-card`: Expandable container for nested Lovelace cards.
-  - `home-floating-menu-card`: Fixed bottom navigation for dashboard views.
-  - `home-appliance-card`: Expandable Home Connect appliance state, program,
+  - `hollow-group-card`: Expandable container for nested Lovelace cards.
+  - `hollow-floating-menu-card`: Fixed bottom navigation for dashboard views.
+  - `hollow-appliance-card`: Expandable Home Connect appliance state, program,
     progress, power, and option controls.
-  - `home-camera-grid-card`: Grouped camera snapshots with native camera
+  - `hollow-camera-grid-card`: Grouped camera snapshots with native camera
     more-info actions.
 
 ---
@@ -66,8 +66,8 @@ persistence.
     dashboard card configuration.
   - Event-driven controls using DOM events, `hass-more-info`, and Home Assistant
     service calls.
-  - Shadow DOM encapsulation in `home-status-card`, `home-person-card`, and
-    `home-door-security-card`; the other cards render in light DOM.
+  - Shadow DOM encapsulation in `hollow-status-card`, `hollow-person-card`, and
+    `hollow-door-security-card`; the other cards render in light DOM.
   - Inline CSS with responsive media queries and Home Assistant theme-variable
     fallbacks.
   - State and persistence remain in Home Assistant; the repository has no
@@ -80,12 +80,12 @@ persistence.
 ```mermaid
 flowchart LR
     subgraph Repository["Local repository"]
-        Sources["home-dark-cards/*.js"]
+        Sources["hollow-cards/*.js"]
         Guidance["AGENTS.md, ai-skill/SKILL.md, README.md"]
     end
 
     subgraph Host["Home Assistant host"]
-        Static["/config/www/home-dark-cards/*.js"]
+        Static["/config/www/hollow-cards/*.js"]
         Resources["Dashboard resource registry<br/>/local URL-mode modules<br/>and the cover-card inline exception"]
         DashConfig["Storage-mode Lovelace dashboard configuration"]
     end
@@ -125,11 +125,11 @@ flowchart LR
 
 - **Explanation:**
   - The README documents manual copying of a JavaScript file to
-    `/config/www/home-dark-cards/` on the Home Assistant host.
-  - The matching `/local/home-dark-cards/*.js` URL is registered as an external
+    `/config/www/hollow-cards/` on the Home Assistant host.
+  - The matching `/local/hollow-cards/*.js` URL is registered as an external
     JavaScript module resource in Home Assistant.
-  - Local Home Dark card sources are deployed as URL-mode modules under
-    `/local/home-dark-cards/`, except `home-cover-card`, which remains the
+  - Local Hollow Cards sources are deployed as URL-mode modules under
+    `/local/hollow-cards/`, except `hollow-cover-card`, which remains the
     separately managed inline-resource exception.
   - The `home-dark` dashboard references the registered resources with
     `custom:<card-type>` cards. The README records six dashboard views and ten
@@ -167,7 +167,7 @@ flowchart LR
   The same context records two dashboard configurations outside this local card
   set: `mobile-home` with native sections/tile cards and views for Home, Lights,
   Climate, Security, Storm Trooper, and Media; and `home-design`, a single-panel
-  dashboard using `custom:home-dashboard-card`. Their full configuration is
+  dashboard using `custom:hollow-dashboard-card`. Their full configuration is
   remote and is not stored in this repository.
 
   Cross-cutting frontend behavior is provided by Home Assistant. The source
@@ -182,41 +182,41 @@ flowchart LR
   state/attribute helpers, rendering, event handling, inline CSS, and
   `window.customCards` picker metadata.
 
-  - `home-header-card.js`: Clock refresh, current-weather rendering, optional
+  - `hollow-header-card.js`: Clock refresh, current-weather rendering, optional
     forecast request, in-memory forecast cache, and 30-minute forecast refresh
     limit.
-  - `home-status-card.js`: Shadow DOM house-mode selector, validation against
+  - `hollow-status-card.js`: Shadow DOM house-mode selector, validation against
     `input_select` options, metric formatting, display-only air-quality bands,
     and metric more-info actions.
-  - `home-person-card.js`: Shadow DOM presence card, person/sensor validation,
+  - `hollow-person-card.js`: Shadow DOM presence card, person/sensor validation,
     optional battery display, proximity calculation, and accessible more-info
     control.
-  - `home-room-tile-card.js`: Room summary rendering, temperature-unit
+  - `hollow-room-tile-card.js`: Room summary rendering, temperature-unit
     resolution, optional popup hash, and more-info fallback.
-  - `home-light-card.js`: Dimmability detection, pointer and keyboard brightness
+  - `hollow-light-card.js`: Dimmability detection, pointer and keyboard brightness
     preview, one brightness service call per completed interaction, and pending
     state reconciliation.
-  - `home-climate-card.js`: Dynamic control generation from live climate
+  - `hollow-climate-card.js`: Dynamic control generation from live climate
     attributes, native mode menus, target steppers, power capability detection,
     optimistic pending values, and viewport-aware menus.
-  - `home-vacuum-card.js`: Roborock actions, map, metric formatting, alerts, and
+  - `hollow-vacuum-card.js`: Roborock actions, map, metric formatting, alerts, and
     collapsible sections.
-  - `home-cover-card.js`: Shadow DOM cover controls, capability detection, position
+  - `hollow-cover-card.js`: Shadow DOM cover controls, capability detection, position
     slider, discrete slat-tilt actions, editor form, and error feedback.
-  - `home-door-security-card.js`: Shadow DOM camera and lock UI, camera fallback,
+  - `hollow-door-security-card.js`: Shadow DOM camera and lock UI, camera fallback,
     lock and silent-mode service calls, and optional confirmation dialog.
-  - `home-entity-status-card.js`: Numeric and binary metric formatting,
+  - `hollow-entity-status-card.js`: Numeric and binary metric formatting,
     proportional status dots, and metric more-info actions.
-  - `home-energy-overview-card.js`: Daily energy and cost item calculation.
-  - `home-switch-card.js`: Switch-like controls, configurable actions, state
+  - `hollow-energy-overview-card.js`: Daily energy and cost item calculation.
+  - `hollow-switch-card.js`: Switch-like controls, configurable actions, state
     content, and grid-aware layouts.
-  - `home-group-card.js`: Expandable child-card creation through Home
+  - `hollow-group-card.js`: Expandable child-card creation through Home
     Assistant card helpers.
-  - `home-floating-menu-card.js`: Fixed navigation, active-path resolution,
+  - `hollow-floating-menu-card.js`: Fixed navigation, active-path resolution,
     and safe-area-aware positioning.
-  - `home-appliance-card.js`: Appliance operation, progress, program,
+  - `hollow-appliance-card.js`: Appliance operation, progress, program,
     power, stop, and option controls.
-  - `home-camera-grid-card.js`: Grouped camera snapshots, availability state,
+  - `hollow-camera-grid-card.js`: Grouped camera snapshots, availability state,
     and camera more-info actions.
 
 ---
@@ -240,7 +240,7 @@ flowchart LR
   - `getCardSize()`: Reports preferred card height.
   - `getGridOptions()`: Present on cards that provide sections-view sizing.
   - `getConfigElement()` and `getStubConfig()`: Present on
-    `home-cover-card.js` for dashboard-editor support.
+    `hollow-cover-card.js` for dashboard-editor support.
   - `hass-more-info`: Bubbling, composed event requesting the native more-info
     dialog.
 
@@ -259,7 +259,7 @@ flowchart LR
   - `lock.lock` and `lock.unlock`
   - `switch.turn_on` and `switch.turn_off`
 
-  `home-header-card.js` can obtain the weather response through
+  `hollow-header-card.js` can obtain the weather response through
   `hass.callService`, `hass.callWS`, or
   `hass.connection.sendMessagePromise`. The source contains no repository-owned
   HTTP, REST, GraphQL, gRPC, or WebSocket server endpoint.
@@ -283,9 +283,9 @@ flowchart LR
   Runtime dependencies evidenced by the source are Home Assistant frontend
   primitives and APIs: `ha-card`, `ha-icon`, `hass.states`, `hass.config`,
   `hass.callService`, and the optional Home Assistant WebSocket methods described
-  above. No package manifest, lockfile, compiler, bundler, server configuration,
-  database client, environment loader, logging framework, or CI workflow exists
-  in the repository.
+  above. No npm package manifest, lockfile, compiler, bundler, server
+  configuration, database client, environment loader, logging framework, or CI
+  workflow exists in the repository; `hacs.json` is HACS metadata only.
 
 - **3rd Parties**
 
@@ -314,7 +314,7 @@ flowchart LR
 
 The repository does not declare a JavaScript runtime version or package
 dependency versions. Two recorded Home Assistant versions must be kept distinct:
-the `home-dark-cards/README.md` export metadata says Home Assistant Core
+the `hollow-cards/README.md` export metadata says Home Assistant Core
 `2026.7.4` for an export made on 2026-08-01. Live installation details must be
 verified through the connected Home Assistant instance rather than treated as
 local configuration.
@@ -338,7 +338,7 @@ local configuration.
   - Primary Database: The local repository contains no database configuration.
     Project context records a remote Home Assistant recorder database using
     MySQL/MariaDB, approximately 3.2 GB, with oldest recorded run 2026-07-11.
-  - Cache: No external cache. `home-header-card` uses an in-memory forecast cache
+  - Cache: No external cache. `hollow-header-card` uses an in-memory forecast cache
     on each card instance.
 
 - **Other Tools & Services:**
@@ -358,23 +358,23 @@ local configuration.
 
 ```plaintext
 ha_custom_cards_set/
-├── home-dark-cards/
-│   ├── home-header-card.js         # Clock, weather, and forecast card
-│   ├── home-status-card.js         # House mode and air-quality card
-│   ├── home-person-card.js         # Person presence card
-│   ├── home-room-tile-card.js      # Room summary and popup navigation
-│   ├── home-light-card.js          # Standalone light control row
-│   ├── home-climate-card.js        # Standalone climate control card
-│   ├── home-vacuum-card.js         # Roborock controls, map, and status
-│   ├── home-cover-card.js          # Blinds and shutters control card
-│   ├── home-door-security-card.js  # Doorbell and lock card
-│   ├── home-entity-status-card.js   # Numeric and binary status metrics
-│   ├── home-energy-overview-card.js # Daily energy and cost summary
-│   ├── home-switch-card.js          # Switch-like entity control
-│   ├── home-group-card.js           # Expandable nested-card container
-│   ├── home-floating-menu-card.js   # Fixed dashboard navigation
-│   ├── home-appliance-card.js       # Home Connect appliance control
-│   ├── home-camera-grid-card.js     # Grouped camera snapshots
+├── hollow-cards/
+│   ├── hollow-header-card.js         # Clock, weather, and forecast card
+│   ├── hollow-status-card.js         # House mode and air-quality card
+│   ├── hollow-person-card.js         # Person presence card
+│   ├── hollow-room-tile-card.js      # Room summary and popup navigation
+│   ├── hollow-light-card.js          # Standalone light control row
+│   ├── hollow-climate-card.js        # Standalone climate control card
+│   ├── hollow-vacuum-card.js         # Roborock controls, map, and status
+│   ├── hollow-cover-card.js          # Blinds and shutters control card
+│   ├── hollow-door-security-card.js  # Doorbell and lock card
+│   ├── hollow-entity-status-card.js   # Numeric and binary status metrics
+│   ├── hollow-energy-overview-card.js # Daily energy and cost summary
+│   ├── hollow-switch-card.js          # Switch-like entity control
+│   ├── hollow-group-card.js           # Expandable nested-card container
+│   ├── hollow-floating-menu-card.js   # Fixed dashboard navigation
+│   ├── hollow-appliance-card.js       # Home Connect appliance control
+│   ├── hollow-camera-grid-card.js     # Grouped camera snapshots
 │   └── README.md                   # Card contracts and deployment notes
 ├── ai-skill/
 │   └── SKILL.md                    # Shared guidance for all coding agents
@@ -385,28 +385,30 @@ ha_custom_cards_set/
 ```
 
 The repository has no `src/`, `components/`, `pages/`, `services/`, `utils/`,
-`models/`, `scripts/`, package manifest, lockfile, Dockerfile, or CI workflow.
+or `models/` application directories. `scripts/sync-hacs-dist.ps1` only mirrors
+card files into the HACS `dist/` payload; there is no npm package manifest,
+lockfile, Dockerfile, or CI workflow.
 
 The README records these local card resource IDs:
 
 | Source file | Card type | Resource ID |
 |---|---|---|
-| `home-header-card.js` | `home-header-card` | `f5ede969d4124ec89d4e76d2d2f4ecca` |
-| `home-room-tile-card.js` | `home-room-tile-card` | `02af4e539e264967a4c8b7079075876e` |
-| `home-vacuum-card.js` | `home-vacuum-card` | `3192edab42a1488192bc960c27807df7` |
-| `home-light-card.js` | `home-light-card` | `376b336445804f819b97c6b461f530cb` |
-| `home-person-card.js` | `home-person-card` | `d655ab1709e94df7be303b4504d5397c` |
-| `home-door-security-card.js` | `home-door-security-card` | `fdf4fcf92eee4a61805911ed6fc8a781` |
-| `home-status-card.js` | `home-status-card` | `aa8e713224b14feab81eb6aa0586560d` |
-| `home-climate-card.js` | `home-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
-| `home-cover-card.js` | `home-cover-card` | `264907031d174aae8eaf44caa4dab133` |
-| `home-entity-status-card.js` | `home-entity-status-card` | `72bcc61a0f334c23912a28e272f5a6ef` |
-| `home-floating-menu-card.js` | `home-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
-| `home-switch-card.js` | `home-switch-card` | `257d462671f14a0fba4d422931a99f2b` |
-| `home-group-card.js` | `home-group-card` | `e0a94f1cc4cc4b9b95f828176e7c0a57` |
-| `home-energy-overview-card.js` | `home-energy-overview-card` | `da52af5bbea0436d882c4261595b237e` |
-| `home-appliance-card.js` | `home-appliance-card` | [Not recorded in this repository] |
-| `home-camera-grid-card.js` | `home-camera-grid-card` | [Not recorded in this repository] |
+| `hollow-header-card.js` | `hollow-header-card` | `f5ede969d4124ec89d4e76d2d2f4ecca` |
+| `hollow-room-tile-card.js` | `hollow-room-tile-card` | `02af4e539e264967a4c8b7079075876e` |
+| `hollow-vacuum-card.js` | `hollow-vacuum-card` | `3192edab42a1488192bc960c27807df7` |
+| `hollow-light-card.js` | `hollow-light-card` | `376b336445804f819b97c6b461f530cb` |
+| `hollow-person-card.js` | `hollow-person-card` | `d655ab1709e94df7be303b4504d5397c` |
+| `hollow-door-security-card.js` | `hollow-door-security-card` | `fdf4fcf92eee4a61805911ed6fc8a781` |
+| `hollow-status-card.js` | `hollow-status-card` | `aa8e713224b14feab81eb6aa0586560d` |
+| `hollow-climate-card.js` | `hollow-climate-card` | `d3ddace99f314afbbbe9ad689d437161` |
+| `hollow-cover-card.js` | `hollow-cover-card` | `264907031d174aae8eaf44caa4dab133` |
+| `hollow-entity-status-card.js` | `hollow-entity-status-card` | `72bcc61a0f334c23912a28e272f5a6ef` |
+| `hollow-floating-menu-card.js` | `hollow-floating-menu-card` | `f6e3ebca911144e2ab3dc847a082a31e` |
+| `hollow-switch-card.js` | `hollow-switch-card` | `257d462671f14a0fba4d422931a99f2b` |
+| `hollow-group-card.js` | `hollow-group-card` | `e0a94f1cc4cc4b9b95f828176e7c0a57` |
+| `hollow-energy-overview-card.js` | `hollow-energy-overview-card` | `da52af5bbea0436d882c4261595b237e` |
+| `hollow-appliance-card.js` | `hollow-appliance-card` | [Not recorded in this repository] |
+| `hollow-camera-grid-card.js` | `hollow-camera-grid-card` | [Not recorded in this repository] |
 
 ---
 
@@ -421,7 +423,7 @@ The README records these local card resource IDs:
   - Card instance configuration is stored in the remote Home Assistant
     dashboard.
   - JavaScript resource URLs are stored in Home Assistant's dashboard resource
-    registry as URL-mode modules. `home-cover-card` is the existing separately
+    registry as URL-mode modules. `hollow-cover-card` is the existing separately
     managed inline-resource exception.
   - The repository contains no `.env`, `.env.example`, environment loader, or
     application configuration schema.
@@ -433,9 +435,9 @@ The README records these local card resource IDs:
 - **Setup Instructions for local development:**
   1. No package installation or build step is defined in the repository.
   2. For a URL-mode resource, copy the required JavaScript file to
-     `/config/www/home-dark-cards/<card-file>.js` on the Home Assistant host.
+     `/config/www/hollow-cards/<card-file>.js` on the Home Assistant host.
   3. Register or update the matching URL-mode module resource at
-     `/local/home-dark-cards/<card-file>.js`. `home-cover-card` is the
+     `/local/hollow-cards/<card-file>.js`. `hollow-cover-card` is the
      separately managed inline-resource exception and must not be replaced by
      this workflow.
   4. Add or edit a manual `custom:<card-type>` card in the Home Assistant
@@ -460,9 +462,9 @@ files to Home Assistant or change the remote dashboard automatically.
   not configure transport encryption or at-rest encryption.
 - **Security Tools:** [Information not found in codebase]. No security middleware,
   dependency manifest, rate limiter, or scanning workflow exists.
-- **UI safety behavior:** `home-door-security-card` supports an in-card
+- **UI safety behavior:** `hollow-door-security-card` supports an in-card
   confirmation dialog for lock and unlock actions when `confirm_lock_actions` is
-  enabled. `home-status-card` only submits a house-mode option that is present
+  enabled. `hollow-status-card` only submits a house-mode option that is present
   in the configured `input_select` entity. Card configuration validates required
   entity prefixes where implemented.
 
@@ -472,9 +474,9 @@ files to Home Assistant or change the remote dashboard automatically.
 
 - **Deployment Process:**
   1. Copy changed card source files to
-     `/config/www/home-dark-cards/`.
+     `/config/www/hollow-cards/`.
   2. Register or update the matching Home Assistant module resource at
-     `/local/home-dark-cards/<card-file>.js`, retaining the documented resource
+     `/local/hollow-cards/<card-file>.js`, retaining the documented resource
      ID when updating an existing card.
   3. Verify the resource registry and dashboard card references.
   4. Save the dashboard if its card configuration changed.
@@ -487,8 +489,8 @@ files to Home Assistant or change the remote dashboard automatically.
   deployment automation is present.
 
 - **Tools Used:**
-  - Home Assistant `/config/www/home-dark-cards/` static directory.
-  - Home Assistant `/local/home-dark-cards/*.js` module resources.
+  - Home Assistant `/config/www/hollow-cards/` static directory.
+  - Home Assistant `/local/hollow-cards/*.js` module resources.
   - Home Assistant dashboard resource and dashboard configuration APIs.
   - Deployment scripts: [Information not found in codebase].
 
@@ -536,23 +538,23 @@ checks rather than an instance screenshot.
   attribute lookup, formatting, escaping, service calls, and more-info event
   helpers are implemented within individual card files.
 - **Card-local helpers:**
-  - `home-header-card.js`: Forecast request fallback handling, forecast cache,
+  - `hollow-header-card.js`: Forecast request fallback handling, forecast cache,
     date/time formatting, condition-to-icon mapping, and refresh scheduling.
-  - `home-status-card.js`: Threshold validation, option validation, metric
+  - `hollow-status-card.js`: Threshold validation, option validation, metric
     formatting, and display-only quality bands.
-  - `home-person-card.js`: Entity validation, HTML escaping, presence mapping,
+  - `hollow-person-card.js`: Entity validation, HTML escaping, presence mapping,
     battery validation, and geographic distance calculation.
-  - `home-room-tile-card.js`: Temperature-unit resolution, HTML escaping, and
+  - `hollow-room-tile-card.js`: Temperature-unit resolution, HTML escaping, and
     popup-hash normalization.
-  - `home-light-card.js`: Dimmability detection, pointer-to-value conversion,
+  - `hollow-light-card.js`: Dimmability detection, pointer-to-value conversion,
     slider preview, service commit, and pending-slider reconciliation.
-  - `home-climate-card.js`: Numeric rounding, field-specific pending
+  - `hollow-climate-card.js`: Numeric rounding, field-specific pending
     reconciliation, mode menu creation, climate capability detection, and
     responsive menu positioning.
-  - `home-cover-card.js`: HTML escaping, supported-feature detection, position
+  - `hollow-cover-card.js`: HTML escaping, supported-feature detection, position
     clamping, cover command dispatch, discrete tilt-button dispatch, slider
     updates, and editor configuration conversion.
-  - `home-door-security-card.js`: Lock confirmation state, camera fallback,
+  - `hollow-door-security-card.js`: Lock confirmation state, camera fallback,
     door-status formatting, and silent-mode toggling.
 
 - **Example native more-info event:**
@@ -598,13 +600,13 @@ this.dispatchEvent(new CustomEvent('hass-more-info', {
   `mobile-home` dashboard, the `home-design` dashboard, and the modular
   `home-dark` card set. The HACS resources used by remote dashboards are not
   local source files.
-- `home-light-card.js` is the independent light implementation.
-- `home-climate-card.js` is split from room summaries:
-  `home-room-tile-card.js` displays readings and navigates to a popup, while
+- `hollow-light-card.js` is the independent light implementation.
+- `hollow-climate-card.js` is split from room summaries:
+  `hollow-room-tile-card.js` displays readings and navigates to a popup, while
   climate control behavior lives in the dedicated climate card.
-- `home-climate-card.js` suppresses controls and service actions when the climate
+- `hollow-climate-card.js` suppresses controls and service actions when the climate
   entity is `unknown` or `unavailable`.
-- `home-cover-card.js` is the local source for separately managed inline
+- `hollow-cover-card.js` is the local source for separately managed inline
   resource `264907031d174aae8eaf44caa4dab133`.
 - `show_tilt_buttons` defaults to `true` and is explicitly set on all six live
   cover-card configurations. The option applies to every room/entity in a card;
@@ -615,8 +617,8 @@ this.dispatchEvent(new CustomEvent('hass-more-info', {
   live state off and its intended role is not documented; no floors are
   configured; and dashboard screenshots are unavailable because the screenshot
   beta feature is disabled.
-- The repository has no formal automated test suite, package dependency
-  manifest, CI/CD workflow, or repository-owned backend.
+- The repository has a Node.js invariant suite and a HACS packaging test, but no
+  package dependency manifest, CI/CD workflow, or repository-owned backend.
 - No changes were made to the remote Home Assistant instance while producing this
   document.
 

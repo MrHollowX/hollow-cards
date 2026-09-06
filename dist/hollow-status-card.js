@@ -339,7 +339,7 @@ class HomeStatusCard extends HTMLElement {
       <ha-card class="card">
         <div class="header">
           <div class="heading">
-            <ha-icon class="home-icon"></ha-icon>
+            <ha-icon class="hollow-icon"></ha-icon>
             <div class="heading-copy">
               <div class="title"></div>
               <div class="subtitle">Live home overview</div>
@@ -396,7 +396,7 @@ class HomeStatusCard extends HTMLElement {
       </ha-card>`;
     this._shell = true;
     this._card = this.shadowRoot.querySelector('.card');
-    this._homeIcon = this.shadowRoot.querySelector('.home-icon');
+    this._homeIcon = this.shadowRoot.querySelector('.hollow-icon');
     this._title = this.shadowRoot.querySelector('.title');
     this._modeLabel = this.shadowRoot.querySelector('.mode-label');
     this._modeTrigger = this.shadowRoot.querySelector('.mode-trigger');
@@ -642,12 +642,12 @@ class HomeStatusCard extends HTMLElement {
 
   _css() {
     return `
-      :host{display:block;width:100%;min-width:0;color:var(--primary-text-color,#f5f7fb);font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;--status-surface:var(--card-background-color,var(--ha-card-background,#212c42));--status-card-radius:var(--home-status-card-border-radius,20px);--status-control:var(--secondary-background-color,#2b3850);--status-primary:var(--primary-text-color,#f5f7fb);--status-secondary:var(--secondary-text-color,#91a2bb);--status-accent:var(--primary-color,var(--accent-color,#ffb340));--status-divider:var(--divider-color,rgba(255,255,255,.1))}
+      :host{display:block;width:100%;min-width:0;color:var(--primary-text-color,#f5f7fb);font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;--status-surface:var(--card-background-color,var(--ha-card-background,#212c42));--status-card-radius:var(--hollow-status-card-border-radius,20px);--status-control:var(--secondary-background-color,#2b3850);--status-primary:var(--primary-text-color,#f5f7fb);--status-secondary:var(--secondary-text-color,#91a2bb);--status-accent:var(--primary-color,var(--accent-color,#ffb340));--status-divider:var(--divider-color,rgba(255,255,255,.1))}
       .card{box-sizing:border-box;width:100%;overflow:hidden;padding:16px;background:var(--status-surface)!important;border:1px solid var(--status-divider)!important;border-radius:var(--status-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important;container:status-card / inline-size}
       .card.mode-menu-open{position:relative;z-index:20;overflow:visible}
       .header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;min-height:52px;margin-bottom:14px}
       .heading{display:flex;align-items:center;gap:10px;min-width:0}
-      .home-icon{flex:none;color:var(--status-accent);--mdc-icon-size:27px}
+      .hollow-icon{flex:none;color:var(--status-accent);--mdc-icon-size:27px}
       .heading-copy{min-width:0}
       .title{font-size:16px;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .subtitle{margin-top:3px;color:var(--status-secondary);font-size:11px}
@@ -696,14 +696,14 @@ class HomeStatusCard extends HTMLElement {
   }
 }
 
-if (!customElements.get('home-status-card')) {
-  customElements.define('home-status-card', HomeStatusCard);
+if (!customElements.get('hollow-status-card')) {
+  customElements.define('hollow-status-card', HomeStatusCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some((card) => card.type === 'home-status-card')) {
+if (!window.customCards.some((card) => card.type === 'hollow-status-card')) {
   window.customCards.push({
-    type: 'home-status-card',
-    name: 'Home Status',
+    type: 'hollow-status-card',
+    name: 'Hollow Status',
     description: 'House mode selector with PM2.5, PM10, and optional CAQI status'
   });
 }

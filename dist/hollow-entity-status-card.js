@@ -409,7 +409,7 @@ class HomeEntityStatusCard extends HTMLElement {
         width:100%;
         font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;
         --status-background:var(--card-background-color,var(--ha-card-background,#212c42));
-        --status-card-radius:var(--home-entity-status-card-border-radius,20px);
+        --status-card-radius:var(--hollow-entity-status-card-border-radius,20px);
         --status-primary:var(--primary-text-color,#f5f7fb);
         --status-secondary:var(--secondary-text-color,#91a2bb);
         --status-muted:var(--disabled-text-color,#66758f);
@@ -582,14 +582,14 @@ class HomeEntityStatusCard extends HTMLElement {
   }
 }
 
-if (!customElements.get('home-entity-status-card')) {
-  customElements.define('home-entity-status-card', HomeEntityStatusCard);
+if (!customElements.get('hollow-entity-status-card')) {
+  customElements.define('hollow-entity-status-card', HomeEntityStatusCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some(card => card.type === 'home-entity-status-card')) {
+if (!window.customCards.some(card => card.type === 'hollow-entity-status-card')) {
   window.customCards.push({
-    type: 'home-entity-status-card',
-    name: 'Home Entity Status',
+    type: 'hollow-entity-status-card',
+    name: 'Hollow Entity Status',
     description: 'Dot-based status groups for numeric sensors and binary entities',
   });
 }

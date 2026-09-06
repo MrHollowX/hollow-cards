@@ -474,8 +474,8 @@ class HomeHeaderCard extends HTMLElement {
 
   _css() {
     return `
-    home-header-card{font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;display:block;min-width:0;--header-surface:var(--card-background-color,var(--ha-card-background,#212c42));--header-card-radius:var(--home-header-card-border-radius,20px);--header-primary:var(--primary-text-color,#f5f7fb);--header-secondary:var(--secondary-text-color,#9fb0c8);--header-accent:var(--primary-color,#8fb3ff);--header-divider:var(--divider-color,rgba(200,210,226,.18))}
-    home-header-card > .hh{background:var(--header-surface)!important;color:var(--header-primary);border:1px solid var(--header-divider)!important;border-radius:var(--header-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important;padding:16px 18px;box-sizing:border-box;min-width:0;overflow:hidden;container:hh-card / inline-size}
+    hollow-header-card{font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;display:block;min-width:0;--header-surface:var(--card-background-color,var(--ha-card-background,#212c42));--header-card-radius:var(--hollow-header-card-border-radius,20px);--header-primary:var(--primary-text-color,#f5f7fb);--header-secondary:var(--secondary-text-color,#9fb0c8);--header-accent:var(--primary-color,#8fb3ff);--header-divider:var(--divider-color,rgba(200,210,226,.18))}
+    hollow-header-card > .hh{background:var(--header-surface)!important;color:var(--header-primary);border:1px solid var(--header-divider)!important;border-radius:var(--header-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important;padding:16px 18px;box-sizing:border-box;min-width:0;overflow:hidden;container:hh-card / inline-size}
     .hh.clickable{cursor:pointer}
     .hh.clickable:focus-visible{outline:2px solid var(--header-accent);outline-offset:3px}
     .topbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto);align-items:start;gap:clamp(10px,2.5cqw,18px);min-width:0}
@@ -559,14 +559,14 @@ class HomeHeaderCard extends HTMLElement {
     `;
   }
 }
-if (!customElements.get('home-header-card')) {
-  customElements.define('home-header-card', HomeHeaderCard);
+if (!customElements.get('hollow-header-card')) {
+  customElements.define('hollow-header-card', HomeHeaderCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some((card) => card.type === 'home-header-card')) {
+if (!window.customCards.some((card) => card.type === 'hollow-header-card')) {
   window.customCards.push({
-    type: 'home-header-card',
-    name: 'Home Header',
+    type: 'hollow-header-card',
+    name: 'Hollow Header',
     description: 'Clock, date, current weather, and cached daily forecast'
   });
 }

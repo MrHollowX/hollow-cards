@@ -10,7 +10,7 @@ class HomePersonCard extends HTMLElement {
 
   setConfig(config) {
     if (!config || typeof config.entity !== 'string' || !config.entity.startsWith('person.')) {
-      throw new Error('home-person-card requires a person entity');
+      throw new Error('hollow-person-card requires a person entity');
     }
     if (config.battery_entity != null && (typeof config.battery_entity !== 'string' || !config.battery_entity.startsWith('sensor.'))) {
       throw new Error('battery_entity must be a sensor entity');
@@ -285,7 +285,7 @@ class HomePersonCard extends HTMLElement {
 
   _css() {
     return `
-      :host { display: block; min-width: 0; width: 100%; height: 100%; --person-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --person-card-radius:var(--home-person-card-border-radius,20px); color: var(--primary-text-color, #f5f7fb); }
+      :host { display: block; min-width: 0; width: 100%; height: 100%; --person-surface:var(--card-background-color,var(--ha-card-background,#212c42)); --person-card-radius:var(--hollow-person-card-border-radius,20px); color: var(--primary-text-color, #f5f7fb); }
       .card { box-sizing: border-box; width: 100%; height: 100%; min-height: 66px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--divider-color, rgba(255,255,255,.10)) !important; border-radius: var(--person-card-radius) !important; color: var(--primary-text-color, #f5f7fb); text-align: left; cursor: pointer; background: var(--person-surface) !important; box-shadow:var(--ha-card-box-shadow, 0 4px 14px rgba(0,0,0,.16)) !important; font: inherit; }
       .card.comfortable { padding-block: 9px; }
       .card:focus-visible { outline: 3px solid var(--primary-color, #3d8bfd); outline-offset: 2px; }
@@ -301,7 +301,7 @@ class HomePersonCard extends HTMLElement {
       .copy { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 3px; overflow: hidden; }
       .header { min-width: 0; display: flex; align-items: center; gap: 6px; }
       .name { display: block; min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(13px, 2.2vw, 16px); font-weight: 750; }
-      .status { min-width: 0; max-width: 66%; flex: 0 1 auto; display: inline-flex; align-items: center; gap: 3px; min-height: 20px; padding: 1px 7px; border-radius: 999px; background: var(--home-person-status-background,var(--secondary-background-color, #2b3850)); color: var(--secondary-text-color, #91a2bb); font-size: clamp(10px, 1.8vw, 12px); font-weight: 650; line-height: 1.2; }
+      .status { min-width: 0; max-width: 66%; flex: 0 1 auto; display: inline-flex; align-items: center; gap: 3px; min-height: 20px; padding: 1px 7px; border-radius: 999px; background: var(--hollow-person-status-background,var(--secondary-background-color, #2b3850)); color: var(--secondary-text-color, #91a2bb); font-size: clamp(10px, 1.8vw, 12px); font-weight: 650; line-height: 1.2; }
       .status ha-icon { flex: 0 0 auto; --mdc-icon-size: 13px; }
       .status > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .details { min-width: 0; display: flex; align-items: center; gap: 6px; color: var(--secondary-text-color, #91a2bb); font-size: clamp(10px, 1.8vw, 12px); font-weight: 650; line-height: 1.2; }
@@ -323,10 +323,10 @@ class HomePersonCard extends HTMLElement {
     `;
   }
 }
-if (!customElements.get('home-person-card')) {
-  customElements.define('home-person-card', HomePersonCard);
+if (!customElements.get('hollow-person-card')) {
+  customElements.define('hollow-person-card', HomePersonCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some(card => card.type === 'home-person-card')) {
-  window.customCards.push({ type: 'home-person-card', name: 'Home Person', description: 'Responsive person presence card with optional battery, Home distance, and comfortable vertical spacing' });
+if (!window.customCards.some(card => card.type === 'hollow-person-card')) {
+  window.customCards.push({ type: 'hollow-person-card', name: 'Hollow Person', description: 'Responsive person presence card with optional battery, Home distance, and comfortable vertical spacing' });
 }

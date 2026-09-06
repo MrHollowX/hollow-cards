@@ -572,8 +572,8 @@ class HomeCameraGridCard extends HTMLElement {
 
   _css() {
     return `
-      home-camera-grid-card{display:block;min-width:0;width:100%;font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;--bg:var(--card-background-color,var(--ha-card-background,#212c42));--camera-card-radius:var(--home-camera-grid-card-border-radius,20px);--page:var(--primary-background-color,#1a2433);--text:var(--primary-text-color,#f5f7fb);--secondary:var(--secondary-text-color,#91a2bb);--muted:var(--disabled-text-color,#66758f);--accent:var(--primary-color,#ffb340);--control:var(--secondary-background-color,#2b3850);--divider:var(--divider-color,rgba(255,255,255,.1))}
-      home-camera-grid-card > ha-card.nvr-card{box-sizing:border-box;overflow:hidden;padding:16px;background:var(--bg)!important;color:var(--text);border:1px solid var(--divider)!important;border-radius:var(--camera-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important}
+      hollow-camera-grid-card{display:block;min-width:0;width:100%;font-family:-apple-system,'Segoe UI',Helvetica,sans-serif;--bg:var(--card-background-color,var(--ha-card-background,#212c42));--camera-card-radius:var(--hollow-camera-grid-card-border-radius,20px);--page:var(--primary-background-color,#1a2433);--text:var(--primary-text-color,#f5f7fb);--secondary:var(--secondary-text-color,#91a2bb);--muted:var(--disabled-text-color,#66758f);--accent:var(--primary-color,#ffb340);--control:var(--secondary-background-color,#2b3850);--divider:var(--divider-color,rgba(255,255,255,.1))}
+      hollow-camera-grid-card > ha-card.nvr-card{box-sizing:border-box;overflow:hidden;padding:16px;background:var(--bg)!important;color:var(--text);border:1px solid var(--divider)!important;border-radius:var(--camera-card-radius)!important;box-shadow:var(--ha-card-box-shadow,0 4px 14px rgba(0,0,0,.16))!important}
       .nvr-header{display:flex;align-items:center;gap:11px;min-width:0}.nvr-icon{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:14px;background:var(--control);color:var(--accent)}.nvr-icon ha-icon{--mdc-icon-size:25px}.nvr-copy{display:grid;min-width:0;gap:3px}.nvr-copy strong{overflow:hidden;font-size:16px;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}.nvr-copy span{overflow:hidden;color:var(--secondary);font-size:11.5px;font-weight:650;text-overflow:ellipsis;white-space:nowrap}.nvr-status{display:flex;align-items:center;gap:5px;margin-left:auto;color:var(--secondary);font-size:9px;font-weight:850;letter-spacing:.07em}.nvr-status ha-icon{color:var(--accent);--mdc-icon-size:16px}.live-pill>.live-dot{display:block;flex:none;width:7px;height:7px;border-radius:50%;background:currentColor}
       .providers{display:grid;gap:17px;margin-top:17px}.provider-group{display:grid;gap:9px}.provider-group+.provider-group{padding-top:15px;border-top:1px solid var(--divider)}.provider-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--secondary);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.provider-heading>span{display:flex;align-items:center;gap:6px;min-width:0}.provider-heading ha-icon{color:var(--accent);--mdc-icon-size:18px}.provider-heading small{flex:none;color:var(--muted);font-size:10px;font-weight:750;letter-spacing:normal;text-transform:none}
       .camera-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.camera-tile{display:grid;min-width:0;padding:0;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:var(--control);color:var(--text);font:inherit;text-align:left;cursor:pointer}.camera-tile:hover{border-color:rgba(255,179,64,.55)}.camera-tile:active{transform:scale(.985)}.camera-tile:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.camera-feed{position:relative;display:block;aspect-ratio:16/9;overflow:hidden;background:var(--page)}.camera-feed img{display:block;width:100%;height:100%;object-fit:cover}.camera-feed img[hidden],.camera-unavailable[hidden],.open-live[hidden]{display:none}.camera-tile:not(.is-unavailable) .camera-feed::after{position:absolute;inset:0;content:'';pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.18),transparent 42%,rgba(0,0,0,.22))}.live-pill{position:absolute;z-index:1;top:7px;left:7px;display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:7px;background:rgba(9,15,26,.76);color:#d7e1ef;font-size:8px;font-weight:850;letter-spacing:.05em;line-height:1;text-transform:uppercase}.live-pill.is-recording{color:#ff6a6a}.open-live{position:absolute;z-index:1;right:7px;bottom:7px;display:flex;align-items:center;gap:3px;padding:4px 6px;border-radius:7px;background:rgba(9,15,26,.76);color:#f5f7fb;font-size:8px;font-weight:800;line-height:1}.open-live ha-icon{color:var(--accent);--mdc-icon-size:13px}.camera-label{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6px;min-width:0;padding:8px 9px;color:var(--text);font-size:11px;font-weight:750}.camera-label ha-icon{color:var(--secondary);--mdc-icon-size:16px}.camera-label>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.camera-unavailable{display:grid;place-items:center;align-content:center;gap:5px;width:100%;height:100%;color:var(--muted);font-size:10px;font-weight:750}.camera-unavailable ha-icon{--mdc-icon-size:25px}.is-unavailable{opacity:.72}
@@ -582,14 +582,14 @@ class HomeCameraGridCard extends HTMLElement {
   }
 }
 
-if (!customElements.get('home-camera-grid-card')) {
-  customElements.define('home-camera-grid-card', HomeCameraGridCard);
+if (!customElements.get('hollow-camera-grid-card')) {
+  customElements.define('hollow-camera-grid-card', HomeCameraGridCard);
 }
 window.customCards = window.customCards || [];
-if (!window.customCards.some((card) => card.type === 'home-camera-grid-card')) {
+if (!window.customCards.some((card) => card.type === 'hollow-camera-grid-card')) {
   window.customCards.push({
-    type: 'home-camera-grid-card',
-    name: 'Home Camera Grid',
-    description: 'Home Dark live NVR-style camera grid',
+    type: 'hollow-camera-grid-card',
+    name: 'Hollow Camera Grid',
+    description: 'Hollow live NVR-style camera grid',
   });
 }
