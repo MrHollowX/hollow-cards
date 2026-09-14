@@ -579,16 +579,16 @@ class HomeSwitchCard extends HTMLElement {
         box-shadow: var(--ha-card-box-shadow, 0 4px 14px rgba(0,0,0,.16)) !important;
         padding: 14px 16px;
       }
-      .switch-card.rows-tall {
+      hollow-switch-card .switch-card.rows-tall {
         min-height: 108px;
       }
-      .row-top {
+      hollow-switch-card .row-top {
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 10px;
       }
-      .row-left {
+      hollow-switch-card .row-left {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -597,23 +597,23 @@ class HomeSwitchCard extends HTMLElement {
         min-width: 0;
         outline: none;
       }
-      .switch-card.rows-tall .tall-copy {
+      hollow-switch-card .switch-card.rows-tall .tall-copy {
         margin-top: 10px;
         padding-top: 10px;
         border-top: 1px solid var(--switch-divider);
         cursor: pointer;
       }
-      .switch-card.rows-tall .tall-copy .row-name,
-      .switch-card.rows-tall .tall-copy .row-sub {
+      hollow-switch-card .switch-card.rows-tall .tall-copy .row-name,
+      hollow-switch-card .switch-card.rows-tall .tall-copy .row-sub {
         width: 100%;
       }
-      .row-left:focus-visible,
-      .tall-copy:focus-visible {
+      hollow-switch-card .row-left:focus-visible,
+      hollow-switch-card .tall-copy:focus-visible {
         outline: 2px solid var(--switch-accent);
         outline-offset: 3px;
         border-radius: 6px;
       }
-      .switch-icon {
+      hollow-switch-card .switch-icon {
         display: block;
         width: 32px;
         height: 32px;
@@ -621,35 +621,35 @@ class HomeSwitchCard extends HTMLElement {
         color: var(--switch-muted);
         transform-origin: center center;
       }
-      .switch-icon.is-on { color: var(--switch-accent); }
-      .type-fan.is-on {
+      hollow-switch-card .switch-icon.is-on { color: var(--switch-accent); }
+      hollow-switch-card .type-fan.is-on {
         animation: fan-spin 1.8s linear infinite;
         transform-origin: center;
       }
-      .type-pump.is-on {
+      hollow-switch-card .type-pump.is-on {
         animation: fan-spin 2.4s linear infinite;
         transform-origin: center;
       }
-      .type-heater.is-on {
+      hollow-switch-card .type-heater.is-on {
         animation: heater-pulse 1.2s ease-in-out infinite;
       }
-      .type-light.is-on {
+      hollow-switch-card .type-light.is-on {
         filter: drop-shadow(0 0 4px var(--switch-accent));
       }
-      .is-unavailable {
+      hollow-switch-card .is-unavailable {
         opacity: .65;
       }
-      .copy {
+      hollow-switch-card .copy {
         min-width: 0;
       }
-      .row-name {
+      hollow-switch-card .row-name {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         font-size: 14px;
         font-weight: 700;
       }
-      .row-sub {
+      hollow-switch-card .row-sub {
         overflow: hidden;
         color: var(--switch-secondary-text);
         font-size: 11.5px;
@@ -657,7 +657,7 @@ class HomeSwitchCard extends HTMLElement {
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .toggle {
+      hollow-switch-card .toggle {
         all: unset;
         cursor: pointer;
         width: 44px;
@@ -667,18 +667,18 @@ class HomeSwitchCard extends HTMLElement {
         position: relative;
         flex: none;
       }
-      .toggle.on {
+      hollow-switch-card .toggle.on {
         background: var(--switch-accent);
       }
-      .toggle:disabled {
+      hollow-switch-card .toggle:disabled {
         cursor: not-allowed;
         opacity: .55;
       }
-      .toggle:focus-visible {
+      hollow-switch-card .toggle:focus-visible {
         outline: 2px solid var(--switch-accent);
         outline-offset: 3px;
       }
-      .toggle .knob {
+      hollow-switch-card .toggle .knob {
         position: absolute;
         left: 3px;
         top: 3px;
@@ -688,7 +688,7 @@ class HomeSwitchCard extends HTMLElement {
         background: var(--switch-muted);
         transition: left .15s, background .15s;
       }
-      .toggle.on .knob {
+      hollow-switch-card .toggle.on .knob {
         left: 21px;
         background: var(--switch-page-bg);
       }
@@ -701,9 +701,9 @@ class HomeSwitchCard extends HTMLElement {
         50% { opacity: 1; transform: scale(1); }
       }
       @media (prefers-reduced-motion: reduce) {
-        .type-fan.is-on,
-        .type-pump.is-on,
-        .type-heater.is-on {
+        hollow-switch-card .type-fan.is-on,
+        hollow-switch-card .type-pump.is-on,
+        hollow-switch-card .type-heater.is-on {
           animation: none;
         }
       }

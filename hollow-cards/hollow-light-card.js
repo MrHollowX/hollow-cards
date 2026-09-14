@@ -715,57 +715,57 @@ class HomeLightCard extends HTMLElement {
         box-shadow: var(--ha-card-box-shadow, 0 4px 14px rgba(0,0,0,.16)) !important;
         padding: 14px 16px;
       }
-      .row-top { display:flex; justify-content:space-between; align-items:center; gap:10px; }
-      .row-left {
+      hollow-light-card .row-top { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+      hollow-light-card .row-left {
         display:flex; gap:10px; align-items:center; cursor:pointer; flex:1; min-width:0;
         outline:none;
       }
-      .row-left:focus-visible { outline:2px solid var(--light-accent); outline-offset:3px; border-radius:6px; }
-      .row-name { font-size:14px; font-weight:700; }
-      .row-sub { font-size:11.5px; color:var(--light-secondary-text); }
-      .slider-wrap { position:relative; height:28px; margin-top:10px; }
-      .bar {
+      hollow-light-card .row-left:focus-visible { outline:2px solid var(--light-accent); outline-offset:3px; border-radius:6px; }
+      hollow-light-card .row-name { font-size:14px; font-weight:700; }
+      hollow-light-card .row-sub { font-size:11.5px; color:var(--light-secondary-text); }
+      hollow-light-card .slider-wrap { position:relative; height:28px; margin-top:10px; }
+      hollow-light-card .bar {
         position:absolute; left:0; right:0; top:50%; transform:translateY(-50%);
         height:6px; border-radius:3px; background:var(--light-track);
         overflow:hidden; pointer-events:none;
       }
-      .bar-fill {
+      hollow-light-card .bar-fill {
         height:100%;
         background:var(--light-accent);
         transition:width 1s cubic-bezier(.2,.8,.2,1);
       }
-      .sl {
+      hollow-light-card .sl {
         position:absolute; left:0; top:0; -webkit-appearance:none; appearance:none;
         width:100%; height:28px; margin:0; background:transparent;
         touch-action:none; cursor:pointer;
       }
-      .sl:disabled { cursor:not-allowed; opacity:.55; }
-      .sl::-webkit-slider-runnable-track { background:transparent; height:28px; }
-      .sl::-moz-range-track { background:transparent; height:28px; }
-      .sl::-webkit-slider-thumb {
+      hollow-light-card .sl:disabled { cursor:not-allowed; opacity:.55; }
+      hollow-light-card .sl::-webkit-slider-runnable-track { background:transparent; height:28px; }
+      hollow-light-card .sl::-moz-range-track { background:transparent; height:28px; }
+      hollow-light-card .sl::-webkit-slider-thumb {
         -webkit-appearance:none; width:20px; height:20px; border-radius:50%;
         background:var(--light-accent); cursor:pointer; margin-top:4px;
       }
-      .sl::-moz-range-thumb {
+      hollow-light-card .sl::-moz-range-thumb {
         width:20px; height:20px; border-radius:50%; background:var(--light-accent);
         cursor:pointer; border:0;
       }
-      .toggle {
+      hollow-light-card .toggle {
         all:unset; cursor:pointer; width:44px; height:26px; border-radius:999px;
         background:var(--light-track); position:relative; flex:none;
       }
-      .toggle.on { background:var(--light-accent); }
-      .toggle:disabled { cursor:not-allowed; opacity:.55; }
-      .toggle:focus-visible { outline:2px solid var(--light-accent); outline-offset:3px; }
-      .toggle .knob {
+      hollow-light-card .toggle.on { background:var(--light-accent); }
+      hollow-light-card .toggle:disabled { cursor:not-allowed; opacity:.55; }
+      hollow-light-card .toggle:focus-visible { outline:2px solid var(--light-accent); outline-offset:3px; }
+      hollow-light-card .toggle .knob {
         position:absolute; left:3px; top:3px; width:20px; height:20px;
         border-radius:50%; background:var(--light-muted); transition:left .15s;
       }
-      .toggle.on .knob { left:21px; background:var(--light-dark); }
-      .ic-amber { color:var(--light-accent); }
-      .ic-mute { color:var(--light-muted); }
+      hollow-light-card .toggle.on .knob { left:21px; background:var(--light-dark); }
+      hollow-light-card .ic-amber { color:var(--light-accent); }
+      hollow-light-card .ic-mute { color:var(--light-muted); }
       @media (prefers-reduced-motion: reduce) {
-        .bar-fill { transition:none; }
+        hollow-light-card .bar-fill { transition:none; }
       }
     `;
   }
