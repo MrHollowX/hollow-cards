@@ -1,0 +1,36 @@
+name: Validate Hollow Cards
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  tests:
+    name: Node.js checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run tests
+        run: node --test tests/*.test.cjs
+      - name: Check JavaScript syntax
+        shell: bash
+        run: for file in hollow-cards/*.js; do node --check "$file"; done
+
+  validate-hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate as a HACS Dashboard plugin
+        uses: hacs/action@main
+        with:
+          category: plugin

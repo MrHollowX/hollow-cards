@@ -1,10 +1,11 @@
 /*
- * Hollow Cards HACS entry point.
+ * Hollow Cards 1.0.0 HACS entry point.
  *
  * The individual files remain separate so existing dashboard resources stay
- * compatible. HACS downloads every JavaScript file in this dist directory;
- * this entry point loads the complete card set from one Lovelace resource.
+ * compatible. HACS downloads the JavaScript files in dist/ and this entry
+ * point loads the complete card set from one Lovelace module resource.
  */
+
 import './hollow-appliance-card.js';
 import './hollow-camera-grid-card.js';
 import './hollow-climate-card.js';

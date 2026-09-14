@@ -780,5 +780,6 @@ if (!window.customCards.some(card => card.type === 'hollow-light-card')) {
     type: 'hollow-light-card',
     name: 'Hollow Light',
     description: 'Theme-aware light control row with optional brightness slider',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }

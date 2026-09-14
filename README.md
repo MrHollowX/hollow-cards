@@ -1,64 +1,69 @@
 # Hollow Cards
 
-Hollow Cards is a set of standalone JavaScript custom cards for Home Assistant.
-The card element names use the `custom:hollow-*` prefix. Existing dashboard
-paths remain unchanged because they belong to the external dashboard
-configuration.
+Hollow Cards 1.0.0 is a HACS Dashboard plugin containing 16 standalone
+JavaScript custom cards for Home Assistant. The cards use the stable
+`custom:hollow-*` element names and are designed to be loaded as one module
+resource.
 
-The shared, agent-neutral project guidance is [`ai-skill/SKILL.md`](ai-skill/SKILL.md);
-coding agents should read it before making changes.
+This is a frontend card repository, not a Python `custom_components` integration:
+there is no config flow, `manifest.json`, backend, or stored Home Assistant
+state. The cards follow the Home Assistant Lovelace custom-card lifecycle and
+use the authenticated frontend `hass` object for state and service calls.
 
 ## Install with HACS
 
-HACS can install Hollow Cards as a Dashboard repository. If the repository is
-not listed in the HACS catalog yet, add `MrHollowX/hollow-cards-set` as a
-custom repository and choose the **Dashboard** category.
+1. Open HACS → Frontend.
+2. Search for **Hollow Cards**. If it is not in the default catalog yet, add
+   `MrHollowX/hollow-cards` as a custom repository with the **Dashboard** type.
+3. Install the repository and add this single module resource if HACS does not
+   add it automatically:
 
-After downloading, add one module resource to Home Assistant:
+   ```yaml
+   resources:
+     - url: /hacsfiles/hollow-cards/hollow-cards.js
+       type: module
+   ```
 
-```yaml
-resources:
-  - url: /hacsfiles/hollow-cards-set/hollow-cards-set.js
-    type: module
+The canonical entry point is `hollow-cards.js`; it imports the complete card
+set from the HACS `dist/` payload. Remove duplicate legacy `/local/hollow-cards/`
+resources or older `hollow-cards-set` resource URLs when migrating to HACS.
+
+The live Home Assistant resource contract is documented in
+[`hollow-cards/README.md`](hollow-cards/README.md), including the retained
+inline-resource exception for `hollow-cover-card`.
+
+## Cards included
+
+Header, status, person, room tile, light, climate, cover, vacuum, door security,
+entity status, energy overview, switch, group, floating menu, appliance, and
+camera grid cards are included. Each card is independently usable and exposes
+its own configuration contract in the detailed card documentation.
+
+## Release 1.0.0
+
+The first stable release standardizes the HACS Dashboard package, corrects the
+repository/resource naming, keeps the source and `dist/` payload synchronized,
+and adds Home Assistant card-picker metadata with a documentation link for
+every card. See [`CHANGELOG.md`](CHANGELOG.md) for the release notes.
+
+## Development and verification
+
+After changing a source card, synchronize the HACS payload and run the tests:
+
+```powershell
+powershell -File scripts/sync-hacs-dist.ps1
+node --test tests/*.test.cjs
 ```
 
-This path matches the `hollow-cards-set` repository name. Remove duplicate old
-`/local/hollow-cards/*.js` resources when switching to the HACS entry point.
-
-The dashboard card types are `custom:hollow-header-card`,
-`custom:hollow-climate-card`, and the other `custom:hollow-*` types.
-
-When card source files change, run
-`powershell -File scripts/sync-hacs-dist.ps1` before committing so the HACS
-payload stays synchronized.
+The GitHub Actions workflow runs the Node.js checks and HACS validation with the
+`plugin` category. HACS installs the JavaScript files from `dist/`; it does not
+run the local test suite or deploy files to a Home Assistant host.
 
 ## Repository contents
 
-- [`hollow-cards/`](hollow-cards/) — local card sources and their detailed
-  configuration, resource, and deployment contracts.
-- [`tests/`](tests/) — Node.js invariant tests for the 16 source cards (23 tests).
+- [`hollow-cards/`](hollow-cards/) — source cards and their HA resource/configuration contracts.
+- [`dist/`](dist/) — mirrored HACS payload and the canonical `hollow-cards.js` entry point.
+- [`tests/`](tests/) — Node.js invariant and packaging tests.
+- [`CHANGELOG.md`](CHANGELOG.md) — release history.
 - [`ai-overview.md`](ai-overview.md) — architecture and onboarding notes.
-- [`AGENTS.md`](AGENTS.md) — short discovery pointer to the shared skill.
-
-The cards run in the Home Assistant browser frontend. They receive state and
-service APIs through Home Assistant's `hass` object. This repository has no
-backend, local Home Assistant configuration, or database. The root
-`hacs.json`, `dist/` payload, and sync script are packaging-only assets for
-HACS; card behavior remains in `hollow-cards/`.
-
-## Verification
-
-Run the invariant suite with:
-
-```text
-node --test tests/hollow-cards-invariants.test.cjs
-```
-
-Live entities, dashboards, and Lovelace resources remain on the remote Home
-Assistant instance. See the skill and the card README for the MCP workflow,
-URL-mode deployment directory, cache-busting rules, and the retained inline
-`hollow-cover-card` exception.
-
-There are no tool-specific skill copies in this repository. `AGENTS.md` is only
-the discovery pointer; [`ai-skill/SKILL.md`](ai-skill/SKILL.md) is the shared
-source for all coding agents.
+- [`ai-skill/SKILL.md`](ai-skill/SKILL.md) — shared contribution and HA workflow guidance.

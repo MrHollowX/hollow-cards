@@ -109,5 +109,5 @@ if(!customElements.get('hollow-room-tile-card')){
 }
 window.customCards = window.customCards || [];
 if(!window.customCards.some(card=>card.type==='hollow-room-tile-card')){
-  window.customCards.push({type:'hollow-room-tile-card', name:'Hollow Room Tile', description:'Room summary tile (tap for more-info or configured popup hash)'});
+  window.customCards.push({type:'hollow-room-tile-card', name:'Hollow Room Tile', description:'Room summary tile (tap for more-info or configured popup hash)', documentationURL:'https://github.com/MrHollowX/hollow-cards'});
 }

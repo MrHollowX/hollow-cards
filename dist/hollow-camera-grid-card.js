@@ -591,5 +591,6 @@ if (!window.customCards.some((card) => card.type === 'hollow-camera-grid-card'))
     type: 'hollow-camera-grid-card',
     name: 'Hollow Camera Grid',
     description: 'Hollow live NVR-style camera grid',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }

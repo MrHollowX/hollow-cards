@@ -1,6 +1,7 @@
 ## Project Overview
 
 - **Project Name:** Hollow Cards
+- **Release:** 1.0.0 (2026-09-14), published as a HACS Dashboard plugin.
 - **Description:** This repository contains sixteen standalone JavaScript custom cards
   for a Home Assistant Lovelace dashboard named `home-dark`. The cards execute in
   the Home Assistant browser frontend, read entity state from the frontend `hass`
@@ -11,8 +12,7 @@
   `hacs.json` and `dist/` directory are packaging assets for HACS.
 - **Main Features:**
   - `hollow-header-card`: Clock, localized date, current weather, humidity,
-    apparent temperature, and optional daily forecasts retrieved through
-    `weather.get_forecasts`.
+    and optional daily forecasts retrieved through `weather.get_forecasts`.
   - `hollow-status-card`: House-mode selection plus PM2.5, PM10, and optional air
     quality metrics.
   - `hollow-person-card`: Person presence, avatar, location, optional battery, and
@@ -81,7 +81,7 @@ persistence.
 flowchart LR
     subgraph Repository["Local repository"]
         Sources["hollow-cards/*.js"]
-        Guidance["AGENTS.md, ai-skill/SKILL.md, README.md"]
+        Guidance["AGENTS.md, ai-skill/SKILL.md, README.md, CHANGELOG.md"]
     end
 
     subgraph Host["Home Assistant host"]
@@ -350,14 +350,15 @@ local configuration.
   - Containerization: [Information not found in codebase].
   - Message Queue: [Information not found in codebase].
   - Search: [Information not found in codebase].
-  - CI/CD: [Information not found in codebase].
+  - CI/CD: `.github/workflows/validate.yml` runs the Node.js test and syntax
+    checks plus the HACS action. It does not deploy files to Home Assistant.
 
 ---
 
 ## Project Structure
 
 ```plaintext
-hollow-cards-set/
+hollow-cards/
 ├── hollow-cards/
 │   ├── hollow-header-card.js         # Clock, weather, and forecast card
 │   ├── hollow-status-card.js         # House mode and air-quality card
@@ -378,16 +379,29 @@ hollow-cards-set/
 │   └── README.md                   # Card contracts and deployment notes
 ├── ai-skill/
 │   └── SKILL.md                    # Shared guidance for all coding agents
+├── dist/
+│   ├── hollow-cards.js             # Canonical HACS entry point
+│   └── hollow-*-card.js            # Mirrored HACS card modules
+├── .github/workflows/
+│   └── validate.yml                # Node.js and HACS validation
 ├── AGENTS.md                       # Discovery pointer to the shared skill
 ├── README.md                       # Repository and workflow documentation
+├── CHANGELOG.md                    # Release history
+├── hacs.json                       # HACS Dashboard plugin metadata
 ├── .gitattributes                  # Text-file LF normalization rule
+├── scripts/
+│   └── sync-hacs-dist.ps1          # Source-to-dist packaging sync
+├── tests/
+│   ├── hacs-package.test.cjs       # HACS packaging invariants
+│   └── hollow-cards-invariants.test.cjs # Card runtime invariants
 └── ai-overview.md                  # This onboarding document
 ```
 
 The repository has no `src/`, `components/`, `pages/`, `services/`, `utils/`,
-or `models/` application directories. `scripts/sync-hacs-dist.ps1` only mirrors
-card files into the HACS `dist/` payload; there is no npm package manifest,
-lockfile, Dockerfile, or CI workflow.
+or `models/` application directories. `scripts/sync-hacs-dist.ps1` mirrors
+card files and regenerates the canonical `dist/hollow-cards.js` HACS entry
+point; there is no npm package manifest, lockfile, Dockerfile, or deployment
+pipeline.
 
 The README records these local card resource IDs:
 
@@ -485,8 +499,9 @@ files to Home Assistant or change the remote dashboard automatically.
   The README states that resource registration does not upload files from this
   repository to `/config/www`; file copying remains a separate manual operation.
 
-- **CI/CD Pipeline:** [Information not found in codebase]. No workflow or
-  deployment automation is present.
+- **CI/CD Pipeline:** `.github/workflows/validate.yml` runs the Node.js test and
+  syntax checks plus HACS validation. It does not deploy files to Home
+  Assistant.
 
 - **Tools Used:**
   - Home Assistant `/config/www/hollow-cards/` static directory.
@@ -499,13 +514,15 @@ files to Home Assistant or change the remote dashboard automatically.
 ## Testing
 
 - **Testing Frameworks:**
-  - Unit Testing: [Information not found in codebase].
+  - Unit/invariant testing: Node.js built-in `node:test`.
   - Integration Testing: [Information not found in codebase].
   - End-to-End Testing: [Information not found in codebase].
 
 - **Running Tests:**
-  - Formal test command: [Information not found in codebase].
-  - JavaScript syntax verification: [Information not found in codebase].
+  - Formal test command: `node --test tests/*.test.cjs`.
+  - JavaScript syntax verification: `node --check hollow-cards/*.js`.
+  - CI verification: `.github/workflows/validate.yml` runs both checks and
+    HACS validation with the `plugin` category.
   - Live verification consists of inspecting the Home Assistant resource
     registry, dashboard configuration, entity state, and service metadata.
 
@@ -617,8 +634,8 @@ this.dispatchEvent(new CustomEvent('hass-more-info', {
   live state off and its intended role is not documented; no floors are
   configured; and dashboard screenshots are unavailable because the screenshot
   beta feature is disabled.
-- The repository has a Node.js invariant suite and a HACS packaging test, but no
-  package dependency manifest, CI/CD workflow, or repository-owned backend.
+- The repository has a Node.js invariant suite, a HACS packaging test, and a
+  CI workflow, but no package dependency manifest or repository-owned backend.
 - No changes were made to the remote Home Assistant instance while producing this
   document.
 

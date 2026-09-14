@@ -1165,5 +1165,6 @@ if (!window.customCards.some(card => card.type === 'hollow-vacuum-card')) {
     type: 'hollow-vacuum-card',
     name: 'Hollow Vacuum',
     description: 'Hollow Roborock control card with actions and cleaning settings',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }

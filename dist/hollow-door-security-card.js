@@ -471,5 +471,5 @@ if(!customElements.get('hollow-door-security-card')){
 }
 window.customCards=window.customCards||[];
 if(!window.customCards.some(card=>card.type==='hollow-door-security-card')){
-  window.customCards.push({type:'hollow-door-security-card',name:'Hollow Door Security',description:'Responsive camera security card with configurable local lock confirmation dialog'});
+  window.customCards.push({type:'hollow-door-security-card',name:'Hollow Door Security',description:'Responsive camera security card with configurable local lock confirmation dialog',documentationURL:'https://github.com/MrHollowX/hollow-cards'});
 }

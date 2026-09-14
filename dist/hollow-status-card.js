@@ -704,6 +704,7 @@ if (!window.customCards.some((card) => card.type === 'hollow-status-card')) {
   window.customCards.push({
     type: 'hollow-status-card',
     name: 'Hollow Status',
-    description: 'House mode selector with PM2.5, PM10, and optional CAQI status'
+    description: 'House mode selector with PM2.5, PM10, and optional CAQI status',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards'
   });
 }

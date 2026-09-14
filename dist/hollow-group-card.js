@@ -315,5 +315,6 @@ if (!window.customCards.some((card) => card.type === 'hollow-group-card')) {
     type: 'hollow-group-card',
     name: 'Hollow Group',
     description: 'Expandable Hollow Cards group with an optional entity header',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }

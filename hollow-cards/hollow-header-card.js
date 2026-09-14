@@ -567,6 +567,7 @@ if (!window.customCards.some((card) => card.type === 'hollow-header-card')) {
   window.customCards.push({
     type: 'hollow-header-card',
     name: 'Hollow Header',
-    description: 'Clock, date, current weather, and cached daily forecast'
+    description: 'Clock, date, current weather, and cached daily forecast',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards'
   });
 }

@@ -591,5 +591,6 @@ if (!window.customCards.some(card => card.type === 'hollow-entity-status-card'))
     type: 'hollow-entity-status-card',
     name: 'Hollow Entity Status',
     description: 'Dot-based status groups for numeric sensors and binary entities',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }

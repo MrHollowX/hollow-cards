@@ -527,5 +527,6 @@ if (!window.customCards.some((card) => card?.type === 'hollow-floating-menu-card
     type: 'hollow-floating-menu-card',
     name: 'Hollow Floating Menu Card',
     description: 'Fixed bottom navigation for Hollow Cards dashboard views',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }

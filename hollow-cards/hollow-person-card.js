@@ -328,5 +328,5 @@ if (!customElements.get('hollow-person-card')) {
 }
 window.customCards = window.customCards || [];
 if (!window.customCards.some(card => card.type === 'hollow-person-card')) {
-  window.customCards.push({ type: 'hollow-person-card', name: 'Hollow Person', description: 'Responsive person presence card with optional battery, Home distance, and comfortable vertical spacing' });
+  window.customCards.push({ type: 'hollow-person-card', name: 'Hollow Person', description: 'Responsive person presence card with optional battery, Home distance, and comfortable vertical spacing', documentationURL: 'https://github.com/MrHollowX/hollow-cards' });
 }

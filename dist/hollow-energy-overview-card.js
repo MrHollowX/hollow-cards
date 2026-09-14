@@ -198,5 +198,6 @@ if (!window.customCards.some(card => card.type === 'hollow-energy-overview-card'
     type: 'hollow-energy-overview-card',
     name: 'Hollow Energy Overview',
     description: 'Responsive daily energy usage and cost summary',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }

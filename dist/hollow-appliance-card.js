@@ -602,5 +602,6 @@ if (!window.customCards.some(card => card.type === 'hollow-appliance-card')) {
     type: 'hollow-appliance-card',
     name: 'Hollow Appliance',
     description: 'Compact Bosch Home Connect appliance status and controls',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }

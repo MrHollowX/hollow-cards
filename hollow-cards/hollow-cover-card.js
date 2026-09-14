@@ -417,4 +417,4 @@ class HomeCoverCardEditor extends HTMLElement{
 if(!customElements.get('hollow-cover-card'))customElements.define('hollow-cover-card',HomeCoverCard);
 if(!customElements.get('hollow-cover-card-editor'))customElements.define('hollow-cover-card-editor',HomeCoverCardEditor);
 window.customCards=window.customCards||[];
-if(!window.customCards.some((card)=>card.type==='hollow-cover-card'))window.customCards.push({type:'hollow-cover-card',name:'Hollow Cover Card',description:'Dark modular cover control for blinds and shutters with optional discrete slat-tilt buttons at 0%, 25%, 75%, and 100%'});
+if(!window.customCards.some((card)=>card.type==='hollow-cover-card'))window.customCards.push({type:'hollow-cover-card',name:'Hollow Cover Card',description:'Dark modular cover control for blinds and shutters with optional discrete slat-tilt buttons at 0%, 25%, 75%, and 100%',documentationURL:'https://github.com/MrHollowX/hollow-cards'});

@@ -16,13 +16,33 @@ covers card lifecycle contracts, unavailable-entity handling, Home Assistant
 resource deployment, and safe dashboard changes. There are no separate
 tool-specific instructions to keep synchronized.
 
+## Release 1.0.0
+
+Hollow Cards is published as a HACS **Dashboard** plugin. It is intentionally a
+frontend custom-card set, not a Python `custom_components` integration: the
+repository has no `manifest.json`, config flow, backend, or persistent state.
+Each card follows the Home Assistant custom-card lifecycle (`setConfig`,
+`hass`, `getCardSize`, and `getGridOptions` where applicable), registers its
+card-picker metadata, and links back to the repository documentation.
+
+The canonical HACS resource is:
+
+```yaml
+resources:
+  - url: /hacsfiles/hollow-cards/hollow-cards.js
+    type: module
+```
+
+The entry point imports every card from `dist/`. Existing `custom:hollow-*`
+card names and configuration options remain compatible with the 1.0.0 package.
+
 ## Local verification
 
-The repository currently contains 16 card source files and a 23-test Node.js
-invariant suite. Run it from the repository root after JavaScript changes:
+The repository currently contains 16 card source files. Run the complete Node.js
+test suite from the repository root after JavaScript changes:
 
 ```text
-node --test tests/hollow-cards-invariants.test.cjs
+node --test tests/*.test.cjs
 ```
 
 The suite checks registration safety, capability-aware controls, service-call
@@ -55,9 +75,10 @@ found no references.
 - **Removed legacy resources:** the unused `HomeDashboardCard` and
   `hollow-navbar-card` registrations were removed after cross-dashboard searches
   found no usages
-- **HACS resources:** the repository root contains `hacs.json`; HACS installs
-  the mirrored JavaScript payload from `dist/` and exposes the Hollow Cards
-  entry point under `/hacsfiles/<repository-name>/`.
+- **HACS resources:** the repository root contains `hacs.json`; HACS treats the
+  project as a Dashboard plugin, installs the mirrored JavaScript payload from
+  `dist/`, and exposes the canonical entry point at
+  `/hacsfiles/hollow-cards/hollow-cards.js`.
 
 ## Exported resources
 

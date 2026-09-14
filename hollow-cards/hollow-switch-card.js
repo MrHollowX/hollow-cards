@@ -730,5 +730,6 @@ if (!window.customCards.some(card => card.type === 'hollow-switch-card')) {
     type: 'hollow-switch-card',
     name: 'Hollow Switch',
     description: 'Theme-aware switch control with configurable visual type',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }

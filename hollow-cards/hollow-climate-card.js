@@ -1583,5 +1583,6 @@ if (!window.customCards.some(card => card.type === 'hollow-climate-card')) {
     type: 'hollow-climate-card',
     name: 'Hollow Climate',
     description: 'Dynamic climate controls for heating and cooling entities',
+    documentationURL: 'https://github.com/MrHollowX/hollow-cards',
   });
 }
