@@ -7,6 +7,7 @@ const test = require('node:test');
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE_DIRECTORY = path.join(ROOT, 'hollow-cards');
 const DIST_DIRECTORY = path.join(ROOT, 'dist');
+const IMAGE_DIRECTORY = path.join(ROOT, 'docs', 'images');
 const DOCUMENTATION_URL = 'https://github.com/MrHollowX/hollow-cards';
 
 const digest = (filePath) => crypto
@@ -30,6 +31,18 @@ test('release metadata identifies the stable 1.0.0 package', () => {
   const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
   assert.match(readme, /!\[HACS Dashboard\]\(https:\/\/img\.shields\.io\//);
   assert.match(readme, /!\[Validate HACS\]\(https:\/\/github\.com\/MrHollowX\/hollow-cards\/actions\/workflows\/validate\.yml\/badge\.svg\)/);
+
+  const screenshots = [
+    'home-overview.png',
+    'living-room-popup.png',
+    'cinema-popup.png',
+    'vacuum-card.png',
+    'energy-overview-card.png',
+  ];
+  for (const screenshot of screenshots) {
+    assert.match(readme, new RegExp(`!\\[[^\\]]+\\]\\(docs/images/${screenshot}\\)`));
+    assert.ok(fs.existsSync(path.join(IMAGE_DIRECTORY, screenshot)), `Missing README screenshot: docs/images/${screenshot}`);
+  }
 
   const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'validate.yml'), 'utf8');
   assert.match(workflow, /uses:\s+hacs\/action@main/);

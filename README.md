@@ -42,6 +42,28 @@ entity status, energy overview, switch, group, floating menu, appliance, and
 camera grid cards are included. Each card is independently usable and exposes
 its own configuration contract in the detailed card documentation.
 
+## Screenshots
+
+These screenshots show Hollow Cards running in a dark Home Assistant dashboard.
+The entity names, readings, and states are representative of one installation and
+will update with live Home Assistant data.
+
+### Home overview
+
+![Hollow Cards home dashboard overview](docs/images/home-overview.png)
+
+### Room controls
+
+![Hollow Cards Living Room popup](docs/images/living-room-popup.png)
+
+![Hollow Cards Cinema popup](docs/images/cinema-popup.png)
+
+### Dedicated cards
+
+![Hollow Cards vacuum card](docs/images/vacuum-card.png)
+
+![Hollow Cards energy overview card](docs/images/energy-overview-card.png)
+
 ## Release 1.0.0
 
 The first stable release standardizes the HACS Dashboard package, corrects the

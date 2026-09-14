@@ -36,6 +36,13 @@ resources:
 The entry point imports every card from `dist/`. Existing `custom:hollow-*`
 card names and configuration options remain compatible with the 1.0.0 package.
 
+## Visual examples
+
+The root [README gallery](../README.md#screenshots) shows representative Home
+Assistant views for the home overview, room popups, vacuum card, and energy
+overview card. The screenshots are installation-specific examples; card values
+and entity names come from live Home Assistant state.
+
 ## Local verification
 
 The repository currently contains 16 card source files. Run the complete Node.js
