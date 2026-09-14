@@ -47,6 +47,9 @@ test('release metadata identifies the stable 1.0.0 package', () => {
   const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'validate.yml'), 'utf8');
   assert.match(workflow, /uses:\s+hacs\/action@main/);
   assert.match(workflow, /category:\s+plugin/);
+  assert.match(workflow, /uses:\s+actions\/checkout@v6/);
+  assert.match(workflow, /uses:\s+actions\/setup-node@v7/);
+  assert.match(workflow, /node-version:\s+24/);
 });
 
 test('every card exposes Home Assistant documentation metadata', () => {
