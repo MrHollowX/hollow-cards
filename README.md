@@ -1,5 +1,8 @@
 # Hollow Cards
 
+[![HACS Dashboard](https://img.shields.io/badge/HACS-Dashboard-41BDF5.svg)](https://www.hacs.xyz/)
+[![Validate HACS](https://github.com/MrHollowX/hollow-cards/actions/workflows/validate.yml/badge.svg)](https://github.com/MrHollowX/hollow-cards/actions/workflows/validate.yml)
+
 Hollow Cards 1.0.0 is a HACS Dashboard plugin containing 16 standalone
 JavaScript custom cards for Home Assistant. The cards use the stable
 `custom:hollow-*` element names and are designed to be loaded as one module

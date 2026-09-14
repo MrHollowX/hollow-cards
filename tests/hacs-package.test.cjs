@@ -24,6 +24,13 @@ test('release metadata identifies the stable 1.0.0 package', () => {
   const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
   assert.match(changelog, /^## \[1\.0\.0\] - 2026-09-14$/m);
 
+  const license = fs.readFileSync(path.join(ROOT, 'LICENSE'), 'utf8');
+  assert.match(license, /^MIT License$/m);
+
+  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  assert.match(readme, /!\[HACS Dashboard\]\(https:\/\/img\.shields\.io\//);
+  assert.match(readme, /!\[Validate HACS\]\(https:\/\/github\.com\/MrHollowX\/hollow-cards\/actions\/workflows\/validate\.yml\/badge\.svg\)/);
+
   const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'validate.yml'), 'utf8');
   assert.match(workflow, /uses:\s+hacs\/action@main/);
   assert.match(workflow, /category:\s+plugin/);
