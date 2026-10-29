@@ -19,6 +19,7 @@ import './hollow-header-card.js';
 import './hollow-light-card.js';
 import './hollow-person-card.js';
 import './hollow-room-tile-card.js';
+import './hollow-standing-desk-card.js';
 import './hollow-status-card.js';
 import './hollow-switch-card.js';
 import './hollow-vacuum-card.js';

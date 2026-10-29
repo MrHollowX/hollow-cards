@@ -153,8 +153,12 @@ class HomeApplianceCard extends HTMLElement {
 
   _remaining() {
     if (!this._isActive()) return '';
-    const remainingState = this._state(this._config.remaining_entity)?.state;
-    const seconds = Number(remainingState);
+    const remaining = this._state(this._config.remaining_entity);
+    const remainingState = remaining?.state;
+    const unit = String(remaining?.attributes?.unit_of_measurement || 's').toLowerCase();
+    const multiplier = { h: 3600, hr: 3600, hours: 3600, min: 60, minutes: 60, ms: 0.001 }[unit] || 1;
+    const seconds = remainingState == null || String(remainingState).trim() === ''
+      ? NaN : Number(remainingState) * multiplier;
     if (Number.isFinite(seconds) && seconds >= 0) return this._duration(seconds);
     const normalized = String(remainingState == null ? '' : remainingState).toLowerCase();
     if (remainingState && !Number.isFinite(seconds) &&

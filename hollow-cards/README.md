@@ -45,7 +45,7 @@ and entity names come from live Home Assistant state.
 
 ## Local verification
 
-The repository currently contains 16 card source files. Run the complete Node.js
+The repository currently contains 17 card source files. Run the complete Node.js
 test suite from the repository root after JavaScript changes:
 
 ```text
@@ -107,6 +107,7 @@ found no references.
 | `hollow-vacuum-card.js` | `hollow-vacuum-card` | `3192edab42a1488192bc960c27807df7` |
 | `hollow-appliance-card.js` | `hollow-appliance-card` | [Not recorded in this repository] |
 | `hollow-camera-grid-card.js` | `hollow-camera-grid-card` | [Not recorded in this repository] |
+| `hollow-standing-desk-card.js` | `hollow-standing-desk-card` | [Not recorded in this repository] |
 
 ### Home floating menu card
 
@@ -159,7 +160,7 @@ All Hollow Cards use Material Design Icons (MDI) names. Configure
 `hollow-status-card`, `hollow-climate-card`, `hollow-cover-card`,
 `hollow-switch-card`, `hollow-entity-status-card`, `hollow-group-card`,
 `hollow-energy-overview-card`, `hollow-vacuum-card`, and
-`hollow-camera-grid-card`. Existing dynamic status and control icons remain
+`hollow-camera-grid-card`, and `hollow-standing-desk-card`. Existing dynamic status and control icons remain
 state-driven unless their card exposes one of the options below.
 
 - `hollow-light-card` uses `icon_on` and `icon_off` for state-specific icons.
@@ -505,6 +506,9 @@ options:
 - `progress_entity` is displayed as a progress bar only for a numeric value;
   values are clamped from `0` to `100`. Remaining time is displayed only for
   active states (`run`, `pause`, `delayedstart`, or `actionrequired`).
+- Numeric remaining time respects the entity duration unit (hours, minutes,
+  seconds, or milliseconds); entities without a unit retain seconds behavior.
+  Timestamp values and finish-time fallback remain supported.
 - `metric` accepts `entity` and optional `label` and `unit`. When present and
   available, it is displayed in preference to remaining time.
 - `status_entities` accepts objects with `entity` and optional `label`. The
@@ -520,6 +524,35 @@ options:
   Escape or outside pointer interaction and adjusts above or below its trigger
   according to the available viewport space.
 
+### Standing desk card
+
+- **Card type:** `custom:hollow-standing-desk-card`
+- **Purpose:** Displays live desk height, animated movement, and configurable preset buttons.
+- **Resource:** `hollow-standing-desk-card.js`
+- **URL:** `/local/hollow-cards/hollow-standing-desk-card.js`
+
+```yaml
+type: custom:hollow-standing-desk-card
+height_entity: sensor.desk_desk_height
+title: Standing Desk
+unit: cm
+min_height: 65
+max_height: 120
+presets:
+  - button: button.desk_preset_1
+    name: Sitting
+    icon: mdi:seat
+  - button: button.desk_preset_2
+    name: Standing
+    icon: mdi:human-male-height
+```
+
+- `height_entity` is required and should report the current desk height as a numeric state.
+- `title`, `unit`, `min_height`, and `max_height` default to `Standing Desk`, `cm`, `65`, and `120`. The height display uses one decimal place.
+- `presets` defaults to four button entities (`button.desk_preset_1` through `button.desk_preset_4`) named Sitting, Standing, Minimum, and Maximum. Each preset requires a `button` entity; `name` and `icon` are optional.
+- Preset buttons call `button.press` and are disabled when their entities are missing or unavailable.
+- `rows` accepts `1` or `2` to control the preset grid; `setup` accepts `desktop` or `laptop`; `layout` accepts `bottom` or `side`; and `move_timeout` sets the idle delay in milliseconds.
+- The card animates desk travel from `min_height` to `max_height` and shows rising/lowering status while the measured height changes.
 ### Home camera grid card
 
 - **Card type:** `custom:hollow-camera-grid-card`

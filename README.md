@@ -3,7 +3,7 @@
 [![HACS Dashboard](https://img.shields.io/badge/HACS-Dashboard-41BDF5.svg)](https://www.hacs.xyz/)
 [![Validate HACS](https://github.com/MrHollowX/hollow-cards/actions/workflows/validate.yml/badge.svg)](https://github.com/MrHollowX/hollow-cards/actions/workflows/validate.yml)
 
-Hollow Cards 1.0.0 is a HACS Dashboard plugin containing 16 standalone
+Hollow Cards 1.0.0 is a HACS Dashboard plugin containing 17 standalone
 JavaScript custom cards for Home Assistant. The cards use the stable
 `custom:hollow-*` element names and are designed to be loaded as one module
 resource.
@@ -38,8 +38,8 @@ inline-resource exception for `hollow-cover-card`.
 ## Cards included
 
 Header, status, person, room tile, light, climate, cover, vacuum, door security,
-entity status, energy overview, switch, group, floating menu, appliance, and
-camera grid cards are included. Each card is independently usable and exposes
+entity status, energy overview, switch, group, floating menu, appliance,
+camera grid, and standing desk cards are included. Each card is independently usable and exposes
 its own configuration contract in the detailed card documentation.
 
 ## Screenshots

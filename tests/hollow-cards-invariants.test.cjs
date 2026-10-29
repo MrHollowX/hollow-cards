@@ -20,6 +20,7 @@ const SOURCE_FILES = [
   'hollow-light-card.js',
   'hollow-person-card.js',
   'hollow-room-tile-card.js',
+  'hollow-standing-desk-card.js',
   'hollow-status-card.js',
   'hollow-switch-card.js',
   'hollow-vacuum-card.js',
@@ -1029,4 +1030,25 @@ test('row control refresh paths preserve active slider/focus DOM', () => {
   const connected = SwitchCard.prototype.connectedCallback.toString();
   assert.match(connected, /_patchRelativeDetails\(\)/);
   assert.doesNotMatch(connected, /this\._render\(\)/);
+});
+
+test('appliance remaining time converts HA duration units and rejects absent values', () => {
+  const { Card } = loadCard('hollow-appliance-card.js');
+  const card = new Card();
+  card.setConfig({ name: 'Dishwasher', connectivity_entity: 'binary_sensor.connected', state_entity: 'sensor.operation', remaining_entity: 'sensor.remaining' });
+  card._hass = { states: { 'sensor.operation': { state: 'run' } } };
+  const states = card._hass.states;
+  for (const [value, unit, expected] of [[1.5, 'h', '1:30'], [90, 'min', '1:30'], [5400, 's', '1:30'], [5400000, 'ms', '1:30'], [60, undefined, '1 min']]) {
+    states['sensor.remaining'] = { state: String(value), attributes: { unit_of_measurement: unit } };
+    assert.equal(card._remaining(), expected);
+  }
+  for (const value of ['', null, 'unknown', 'unavailable', '-1']) {
+    states['sensor.remaining'] = { state: value, attributes: { unit_of_measurement: 'h' } };
+    assert.equal(card._remaining(), '');
+  }
+  delete states['sensor.remaining'];
+  assert.equal(card._remaining(), '');
+  states['sensor.remaining'] = { state: '1.5', attributes: { unit_of_measurement: 'h' } };
+  states['sensor.operation'].state = 'inactive';
+  assert.equal(card._remaining(), '');
 });
