@@ -2,6 +2,17 @@
 
 All notable Hollow Cards changes are documented here.
 
+## [1.1.0] - 2026-10-29
+
+### Added
+
+- Added the standing desk card with live height display, movement animation, and configurable presets.
+- Added the 17th card to the HACS entry point, mirrored distribution files, and documentation.
+
+### Compatibility
+
+- Existing card names and configuration options remain unchanged.
+
 ## [1.0.0] - 2026-09-14
 
 ### Added

@@ -3,7 +3,7 @@
 [![HACS Dashboard](https://img.shields.io/badge/HACS-Dashboard-41BDF5.svg)](https://www.hacs.xyz/)
 [![Validate HACS](https://github.com/MrHollowX/hollow-cards/actions/workflows/validate.yml/badge.svg)](https://github.com/MrHollowX/hollow-cards/actions/workflows/validate.yml)
 
-Hollow Cards 1.0.0 is a HACS Dashboard plugin containing 17 standalone
+Hollow Cards 1.1.0 is a HACS Dashboard plugin containing 17 standalone
 JavaScript custom cards for Home Assistant. The cards use the stable
 `custom:hollow-*` element names and are designed to be loaded as one module
 resource.
@@ -64,12 +64,9 @@ will update with live Home Assistant data.
 
 ![Hollow Cards energy overview card](docs/images/energy-overview-card.png)
 
-## Release 1.0.0
+## Release 1.1.0
 
-The first stable release standardizes the HACS Dashboard package, corrects the
-repository/resource naming, keeps the source and `dist/` payload synchronized,
-and adds Home Assistant card-picker metadata with a documentation link for
-every card. See [`CHANGELOG.md`](CHANGELOG.md) for the release notes.
+Release 1.1.0 adds the standing desk card and keeps the source and `dist/` payload synchronized. See [`CHANGELOG.md`](CHANGELOG.md) for the release notes.
 
 ## Development and verification
 

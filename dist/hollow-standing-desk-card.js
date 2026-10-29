@@ -6,7 +6,7 @@
  * Settings > Dashboards > Resources as /local/hollow-cards/hollow-standing-desk-card.js (type: JavaScript module).
  */
 
-const DESK_CARD_VERSION = "1.0.0";
+const DESK_CARD_VERSION = "1.1.0";
 
 class HollowStandingDeskCard extends HTMLElement {
   setConfig(config) {

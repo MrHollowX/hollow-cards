@@ -1,5 +1,5 @@
 /*
- * Hollow Cards 1.0.0 HACS entry point.
+ * Hollow Cards 1.1.0 HACS entry point.
  *
  * The individual files remain separate so existing dashboard resources stay
  * compatible. HACS downloads the JavaScript files in dist/ and this entry

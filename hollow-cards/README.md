@@ -16,7 +16,7 @@ covers card lifecycle contracts, unavailable-entity handling, Home Assistant
 resource deployment, and safe dashboard changes. There are no separate
 tool-specific instructions to keep synchronized.
 
-## Release 1.0.0
+## Release 1.1.0
 
 Hollow Cards is published as a HACS **Dashboard** plugin. It is intentionally a
 frontend custom-card set, not a Python `custom_components` integration: the
@@ -34,7 +34,7 @@ resources:
 ```
 
 The entry point imports every card from `dist/`. Existing `custom:hollow-*`
-card names and configuration options remain compatible with the 1.0.0 package.
+card names and configuration options remain compatible with the 1.1.0 package.
 
 ## Visual examples
 
