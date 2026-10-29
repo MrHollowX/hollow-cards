@@ -21,9 +21,9 @@ test('HACS manifest identifies Hollow Cards', () => {
   assert.equal(manifest.content_in_root, false);
 });
 
-test('release metadata identifies the stable 1.0.0 package', () => {
+test('release metadata identifies the stable 1.1.0 package', () => {
   const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
-  assert.match(changelog, /^## \[1\.0\.0\] - 2026-09-14$/m);
+  assert.match(changelog, /^## \[1\.1\.0\] - 2026-10-29$/m);
 
   const license = fs.readFileSync(path.join(ROOT, 'LICENSE'), 'utf8');
   assert.match(license, /^MIT License$/m);

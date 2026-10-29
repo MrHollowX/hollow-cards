@@ -337,15 +337,20 @@ class HollowStandingDeskCard extends HTMLElement {
   }
 }
 
-customElements.define("hollow-standing-desk-card", HollowStandingDeskCard);
+if (!customElements.get("hollow-standing-desk-card")) {
+  customElements.define("hollow-standing-desk-card", HollowStandingDeskCard);
+}
 
 window.customCards = window.customCards || [];
-window.customCards.push({
+if (!window.customCards.some((card) => card.type === "hollow-standing-desk-card")) {
+  window.customCards.push({
   type: "hollow-standing-desk-card",
   name: "Hollow Standing Desk Card",
   description: "Four desk presets with a live height visual and movement animation",
   preview: true,
-});
+  documentationURL: "https://github.com/MrHollowX/hollow-cards",
+  });
+}
 
 console.info(`%c HOLLOW-STANDING-DESK-CARD %c v${DESK_CARD_VERSION} `,
   "color: white; background: #03a9f4; font-weight: 700;",

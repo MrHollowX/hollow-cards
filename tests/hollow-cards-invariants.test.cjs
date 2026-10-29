@@ -325,7 +325,7 @@ function deferred() {
   return { promise, reject, resolve };
 }
 
-test('the invariant suite covers exactly the 16 source cards', () => {
+test('the invariant suite covers exactly the 17 source cards', () => {
   const actual = fs.readdirSync(CARDS_DIRECTORY)
     .filter((file) => file.endsWith('.js'))
     .sort();
